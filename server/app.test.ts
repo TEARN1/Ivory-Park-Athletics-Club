@@ -50,3 +50,33 @@ describe("live relay", () => {
     [coach, a, b].forEach((x) => x.ws.close());
   });
 });
+
+describe("join programs", () => {
+  const J = (path: string, body?: unknown, coach = false) => fetch(`${base}${path}`, { method: body === undefined ? "GET" : "POST", headers: coach ? auth : { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  it("coach opens a run; runners find it, join once per phone, get a bib from the coach", async () => {
+    expect((await J("/programs", { date: "2026-11-11", distanceKm: 5 })).status).toBe(401);
+    expect((await J("/programs", { date: "nope", distanceKm: 5 }, true)).status).toBe(400);
+    const { code } = (await (await J("/programs", { date: "2026-11-11", distanceKm: 5 }, true)).json()) as any;
+    expect(code).toMatch(/^[A-Z2-9]{5}$/);
+    const today = (await (await J("/programs?date=2026-11-11")).json()) as any[]; expect(today.map((p) => p.code)).toContain(code);
+    expect((await (await J("/programs?date=2026-11-12")).json()) as any[]).toEqual([]);
+    expect((await J(`/programs/${code}/join`, { name: "  ", deviceId: "device-0001" })).status).toBe(400);
+    const a = (await (await J(`/programs/${code}/join`, { name: "Naledi", deviceId: "device-0001" })).json()) as any;
+    const again = (await (await J(`/programs/${code}/join`, { name: "Naledi M", deviceId: "device-0001" })).json()) as any;
+    expect(again.joinerId).toBe(a.joinerId);
+    await J(`/programs/${code}/join`, { name: "Themba", deviceId: "device-0002" });
+    expect((await J(`/programs/${code}/joiners`)).status).toBe(401);
+    const list = (await (await fetch(`${base}/programs/${code}/joiners`, { headers: auth })).json()) as any[];
+    expect(list.map((x) => x.name)).toEqual(["Naledi M", "Themba"]); expect(list[0].bib).toBeNull();
+    expect((await J(`/programs/${code}/assign`, { assignments: { [a.joinerId]: "7" } })).status).toBe(401);
+    await J(`/programs/${code}/assign`, { assignments: { [a.joinerId]: "7", nobody: "9" } }, true);
+    expect(((await (await J(`/programs/${code}/me?joinerId=${a.joinerId}`)).json()) as any).bib).toBe("7");
+  });
+  it("closing stops new joiners and removes it from today's list", async () => {
+    const { code } = (await (await J("/programs", { date: "2026-11-13", distanceKm: 10 }, true)).json()) as any;
+    expect((await J(`/programs/${code}/close`, {}, true)).status).toBe(200);
+    expect((await J(`/programs/${code}/join`, { name: "Late", deviceId: "device-0003" })).status).toBe(403);
+    expect((await (await J("/programs?date=2026-11-13")).json()) as any[]).toEqual([]);
+    expect((await J("/programs/ZZZZZ")).status).toBe(404);
+  });
+});

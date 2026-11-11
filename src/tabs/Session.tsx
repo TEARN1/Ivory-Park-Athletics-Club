@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { sessionCsv } from "../lib/csv";
 import * as S from "../lib/session";
 import { loadHistory } from "../lib/store";
@@ -9,8 +9,8 @@ export interface SessionProps {
   s: S.Session; act: Act; now: number; pending: number; serverOn: boolean;
   toast: (msg: string, undo?: () => void) => void;
   onEnd: (ended: S.Session) => void; onNew: (keepRunners: boolean) => void;
+  distances: number[]; joinSlot: ReactNode;
 }
-const DISTANCES = [1, 3, 5, 10, 21.1];
 
 export default function Session(p: SessionProps) {
   const ph = S.phase(p.s);
@@ -18,7 +18,7 @@ export default function Session(p: SessionProps) {
 }
 
 /* ---------- 1. Set up ---------- */
-function Setup({ s, act, pending, serverOn }: SessionProps) {
+function Setup({ s, act, pending, serverOn, distances, joinSlot }: SessionProps) {
   const [qty, setQty] = useState(20), [name, setName] = useState(""), [bib, setBib] = useState(S.nextBib(s)), [buddy, setBuddy] = useState("");
   const [edit, setEdit] = useState<{ id: string; name: string; bib: string } | null>(null), [hist, setHist] = useState<S.Session[]>([]);
   useEffect(() => { loadHistory().then(setHist); }, [pending]);
@@ -29,11 +29,13 @@ function Setup({ s, act, pending, serverOn }: SessionProps) {
       <section className="ipac-card">
         <h2>Today's run</h2>
         <div className="ipac-chips" role="group" aria-label="Distance">
-          {DISTANCES.map((d) => <button key={d} className="ipac-chip" aria-pressed={s.distanceKm === d} onClick={() => act((x) => ({ ...x, distanceKm: d }))}>{d} km</button>)}
+          {distances.map((d) => <button key={d} className="ipac-chip" aria-pressed={s.distanceKm === d} onClick={() => act((x) => ({ ...x, distanceKm: d }))}>{d} km</button>)}
           <label className="ipac-other">Other
             <input type="number" inputMode="decimal" min={0.1} step={0.1} value={s.distanceKm} aria-label="Distance in km" onChange={(e) => act((x) => ({ ...x, distanceKm: Math.max(0.1, +e.target.value || 0.1) }))} /></label>
         </div>
       </section>
+
+      {joinSlot}
 
       <section className="ipac-card">
         <h2>Who is running? <span className="ipac-count">{n}</span></h2>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import type { Notice } from "../lib/live";
+import type { Prefs } from "../lib/prefs";
 import { saveConfig, type Config } from "../lib/store";
+import Appearance from "./Appearance";
 
-export default function Club({ cfg, setCfg, notices }: { cfg: Config; setCfg: (c: Config) => void; notices: Notice[] }) {
+export default function Club({ cfg, setCfg, notices, prefs, setPrefs }: { cfg: Config; setCfg: (c: Config) => void; notices: Notice[]; prefs: Prefs; setPrefs: (p: Prefs) => void }) {
   const [draft, setDraft] = useState(cfg), [msg, setMsg] = useState(""), [text, setText] = useState("");
   const [g, setG] = useState({ name: "", contact: "", consent: false }), [guests, setGuests] = useState<any[]>([]);
   const base = cfg.serverUrl.replace(/\/$/, ""), hdr = { "content-type": "application/json", authorization: `Bearer ${cfg.token}` };
@@ -13,6 +15,8 @@ export default function Club({ cfg, setCfg, notices }: { cfg: Config; setCfg: (c
   const loadGuests = async () => { if (cfg.token) { const j = await call("/guests", { headers: hdr }); if (j) setGuests(j); } };
   useEffect(() => { if (cfg.serverUrl && cfg.token) loadGuests(); }, [cfg]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
+    <>
+    <Appearance prefs={prefs} setPrefs={setPrefs} />
     <section className="ipac-card">
       <details open={!cfg.serverUrl}>
       <summary>Club server settings</summary>
@@ -45,5 +49,6 @@ export default function Club({ cfg, setCfg, notices }: { cfg: Config; setCfg: (c
       {guests.length > 0 && <ul className="ipac-list">{guests.map((x) => <li key={x.id}>{x.name} · {x.contact || "no contact"}<button aria-label={`Remove ${x.name}`} onClick={async () => { if (await call(`/guests/${x.id}`, { method: "DELETE", headers: hdr })) loadGuests(); }}>Remove</button></li>)}</ul>}
       <p className="ipac-hint">Notices appear in the app. SMS and phone push messages are not set up.</p>
     </section>
+    </>
   );
 }

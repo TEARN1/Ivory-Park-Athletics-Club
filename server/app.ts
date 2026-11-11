@@ -1,12 +1,14 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { timingSafeEqual, randomUUID } from "node:crypto";
+import { timingSafeEqual, randomUUID, randomInt } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import { initialRelay, relayReduce, type RelayState } from "../src/lib/relay";
 
 export interface Options { coachToken?: string; dataFile?: string; allowedOrigin?: string }
-interface Db { sessions: any[]; guests: { id: string; name: string; contact: string; consentAt: number }[]; notices: { id: string; text: string; at: number }[] }
+interface Joiner { id: string; deviceId: string; name: string; bib: string | null; at: number }
+interface Program { code: string; date: string; distanceKm: number; open: boolean; createdAt: number; joiners: Joiner[] }
+interface Db { programs: Program[]; sessions: any[]; guests: { id: string; name: string; contact: string; consentAt: number }[]; notices: { id: string; text: string; at: number }[] }
 interface Client { ws: WebSocket; room: string; runnerId?: string; coach: boolean }
 interface Room { relay: RelayState; startedAt?: number; clients: Set<Client>; beacon?: { runnerId: string; lat: number; lon: number; at: number } }
 
@@ -15,7 +17,7 @@ const same = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.fr
 
 export function createApp(opts: Options): { server: Server; close: () => Promise<void> } {
   const origin = opts.allowedOrigin ?? "*";
-  let db: Db = { sessions: [], guests: [], notices: [] };
+  let db: Db = { programs: [], sessions: [], guests: [], notices: [] };
   if (opts.dataFile && existsSync(opts.dataFile)) { try { db = { ...db, ...JSON.parse(readFileSync(opts.dataFile, "utf8")) }; } catch { /* start empty */ } }
   const persist = () => {
     if (!opts.dataFile) return;
@@ -38,6 +40,54 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
     req.on("end", () => { try { ok(JSON.parse(Buffer.concat(chunks).toString() || "{}")); } catch { bad(new Error("bad json")); } });
   });
 
+  const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L: easy to read out loud
+  const clean = (v: unknown, n: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, n);
+  async function programs(req: IncomingMessage, res: ServerResponse, pm: RegExpMatchArray, url: URL) {
+    const [, code, sub] = pm; const get = req.method === "GET", post = req.method === "POST";
+    if (!code) {
+      if (get) {
+        const day = url.searchParams.get("date") ?? "";
+        return reply(res, 200, db.programs.filter((p) => p.open && p.date === day).map(({ code, date, distanceKm }) => ({ code, date, distanceKm })));
+      }
+      if (post) {
+        const b = await readJson(req), date = String(b.date ?? ""), km = Number(b.distanceKm);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !(km >= 0.1 && km <= 200)) return reply(res, 400, { error: "Need a date and a distance" });
+        let c = ""; do { c = Array.from({ length: 5 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join(""); } while (db.programs.some((p) => p.code === c));
+        db.programs = [...db.programs, { code: c, date, distanceKm: km, open: true, createdAt: Date.now(), joiners: [] }].slice(-200); persist();
+        return reply(res, 201, { code: c });
+      }
+      return reply(res, 405, { error: "Method not allowed" });
+    }
+    const prog = db.programs.find((p) => p.code === code);
+    if (!prog) return reply(res, 404, { error: "Program not found" });
+    if (!sub && get) return reply(res, 200, { code, date: prog.date, distanceKm: prog.distanceKm, open: prog.open });
+    if (sub === "close" && post) { prog.open = false; persist(); return reply(res, 200, { ok: true }); }
+    if (sub === "joiners" && get) return reply(res, 200, prog.joiners);
+    if (sub === "assign" && post) {
+      const a = (await readJson(req)).assignments ?? {};
+      for (const [id, bib] of Object.entries(a)) { const j = prog.joiners.find((x) => x.id === id); if (j && /^[0-9A-Za-z]{1,6}$/.test(String(bib))) j.bib = String(bib); }
+      persist(); return reply(res, 200, { ok: true });
+    }
+    if (sub === "join" && post) {
+      if (!prog.open) return reply(res, 403, { error: "Joining is closed for this run" });
+      const b = await readJson(req), name = clean(b.name, 60), deviceId = clean(b.deviceId, 64);
+      if (!name) return reply(res, 400, { error: "Please enter your name" });
+      if (deviceId.length < 8) return reply(res, 400, { error: "Missing device id" });
+      let j = prog.joiners.find((x) => x.deviceId === deviceId);
+      if (j) j.name = name; // joining twice from one phone updates the same entry
+      else {
+        if (prog.joiners.length >= 300) return reply(res, 409, { error: "This run is full" });
+        j = { id: randomUUID(), deviceId, name, bib: null, at: Date.now() }; prog.joiners.push(j);
+      }
+      persist(); return reply(res, 200, { joinerId: j.id, bib: j.bib });
+    }
+    if (sub === "me" && get) {
+      const j = prog.joiners.find((x) => x.id === url.searchParams.get("joinerId"));
+      return j ? reply(res, 200, { name: j.name, bib: j.bib, open: prog.open }) : reply(res, 404, { error: "Not joined" });
+    }
+    return reply(res, 404, { error: "Not found" });
+  }
+
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://x"); const path = url.pathname;
     const coach = isCoach((req.headers.authorization ?? "").replace(/^Bearer /, ""));
@@ -45,10 +95,13 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
     try {
       if (path === "/health") return reply(res, 200, { ok: true });
       if (path === "/notices" && req.method === "GET") return reply(res, 200, db.notices.slice(-20));
-      const needCoach = ["/sync", "/sessions"].includes(path) || (path === "/notices" && req.method === "POST") || (path === "/guests" && req.method === "GET") || path.startsWith("/guests/");
+      const pm = path.match(/^\/programs(?:\/([A-Z0-9]{4,8}))?(?:\/([a-z]+))?$/);
+      const programCoach = !!pm && ((req.method === "POST" && (!pm[1] || pm[2] === "close" || pm[2] === "assign")) || pm[2] === "joiners");
+      const needCoach = programCoach || ["/sync", "/sessions"].includes(path) || (path === "/notices" && req.method === "POST") || (path === "/guests" && req.method === "GET") || path.startsWith("/guests/");
       if (needCoach && !opts.coachToken) return reply(res, 503, { error: "Coach token not configured on the server" });
       if (needCoach && !coach) return reply(res, 401, { error: "Coach token required" });
 
+      if (pm) return await programs(req, res, pm, url);
       if (path === "/sync" && req.method === "POST") {
         const s = await readJson(req);
         if (typeof s.id !== "string" || !Array.isArray(s.runners)) return reply(res, 400, { error: "Not a session" });

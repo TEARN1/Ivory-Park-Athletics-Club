@@ -1,22 +1,25 @@
-/* Ivory Park Athletics Club. Colours sampled from the logo: red #E81820, navy #2A3090.
-   Layout: navy header, one guided Session screen, bottom nav, large touch targets. */
+/* Palettes set only the --p-* values; day/night blocks pick light or dark variants of them.
+   Club colours sampled from the logo: red #E81820, navy #2A3090. */
 :root{
+  --p-navy:#2a3090;--p-deep:#1a1e5c;--p-deep-d:#222880;--p-hot:#e81820;--p-hot-d:#ff4a52;--p-ctl-d:#a3a9ff;
   --color-bg:#f2f3fa;--color-surface:#fff;--color-fg:#14162b;--color-muted:#585c7e;
-  --color-navy:#2a3090;--color-deep:#1a1e5c;
-  --color-accent:#e81820;--color-accent-fg:#fff;--color-ctl:#2a3090;
+  --color-navy:var(--p-navy);--color-deep:var(--p-deep);
+  --color-accent:var(--p-hot);--color-accent-fg:#fff;--color-ctl:var(--p-navy);
   --color-line:#d9dbee;--color-err:#a10012;--color-ok:#0e7a3d;
   --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --shadow:0 1px 2px rgba(20,22,43,.08),0 6px 18px rgba(20,22,43,.06);
   --gutter:max(16px,env(safe-area-inset-left,0px));--gutter-r:max(16px,env(safe-area-inset-right,0px));
 }
+:root[data-palette="pitch"]{--p-navy:#0f5132;--p-deep:#0a3d26;--p-deep-d:#14633d;--p-hot:#c2410c;--p-hot-d:#fb923c;--p-ctl-d:#86efac}
+:root[data-palette="dusk"]{--p-navy:#4c1d95;--p-deep:#2e1065;--p-deep-d:#5b21b6;--p-hot:#be185d;--p-hot-d:#f472b6;--p-ctl-d:#c4b5fd}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --color-bg:#0b0c1a;--color-surface:#15173a;--color-fg:#eceefb;--color-muted:#a7abd0;--color-deep:#222880;
-  --color-accent:#ff4a52;--color-accent-fg:#1a0204;--color-ctl:#a3a9ff;--color-line:#2a2d5e;--color-err:#ff8a94;--color-ok:#4ad387;
+  --color-bg:#0b0c1a;--color-surface:#15173a;--color-fg:#eceefb;--color-muted:#a7abd0;--color-deep:var(--p-deep-d);
+  --color-accent:var(--p-hot-d);--color-accent-fg:#1a0204;--color-ctl:var(--p-ctl-d);--color-line:#2a2d5e;--color-err:#ff8a94;--color-ok:#4ad387;
   --shadow:0 1px 2px rgba(0,0,0,.4);color-scheme:dark}}
 :root[data-theme="dark"]{
-  --color-bg:#0b0c1a;--color-surface:#15173a;--color-fg:#eceefb;--color-muted:#a7abd0;--color-deep:#222880;
-  --color-accent:#ff4a52;--color-accent-fg:#1a0204;--color-ctl:#a3a9ff;--color-line:#2a2d5e;--color-err:#ff8a94;--color-ok:#4ad387;
+  --color-bg:#0b0c1a;--color-surface:#15173a;--color-fg:#eceefb;--color-muted:#a7abd0;--color-deep:var(--p-deep-d);
+  --color-accent:var(--p-hot-d);--color-accent-fg:#1a0204;--color-ctl:var(--p-ctl-d);--color-line:#2a2d5e;--color-err:#ff8a94;--color-ok:#4ad387;
   --shadow:0 1px 2px rgba(0,0,0,.4);color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -60,7 +63,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .ipac-btn-outline{background:var(--color-surface)}
 .ipac-btn-wide{width:100%}
 .ipac-btn-danger{background:var(--color-err);border-color:var(--color-err);color:#fff;min-height:44px;padding:8px 14px}
-.ipac-btn-hero{width:100%;min-height:68px;font-family:var(--font-display);font-size:1.7rem;letter-spacing:.03em;text-transform:uppercase;background:var(--color-accent);border-color:var(--color-accent);color:var(--color-accent-fg);box-shadow:0 6px 18px rgba(232,24,32,.28)}
+.ipac-btn-hero{width:100%;min-height:68px;font-family:var(--font-display);font-size:1.7rem;letter-spacing:.03em;text-transform:uppercase;background:var(--color-accent);border-color:var(--color-accent);color:var(--color-accent-fg);box-shadow:0 6px 18px color-mix(in srgb,var(--color-accent) 30%,transparent)}
 .ipac-btn-hero:disabled{box-shadow:none;background:var(--color-line);border-color:var(--color-line);color:var(--color-muted);opacity:1}
 .ipac-confirm{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600}
 .ipac-btn-wide.ipac-btn{width:100%}
@@ -106,12 +109,10 @@ input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:midd
 .ipac-cta-in{max-width:600px;margin:0 auto;pointer-events:auto}
 
 /* bottom nav */
-.ipac-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,1fr);background:var(--color-surface);border-top:1px solid var(--color-line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
-.ipac-nav button{border:0;border-radius:0;min-height:66px;display:grid;justify-items:center;align-content:center;gap:2px;background:transparent;color:var(--color-muted);font-size:.78rem;position:relative}
-.ipac-nav button[aria-current=page]{color:var(--color-accent)}
-.ipac-nav button[aria-current=page]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:4px;border-radius:0 0 4px 4px;background:var(--color-accent)}
-@media (prefers-color-scheme:light){.ipac-nav button[aria-current=page]{color:var(--color-navy)}}
-:root[data-theme="light"] .ipac-nav button[aria-current=page]{color:var(--color-navy)}
+.ipac-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(5,1fr);background:var(--color-surface);border-top:1px solid var(--color-line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.ipac-nav button{border:0;border-radius:0;min-height:66px;padding:6px 2px;display:grid;justify-items:center;align-content:center;gap:2px;background:transparent;color:var(--color-muted);font-size:.74rem;position:relative}
+.ipac-nav button[aria-current=page]{color:var(--color-ctl)}
+.ipac-nav button[aria-current=page]::before{content:"";position:absolute;top:0;left:18%;right:18%;height:4px;border-radius:0 0 4px 4px;background:var(--color-accent)}
 
 /* toast */
 .ipac-toast{position:fixed;left:var(--gutter);right:var(--gutter-r);bottom:calc(168px + env(safe-area-inset-bottom,0px));z-index:7;max-width:568px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--color-deep);color:#fff;border-radius:14px;padding:6px 8px 6px 16px;box-shadow:0 8px 24px rgba(0,0,0,.3);font-weight:600}
@@ -171,3 +172,49 @@ input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:midd
 .ipac-quick label{display:grid;gap:4px;font-weight:600;font-size:.85rem;color:var(--color-muted)}
 .ipac-tiles-many{grid-template-columns:repeat(3,minmax(0,1fr))}
 .ipac-tiles-many .ipac-tile{min-height:84px;padding:8px 10px}.ipac-tiles-many .ipac-tile b{font-size:2.2rem}
+
+/* header: theme button + status strip */
+.ipac-head{border-bottom:0}
+.ipac-themebtn{flex:none;width:48px;min-height:48px;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:transparent;color:#fff;display:grid;place-items:center}
+.ipac-status{display:flex;align-items:center;gap:10px;width:100%;max-width:none;min-height:52px;border:0;border-radius:0;border-top:1px solid rgba(255,255,255,.18);border-bottom:4px solid var(--color-accent);background:rgba(0,0,0,.22);color:#fff;padding:8px var(--gutter-r) 8px var(--gutter);text-align:left;font-weight:500}
+.ipac-status b{font-family:var(--font-display);font-size:1.25rem;letter-spacing:.04em;text-transform:uppercase}
+.ipac-status>span:nth-of-type(2){flex:1;min-width:0;font-variant-numeric:tabular-nums;opacity:.92;font-size:.95rem}
+.ipac-chev{font-size:.85rem;font-weight:700;background:rgba(255,255,255,.16);border-radius:99px;padding:6px 12px}
+.ipac-dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.55);flex:none}
+.ipac-status-running .ipac-dot{background:var(--color-accent);animation:ipac-pulse 1.4s ease-in-out infinite}
+.ipac-status-done .ipac-dot{background:var(--color-ok)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ipac-status-done .ipac-dot{background:var(--color-ok)}}
+
+/* status sheet */
+.ipac-scrim{position:fixed;inset:0;z-index:20;background:rgba(8,9,30,.55);display:flex;align-items:flex-end;justify-content:center}
+.ipac-sheet{width:100%;max-width:600px;max-height:88vh;overflow-y:auto;background:var(--color-surface);border-radius:22px 22px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:14px;align-content:start}
+.ipac-sheet-head{display:flex;align-items:center;justify-content:space-between}.ipac-sheet-head h2{margin:0}
+.ipac-stages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ipac-stages li{text-align:center;padding:10px 4px;border-radius:12px;background:var(--color-bg);color:var(--color-muted);font-family:var(--font-display);font-weight:700;font-size:1.15rem;text-transform:uppercase;letter-spacing:.04em}
+.ipac-stages li[aria-current=step]{background:var(--color-accent);color:var(--color-accent-fg)}
+.ipac-stages li.ipac-stage-done{background:var(--color-navy);color:#fff}
+
+/* join panel + QR */
+.ipac-join{display:grid;gap:10px;min-width:0}.ipac-join h2{margin:0}
+.ipac-joinhead{margin:0}.ipac-code{font-family:var(--font-display);font-size:1.4rem;letter-spacing:.12em}
+.ipac-qr{background:#fff;border-radius:16px;padding:10px;width:min(240px,70%);margin:0 auto;border:1px solid var(--color-line)}
+.ipac-qr svg{display:block;width:100%;height:auto}
+.ipac-link{font-size:.85rem;min-height:44px}
+
+/* Today (runner) */
+.ipac-namefield{display:grid;gap:6px;font-weight:600;margin:6px 0 12px}
+.ipac-programs{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:12px}
+.ipac-programs li{display:grid;gap:10px;background:var(--color-bg);border-radius:14px;padding:14px}
+.ipac-join-btn{min-height:60px;font-size:1.5rem}
+.ipac-youre-in{text-align:center;display:grid;gap:8px;justify-items:center}
+.ipac-bigbib{font-family:var(--font-display);font-weight:800;font-size:7rem;line-height:1;color:var(--color-accent);font-variant-numeric:tabular-nums}
+.ipac-wait{background:var(--color-bg);border-radius:12px;padding:14px;color:var(--color-muted);font-weight:600}
+
+/* appearance */
+.ipac-label{margin:10px 0 6px;font-weight:700;color:var(--color-muted);font-size:.9rem;text-transform:uppercase;letter-spacing:.06em}
+.ipac-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ipac-seg button[aria-pressed=true],.ipac-swatch[aria-pressed=true]{background:var(--color-navy);border-color:var(--color-navy);color:#fff}
+.ipac-swatches{display:grid;gap:8px}
+.ipac-swatch{display:flex;align-items:center;gap:12px;justify-content:flex-start;text-align:left}
+.ipac-swatch i{width:36px;height:36px;border-radius:50%;flex:none;border:2px solid #fff;box-shadow:0 0 0 1px var(--color-line)}
+.ipac-h2gap{margin-top:22px}

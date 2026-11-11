@@ -61,4 +61,13 @@ describe("session", () => {
     expect(t.runners.map((r) => r.bib)).toEqual(["5", "6", "7", "8"]);
     expect(() => S.addNumbered(s, 0)).toThrow(); expect(() => S.addNumbered(s, 500)).toThrow();
   });
+  it("joiners are added once with the next bibs, and removed ones stay removed", () => {
+    let s = S.addRunner(S.newSession(), "Coach pick", "1");
+    const a = S.planJoins(s, [{ id: "j1", name: " Naledi ", bib: null }, { id: "j2", name: "Themba", bib: null }]);
+    expect(a.added).toBe(2); expect(a.session.runners.map((r) => r.bib)).toEqual(["1", "2", "3"]); expect(a.assignments).toEqual({ j1: "2", j2: "3" }); expect(a.session.runners[1].name).toBe("Naledi");
+    const again = S.planJoins(a.session, [{ id: "j1", name: "Naledi", bib: null }]);          // assignment had failed: retry, no duplicate
+    expect(again.added).toBe(0); expect(again.assignments).toEqual({ j1: "2" });
+    const removed = S.removeRunner(a.session, a.session.runners[1].id);
+    expect(S.planJoins(removed, [{ id: "j1", name: "Naledi", bib: "2" }]).added).toBe(0);     // server says assigned: do not re-add
+  });
 });

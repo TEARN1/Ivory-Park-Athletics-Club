@@ -28,5 +28,29 @@
 - Club website page for results and events.
 - Automated browser tests in CI (scripts/smoke.cjs is manual today).
 
+## 20 ideas to add (not built yet)
+1. Road-based routes (OpenStreetMap routing) with a coach "checked and safe" tick before sharing.
+2. Safety alerts: runner far behind or stopped, plus an emergency contact per runner.
+3. WhatsApp, SMS and push messages for notices and results (today: in-app only).
+4. Accounts and roles: coach, assistant, runner, with a PIN so only you can claim your bib.
+5. Permanent database so server data survives restarts.
+6. Runner profiles: personal bests, progress charts, season totals.
+7. Interval and lap sessions (8 x 400 m) with splits per lap.
+8. Age and gender categories, and age-graded results.
+9. Club league: points table, monthly challenge, club records.
+10. Attendance and membership register, parent consent for under-18s.
+11. Event calendar with "I'm coming" replies for time trials and long runs.
+12. Shareable results: image, PDF or WhatsApp text, and a public results page without full names.
+13. Languages: isiZulu, Sepedi, Afrikaans.
+14. Live map for the coach showing every GPS runner.
+15. Start beep, countdown and voice announcements of positions.
+16. More than one timekeeper, photo finish for ties, scan the bib QR to record a finish.
+17. Target pace and pacer groups, with "10 seconds behind target" cues.
+18. Backup and restore of all data, and conflict handling when two phones edit one session.
+19. Training plans, coach notes per runner, streak badges.
+20. Club web page with news, photos, sponsors and fundraising links (no payments taken in the app).
+
 ## Done in this version
+Join by link or QR (runners tap today's open run or scan a code, the coach gives each the next bib), status button with options sheet, day/night/auto and three colour themes, editable distance shortcuts.
+
 Guided Session flow (set up, race on, results), big finish tiles with undo, end-session confirm, next session with same runners, bottom navigation, club colours and logo, bundled display font (works offline), dark mode.

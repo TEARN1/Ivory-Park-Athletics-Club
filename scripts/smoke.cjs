@@ -6,7 +6,7 @@ async function setup(browser, name, server, token) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, geolocation: { latitude: -25.9967, longitude: 28.2 }, permissions: ["geolocation"], acceptDownloads: true });
   const p = await ctx.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
   await p.goto(APP); await p.waitForSelector("h1");
-  await p.click("nav >> text=Club"); await p.fill('[aria-label="Server address"]', server); if (token) await p.fill('[aria-label="Coach token"]', token); await p.click("text=Save");
+  await p.click("nav >> text=Club"); await p.fill('[aria-label="Server address"]', server); if (token) await p.fill('[aria-label="Coach token"]', token); await p.click("button:text-is('Save')");
   await p.click("nav >> text=Session"); await addRunner(p, "Thandi", "1"); await addRunner(p, "Sipho", "2");
   return { ctx, p };
 }
@@ -52,6 +52,32 @@ async function setup(browser, name, server, token) {
   await coach.p.click("text=Reroute"); console.log("routes:", len.slice(0, 40), "→", (await coach.p.locator("text=/option \\d+ of 15/").innerText()).slice(-20));
   await coach.p.fill('[aria-label="Route name"]', "Ivory Park 5k Loop"); await coach.p.click("text=Save this route"); await coach.p.waitForSelector("text=Saved routes");
   await coach.p.screenshot({ path: process.argv[2] + "/routes.png" });
+  // ---- join by link / QR, and by picking today's run ----
+  await coach.p.click("nav >> text=Session"); await coach.p.click("text=New session, same runners"); await coach.p.click("text=Open for joiners");
+  const link = await coach.p.inputValue('[aria-label="Join link"]'); assert.match(link, /\?join=[A-Z0-9]{5}&server=/); assert.ok(await coach.p.locator('[aria-label="QR code to join today\'s run"] svg').count(), "QR shown");
+  const j1 = await b.newContext({ viewport: { width: 390, height: 800 } }); const jp = await j1.newPage(); jp.errs = []; jp.on("pageerror", (e) => jp.errs.push(e.message));
+  await jp.goto(link); await jp.waitForSelector("text=Today's runs"); await jp.waitForSelector("text=/Joining through/");
+  assert.equal(await jp.locator("button:text-is('Join this run')").isDisabled(), true, "needs a name");
+  await jp.fill('[aria-label="Your name"]', "Naledi"); await jp.click("text=Join this run"); await jp.waitForSelector("text=You're in"); console.log("joiner in"); const t0 = Date.now();
+  await coach.p.waitForSelector(".ipac-roster b:text-is('Naledi')", { timeout: 30000 }).catch(async (e) => { console.log(JSON.stringify(await coach.p.locator("text=Naledi").evaluateAll((els) => els.map((e) => [e.tagName, e.offsetParent !== null, e.outerHTML.slice(0, 90)])))); await coach.p.screenshot({ path: process.argv[2] + "/coachfail.png" }); throw e; }); console.log("coach sees Naledi after", Date.now() - t0, "ms");                       // appears in the coach's roster
+  await jp.waitForSelector('[aria-label^="Your bib number is"]', { timeout: 15000 }); console.log("link join ok, bib:", await jp.locator(".ipac-bigbib").innerText());
+  const j2 = await b.newContext({ viewport: { width: 390, height: 800 } }); const lp = await j2.newPage(); lp.errs = [];
+  await lp.goto(APP); await lp.waitForSelector("h1"); await lp.click("nav >> text=Club"); await lp.fill('[aria-label="Server address"]', SRV); await lp.click("button:text-is('Save')"); await lp.reload();
+  await lp.waitForSelector("text=Today's runs"); await lp.waitForSelector("text=/5 km run/"); await lp.fill('[aria-label="Your name"]', "Themba"); await lp.click("text=Join this run"); await lp.waitForSelector("text=You're in");
+  await coach.p.waitForSelector(".ipac-roster b:text-is('Themba')", { timeout: 30000 }); console.log("pick-from-list join ok");
+  // status button -> dialog -> start race closes joining
+  await coach.p.click('[aria-label^="Session status"]'); await coach.p.waitForSelector('[role=dialog][aria-label="Session status"]');
+  await coach.p.keyboard.press("Escape"); assert.equal(await coach.p.locator("[role=dialog]").count(), 0, "Escape closes the sheet");
+  await coach.p.click('[aria-label^="Session status"]'); await coach.p.click("text=Start race"); await coach.p.waitForSelector("text=Race clock");
+  await coach.p.waitForTimeout(800); assert.deepEqual(await (await fetch(SRV + "/programs?date=" + new Date().toLocaleDateString("en-CA"))).json(), [], "joining closed at start"); console.log("status sheet + close-on-start ok");
+  const late = await j2.newPage(); await late.goto(APP); await late.waitForSelector("text=You're in"); // joined state survives reload
+  // themes and distances
+  await coach.p.click("nav >> text=Club"); await coach.p.click("button:text-is('Night')"); assert.equal(await coach.p.evaluate(() => document.documentElement.dataset.theme), "dark");
+  await coach.p.click("button:has-text('Pitch')"); assert.equal(await coach.p.evaluate(() => document.documentElement.dataset.palette), "pitch");
+  await coach.p.fill('[aria-label="Distance shortcuts"]', "2.4, abc"); await coach.p.click("text=Save shortcuts"); await coach.p.waitForSelector("[role=alert]:has-text('abc')");
+  await coach.p.fill('[aria-label="Distance shortcuts"]', "2.4, 8"); await coach.p.click("text=Save shortcuts"); await coach.p.click("nav >> text=Routes"); await coach.p.waitForSelector("button:text-is('2.4 km')");
+  await coach.p.click('[aria-label="Switch to day theme"]'); assert.equal(await coach.p.evaluate(() => document.documentElement.dataset.theme), "light"); console.log("themes + distances ok");
+  assert.deepEqual(jp.errs, []);
   for (const x of [coach, runner, t]) assert.deepEqual(x.p.errs, []);
   console.log("ALL OK"); await b.close();
 })().catch((e) => { console.error("FAIL", e.message); process.exit(1); });

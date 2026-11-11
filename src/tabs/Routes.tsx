@@ -16,7 +16,7 @@ function RouteMap({ r }: { r: Route }) {
   );
 }
 
-export default function Routes() {
+export default function Routes({ distances }: { distances: number[] }) {
   const [km, setKm] = useState(5), [hub, setHub] = useState(DEFAULT_HUB), [loops, setLoops] = useState<Route[]>([]), [i, setI] = useState(0);
   const [blocked, setBlocked] = useState(""), [name, setName] = useState(""), [saved, setSaved] = useState<Route[]>([]), [msg, setMsg] = useState("");
   useEffect(() => { loadRoutes().then(setSaved); }, []);
@@ -35,7 +35,7 @@ export default function Routes() {
       <h2>Route planner</h2>
       <p className="ipac-hint">Guide loops are drawn as straight legs from the club hub and are not checked against real roads. Walk or drive a loop and adjust it before the group runs it.</p>
       <div className="ipac-chips" role="group" aria-label="Target distance">
-        {[3, 5, 10, 15, 21.1, 42.2].map((d) => <button key={d} className="ipac-chip" aria-pressed={km === d} onClick={() => setKm(d)}>{d} km</button>)}
+        {distances.map((d) => <button key={d} className="ipac-chip" aria-pressed={km === d} onClick={() => setKm(d)}>{d} km</button>)}
         <label className="ipac-other">Other<input type="number" inputMode="decimal" min={0.5} max={100} step={0.5} value={km} aria-label="Target distance (km)" onChange={(e) => setKm(+e.target.value)} /></label>
       </div>
       <details className="ipac-more-routes">

@@ -1,4 +1,4 @@
-export interface Runner { id: string; name: string; bib: string; buddyId?: string }
+export interface Runner { id: string; name: string; bib: string; buddyId?: string; joinId?: string }
 export interface Session {
   id: string; date: string; distanceKm: number;
   runners: Runner[];
@@ -7,6 +7,7 @@ export interface Session {
   tracks?: Record<string, import("./geo").TrackPoint[]>;  // GPS points per runner (device-held)
   room?: string;                      // live-session code for relay
   endedAt?: number;                   // coach pressed End session
+  program?: { code: string };         // open for joiners on the club server
 }
 export interface Row { runner: Runner; elapsedMs: number; rank: number; paceSecPerKm: number; gapMs: number }
 
@@ -112,3 +113,21 @@ export function addNumbered(s: Session, count: number): Session {
   while (add.length < n) { const b = String(next++); if (!taken.has(b)) add.push({ id: crypto.randomUUID(), name: "", bib: b }); }
   return { ...s, runners: [...s.runners, ...add] };
 }
+
+export interface Joiner { id: string; name: string; bib: string | null }
+/** Bring new joiners into the roster with the next free bibs. Safe to run repeatedly: a joiner is only ever added once. */
+export function planJoins(s: Session, joiners: Joiner[]): { session: Session; assignments: Record<string, string>; added: number } {
+  let cur = s, added = 0; const assignments: Record<string, string> = {};
+  for (const j of joiners) {
+    if (j.bib !== null) continue;                       // the coach already handled this one (even if later removed)
+    let r = cur.runners.find((x) => x.joinId === j.id);
+    if (!r) {
+      const bib = nextBib(cur);
+      r = { id: crypto.randomUUID(), name: j.name.trim().slice(0, 60), bib, joinId: j.id };
+      cur = { ...cur, runners: [...cur.runners, r] }; added++;
+    }
+    assignments[j.id] = r.bib;
+  }
+  return { session: cur, assignments, added };
+}
+export const setProgram = (s: Session, code?: string): Session => ({ ...s, program: code ? { code } : undefined });

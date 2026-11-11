@@ -1,4 +1,5 @@
 import type { Session } from "./session";
+import { cleanPrefs, type Prefs } from "./prefs";
 // Offline storage: IndexedDB with localStorage fallback. Sessions that still need
 // uploading are queued in an outbox and flushed when the browser comes online.
 const DB = "ipac", STORE = "kv";
@@ -49,3 +50,5 @@ export async function flushOutbox(): Promise<{ sent: number; pending: number }> 
 }
 export const loadRoutes = async () => (await kvGet<import("./routes").Route[]>("routes")) ?? [];
 export const saveRoutes = (r: import("./routes").Route[]) => kvSet("routes", r);
+export const loadPrefs = async () => cleanPrefs(await kvGet<Partial<Prefs>>("prefs"));
+export const savePrefs = (p: Prefs) => kvSet("prefs", p);
