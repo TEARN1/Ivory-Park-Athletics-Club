@@ -23,3 +23,27 @@ button{cursor:pointer;min-height:44px}
 .ipac-list li{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .ipac-form label{display:grid;gap:4px}
 textarea{font:inherit;padding:10px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-bg);color:var(--color-fg);min-height:70px}
+
+/* Bigger touch targets for phones (min 48px, comfortable text) */
+body{font-size:18px}
+button,select,input:not([type=checkbox]){min-height:52px;font-size:1rem}
+button{padding:12px 16px;font-weight:600}
+.ipac-tabs{gap:8px}.ipac-tabs button{min-height:56px;flex:1 1 30%}
+.ipac-big{min-height:80px;font-size:1.5rem}
+.ipac-finish{min-height:72px;font-size:1.15rem}
+.ipac-form{gap:12px}.ipac-list{gap:10px}
+.ipac-list li button,.ipac-table td button{min-width:52px}
+.ipac-table td button{margin:2px 0}
+.ipac-actions{display:grid;gap:10px}
+input[type=checkbox]{width:26px;height:26px;vertical-align:middle;margin-right:8px}
+
+/* Results rows become cards on phones so the buttons never run off screen */
+@media (max-width:640px){
+  .ipac-table,.ipac-table tbody{display:block}
+  .ipac-table thead{display:none}
+  .ipac-table tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:12px 0;border-bottom:1px solid var(--color-line)}
+  .ipac-table td{border:0;padding:0}
+  .ipac-table td:nth-child(2){font-weight:700;flex:1 1 40%}
+  .ipac-table td:last-child{flex:1 1 100%;display:flex;gap:10px}
+  .ipac-table td:last-child button{flex:1}
+}
