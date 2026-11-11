@@ -32,7 +32,7 @@ async function setup(browser, name, server, token) {
   // GPS + splits on the runner device (mock a ~1.2 km walk)
   await runner.p.click("nav >> text=Session"); await runner.p.click("text=/Start for 2 runner/"); await openLive(runner.p); await runner.p.check("text=Track my run with GPS");
   for (let i = 0; i < 6; i++) { await runner.ctx.setGeolocation({ latitude: -25.9967 + i * 0.0022, longitude: 28.2 }); await runner.p.waitForTimeout(300); }
-  console.log("gps:", (await runner.p.locator("text=/\\d+\\.\\d+ km · \\d+ points/").first().innerText()));
+  console.log("gps:", (await runner.p.locator(".ipac-dist").first().innerText()));
   // finish, edit, csv, archive + upload
   await runner.p.click("nav >> text=Session"); await runner.p.click('[aria-label="Finish #2 Sipho"]'); await runner.p.click("text=Undo"); await runner.p.click('[aria-label="Finish #2 Sipho"]');
   await runner.p.click("text=End session"); await runner.p.click("text=Yes");

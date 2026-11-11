@@ -11,7 +11,7 @@ import type { LatLon, TrackPoint } from "./geo";
 export interface Fix extends TrackPoint { speed?: number | null; heading?: number | null }
 export interface TrackResult { points: TrackPoint[]; distanceM: number; movingMs: number; stoppedMs: number }
 
-const M = 111_320, rad = Math.PI / 180;
+const M = 111_320, rad = Math.PI / 180, MAX_SPEED = 15; // m/s, faster than any runner
 type V4 = number[]; type M4 = number[][];
 const I4 = (): M4 => [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
 const mul = (a: M4, b: M4): M4 => a.map((r) => b[0].map((_, j) => r.reduce((s, v, k) => s + v * b[k][j], 0)));
@@ -33,7 +33,14 @@ function inv4(m: M4): M4 { // Gauss-Jordan; covariance matrices here are always 
 export interface TrackOptions { accel?: number; speedSigma?: number; maxAccuracy?: number; stillSpeed?: number }
 export function trackRun(fixes: Fix[], o: TrackOptions = {}): TrackResult {
   const accel = o.accel ?? 1.5, sv = o.speedSigma ?? 0.4, maxAcc = o.maxAccuracy ?? 25, still = o.stillSpeed ?? 0.5;
-  const use = fixes.filter((f) => (f.acc ?? 10) <= maxAcc).sort((a, b) => a.t - b.t);
+  // drop fixes the phone rates poorly, then glitches: a jump faster than any runner (15 m/s) from the last good fix
+  const sorted = fixes.filter((f) => (f.acc ?? 10) <= maxAcc).sort((a, b) => a.t - b.t), use: Fix[] = [];
+  for (const f of sorted) {
+    const last = use[use.length - 1];
+    if (last) { const dt = (f.t - last.t) / 1000, kx0 = M * Math.cos(last.lat * rad), d = Math.hypot((f.lon - last.lon) * kx0, (f.lat - last.lat) * M);
+      if (dt <= 0 || d - (f.acc ?? 10) - (last.acc ?? 10) > MAX_SPEED * dt) continue; }
+    use.push(f);
+  }
   if (use.length < 2) return { points: use.map(({ lat, lon, t, acc }) => ({ lat, lon, t, acc })), distanceM: 0, movingMs: 0, stoppedMs: 0 };
   const o0 = use[0], kx = M * Math.cos(o0.lat * rad);
   const toX = (p: LatLon) => [(p.lon - o0.lon) * kx, (p.lat - o0.lat) * M];

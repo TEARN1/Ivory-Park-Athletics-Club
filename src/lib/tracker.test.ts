@@ -49,6 +49,12 @@ describe("tracking accuracy (simulated phone, 5 m position noise)", () => {
     const f = phone(straight, 100), r = trackRun(f);
     const worst = Math.max(...r.points.map((p, i) => haversineM(p, straight(i).p))); expect(worst).toBeLessThan(6);
   });
+  it("ignores GPS glitches that jump faster than any runner", () => {
+    const f = phone(straight, 100); f.splice(50, 0, { ...destination(f[49], 0, 250), t: f[49].t + 400, acc: 6 });   // 250 m jump in 0.4 s
+    expect(Math.abs(trackRun(f).distanceM - 400)).toBeLessThan(10);
+    const gap = phone(straight, 100).filter((x) => x.t < 20_000 || x.t > 60_000);                                    // 40 s with no signal (tunnel)
+    expect(Math.abs(trackRun(gap).distanceM - 400)).toBeLessThan(15);                                               // the jump after the gap is kept
+  });
   it("formats metres and the ready signal", () => {
     expect(fmtMetres(5023.4)).toBe("5 023 m"); expect(fmtMetres(843)).toBe("843 m"); expect(gpsReady(8)).toBe(true); expect(gpsReady(14)).toBe(false); expect(gpsReady(undefined)).toBe(false);
   });

@@ -307,3 +307,4 @@ input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:midd
 .ipac-trackpanel label{display:grid;gap:6px;font-weight:600}
 .ipac-laps{margin:6px 0;padding-left:22px;font-variant-numeric:tabular-nums}
 .ipac-laps b{font-family:var(--font-display);font-size:1.2rem}
+@media (max-width:380px){.ipac-pod-1 .ipac-time{font-size:1.9rem}.ipac-pod-1 .ipac-rank{font-size:2.1rem}.ipac-pod-1 .ipac-who{min-width:90px}}
