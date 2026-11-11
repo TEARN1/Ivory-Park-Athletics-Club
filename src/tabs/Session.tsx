@@ -127,7 +127,7 @@ function RaceRunning({ s, act, now, toast, onEnd, announce, members, safetyPaceS
       const next = W.lapTap(s, r.id, t), marks = next.marks?.[r.id] ?? [], split = W.lapSplits(marks).at(-1) ?? 0, target = W.targetPaceFor(s, r.id, memberPace(r));
       act(() => next);
       const cue = target ? `, ${W.paceCue(split, laps.km, target).text}` : "", lap = marks.length;
-      toast(`${S.label(r)} lap ${lap}: ${S.fmtTime(split)}${cue}`, () => act((x) => W.undoLap(x, r.id)));
+      toast(`${S.label(r)} lap ${lap}: ${S.fmtTime(split, true)}${cue}`, () => act((x) => W.undoLap(x, r.id)));
       announce("laps", `${spokenName(r)}, ${lap === laps.count ? "finished" : `lap ${lap}`}, ${spokenTime(split)}${cue}`);
       return;
     }
@@ -316,7 +316,7 @@ function RepsRunning({ s, act, now, toast, onEnd, announce, members }: SessionPr
     navigator.vibrate?.(30); const next = W.repTap(s, r.id, Date.now()), t = next.marks?.[r.id]?.[k];
     if (t == null) return; act(() => next);
     const target = W.targetPaceFor(s, r.id, memberPace(r)), cue = target ? `, ${W.paceCue(t, reps.km, target).text}` : "";
-    toast(`${S.label(r)} rep ${k + 1}: ${S.fmtTime(t)}${cue}`, () => act((x) => W.undoRep(x, r.id)));
+    toast(`${S.label(r)} rep ${k + 1}: ${S.fmtTime(t, true)}${cue}`, () => act((x) => W.undoRep(x, r.id)));
     announce("laps", `${spokenName(r)}, ${spokenTime(t)}${cue}`);
   };
   return (
@@ -355,10 +355,10 @@ function WorkoutTable({ s }: { s: S.Session }) {
         <thead><tr><th scope="col">Runner</th>{Array.from({ length: n }, (_, i) => <th key={i} scope="col">{i + 1}</th>)}<th scope="col">Avg</th><th scope="col">Spread</th></tr></thead>
         <tbody>{rows.map((r) => (
           <tr key={r.runnerId}><th scope="row">{S.label(by.get(r.runnerId)!)}</th>
-            {Array.from({ length: n }, (_, i) => { const t = r.times[i]; return <td key={i} className={t != null && t === r.best ? "ipac-best" : ""}>{t == null ? "–" : S.fmtTime(t)}</td>; })}
-            <td>{r.avg ? S.fmtTime(r.avg) : "–"}</td><td>{r.spread !== undefined ? S.fmtTime(r.spread) : "–"}</td></tr>))}</tbody>
+            {Array.from({ length: n }, (_, i) => { const t = r.times[i]; return <td key={i} className={t != null && t === r.best ? "ipac-best" : ""}>{t == null ? "–" : S.fmtTime(t, true)}</td>; })}
+            <td>{r.avg ? S.fmtTime(r.avg, true) : "–"}</td><td>{r.spread !== undefined ? S.fmtTime(r.spread, true) : "–"}</td></tr>))}</tbody>
       </table></div>
-      <p className="ipac-hint">Best time for each runner is highlighted. A small spread means even pacing.</p>
+      <p className="ipac-hint">Best time for each runner is highlighted. A small spread means even pacing. Times show tenths; a tap by hand is accurate to about 0.2 s.</p>
     </section>
   );
 }

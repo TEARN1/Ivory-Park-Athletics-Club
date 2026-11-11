@@ -90,10 +90,12 @@ export function fmtPace(secPerKm?: number): string {
   if (secPerKm === undefined || !isFinite(secPerKm)) return "–";
   const t = Math.round(secPerKm); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}/km`;
 }
-export function fmtTime(ms: number): string {
+/** m:ss, or m:ss.t with `tenths` for track work (hand timing is good to about 0.2 s, so no hundredths). */
+export function fmtTime(ms: number, tenths = false): string {
   const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
   const mm = String(m).padStart(h ? 2 : 1, "0"), ss = String(sec).padStart(2, "0");
-  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  const base = h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  return tenths ? `${base}.${Math.floor((ms % 1000) / 100)}` : base;
 }
 export const label = (r: Runner) => [r.bib && `#${r.bib}`, r.name].filter(Boolean).join(" ");
 

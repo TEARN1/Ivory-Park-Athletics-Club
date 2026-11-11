@@ -1,5 +1,5 @@
 export interface LatLon { lat: number; lon: number }
-export interface TrackPoint extends LatLon { t: number }   // t = ms since session start
+export interface TrackPoint extends LatLon { t: number; acc?: number }   // t = ms since session start; acc = phone's own accuracy estimate in metres
 const R = 6371008.8;
 const rad = (d: number) => (d * Math.PI) / 180, deg = (r: number) => (r * 180) / Math.PI;
 export function haversineM(a: LatLon, b: LatLon): number {

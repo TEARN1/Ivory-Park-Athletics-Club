@@ -290,3 +290,15 @@ input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:midd
 .ipac-restore{display:grid;gap:10px;margin-top:12px;background:var(--color-bg);border-radius:12px;padding:12px}
 .ipac-restore p{margin:0}
 .ipac-cta-in{width:100%}
+
+/* street map (MapLibre, as in The Gruvs and The Resident) */
+.ipac-mapwrap{position:relative}
+.ipac-mlmap{width:100%;height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--color-line)}
+.ipac-maploading{position:absolute;inset:auto 0 8px;text-align:center}
+.ipac-pin{min-width:30px;height:30px;padding:0 6px;border-radius:15px;display:grid;place-items:center;font:700 14px/1 var(--font-display);color:#fff;background:var(--p-navy);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.ipac-pin-lead{background:var(--p-hot)}
+.ipac-pin-alert{background:#a10012;outline:3px solid #ffd400}
+.ipac-pin-hub{background:#14162b}
+.ipac-gpsq{font-weight:700;margin:6px 0;padding:6px 10px;border-radius:99px;justify-self:start;display:inline-block}
+.ipac-gpsq-good{background:var(--color-ok);color:#fff}.ipac-gpsq-fair{background:var(--color-line);color:var(--color-fg)}
+.ipac-gpsq-poor,.ipac-gpsq-unknown{background:var(--color-err);color:#fff}

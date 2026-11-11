@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type * as C from "../lib/club";
-import { splits, trackDistanceM, type LatLon } from "../lib/geo";
+import { splits, type LatLon } from "../lib/geo";
 import type { LiveJoin, useLive } from "../lib/live";
 import { liveFlags, type Trail } from "../lib/livemap";
+import { MAX_ACCURACY_M, accuracyLabel, calibrationFactor, pathM, routeProgressM, smoothTrack } from "../lib/gpsfilter";
+import { kvGet, kvSet } from "../lib/store";
+import ClubMap from "./ClubMap";
 import type { Route } from "../lib/routes";
-import * as S from "../lib/session";
 import type { Config } from "../lib/store";
+import type { TrackPoint } from "../lib/geo";
+import * as S from "../lib/session";
 
 /** Relay key shared across devices (local runner ids differ per device). */
 export const relayKey = (r: S.Runner) => r.bib || r.name;
@@ -21,28 +25,32 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
   const mine = s.runners.find((r) => relayKey(r) === myKey);
   const sRef = useRef(s); sRef.current = s;
   const sendRef = useRef(live.send); sendRef.current = live.send;
-  const lastSent = useRef(0);
+  const lastSent = useRef(0), fixes = useRef<TrackPoint[]>([]);
+  const [acc, setAcc] = useState<number | undefined>(), [cal, setCal] = useState(1), [calM, setCalM] = useState("400"), [calMsg, setCalMsg] = useState(""), [runRoute, setRunRoute] = useState(""), [, bump] = useState(0);
+  useEffect(() => { kvGet<number>("gpsCal").then((f) => f && setCal(f)); }, []);
 
   useEffect(() => {
     if (!gps) return;
     if (!("geolocation" in navigator)) { setGpsErr("This device has no GPS."); setGps(false); return; }
     const id = navigator.geolocation.watchPosition(
       (p) => {
-        const cur = sRef.current, r = cur.runners.find((x) => relayKey(x) === myKey);
-        setGpsErr("");
+        const cur = sRef.current, r = cur.runners.find((x) => relayKey(x) === myKey), a = p.coords.accuracy;
+        setGpsErr(""); setAcc(a); fixes.current.push({ lat: p.coords.latitude, lon: p.coords.longitude, t: Date.now(), acc: a }); bump((n) => n + 1);
+        if (a > MAX_ACCURACY_M) return; // too rough to use or share
         if (Date.now() - lastSent.current > 5000) { lastSent.current = Date.now(); sendRef.current({ type: "pos", lat: p.coords.latitude, lon: p.coords.longitude }); } // shared with the coach's map
         if (cur.startedAt === undefined || !r) return;
-        act((x) => S.addTrackPoint(x, r.id, { lat: p.coords.latitude, lon: p.coords.longitude, t: Date.now() - cur.startedAt! }));
+        act((x) => S.addTrackPoint(x, r.id, { lat: p.coords.latitude, lon: p.coords.longitude, t: Date.now() - cur.startedAt!, acc: a }));
       },
       (e) => { // only permission loss stops tracking; a missing fix is temporary and the watch keeps trying
         if (e.code === 1) { setGpsErr("Location permission was denied."); setGps(false); } else setGpsErr("Searching for a GPS signal…");
       },
-      { enableHighAccuracy: true, maximumAge: 2000 });
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 }); // full accuracy while running; turn tracking off after to save battery
     return () => navigator.geolocation.clearWatch(id);
   }, [gps, myKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const name = (k?: string) => { const r = s.runners.find((x) => relayKey(x) === k); return r ? S.label(r) : k ? `#${k}` : "nobody"; };
-  const track = mine ? s.tracks?.[mine.id] ?? [] : [], sp = splits(track);
+  const track = mine ? s.tracks?.[mine.id] ?? [] : [], smooth = smoothTrack(track), sp = splits(smooth);
+  const route = routes.find((r) => r.id === runRoute), distM = route ? routeProgressM(smooth, route.points) : pathM(smooth) * cal;
   const whoAmI = (
     <label>Who am I?
       <select value={myKey} onChange={(e) => setMe(e.target.value)} disabled={!!join}>
@@ -57,9 +65,26 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
       <label className="ipac-check"><input type="checkbox" checked={gps} disabled={!myKey} onChange={(e) => { setGpsErr(""); setGps(e.target.checked); }} /> Track my run with GPS{join ? " and share my position with the coach" : ""}</label>
       {!myKey && <p className="ipac-hint">Pick your name above first.</p>}
       {gpsErr && <p role="alert" className="ipac-err">{gpsErr}</p>}
-      {mine && <p>{(trackDistanceM(track) / 1000).toFixed(2)} km · {track.length} points{!running && " (distance starts when the timer starts)"}</p>}
+      {gps && <p className={`ipac-gpsq ipac-gpsq-${accuracyLabel(acc)}`} role="status">GPS {acc === undefined ? "searching…" : `±${Math.round(acc)} m (${accuracyLabel(acc)})`}</p>}
+      {routes.length > 0 && <label>Measure along a route<select value={runRoute} onChange={(e) => setRunRoute(e.target.value)}><option value="">No, follow my GPS trace</option>{routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>}
+      {mine && <p>{(distM / 1000).toFixed(2)} km{route ? " along the route" : cal !== 1 ? ` (calibrated ×${cal})` : ""} · {track.length} points{!running && " (distance starts when the timer starts)"}</p>}
       {sp.length > 0 && <ol>{sp.map((x) => <li key={x.km}>{x.partial ? "last part" : `km ${x.km}`}: {S.fmtTime(x.ms)} ({S.fmtPace(x.paceSecPerKm)})</li>)}</ol>}
-      <p className="ipac-hint">Your GPS trail stays on this phone. Only your latest position is shared while you are in a live room.</p>
+      <p className="ipac-hint">Phone GPS is accurate to a few metres, not centimetres. Fixes worse than {MAX_ACCURACY_M} m are dropped and the rest are smoothed. For exact distances, run Laps on a measured track. Your GPS trail stays on this phone.</p>
+      {gps && (
+        <details className="ipac-more">
+          <summary>Calibrate this phone on a measured distance</summary>
+          <p className="ipac-hint">Tap Start, run exactly a measured distance in the open (a 400 m track lap in lane 1, or a measured km), then tap Done. Away from buildings works best.</p>
+          <div className="ipac-grid2">
+            <label>Measured metres<input inputMode="numeric" value={calM} onChange={(e) => setCalM(e.target.value.replace(/\D/g, ""))} /></label>
+            <span className="ipac-hint">So far: {Math.round(pathM(smoothTrack(fixes.current)))} m by GPS</span>
+          </div>
+          <div className="ipac-row2">
+            <button className="ipac-btn ipac-btn-outline" onClick={() => { fixes.current = []; setCalMsg("Started. Run the measured distance now."); bump((n) => n + 1); }}>Start</button>
+            <button className="ipac-btn ipac-btn-primary" onClick={() => { try { const f = calibrationFactor(+calM, pathM(smoothTrack(fixes.current))); setCal(f); kvSet("gpsCal", f); setCalMsg(`Saved. This phone's GPS distances are now multiplied by ${f}.`); } catch (x) { setCalMsg((x as Error).message); } }}>Done</button>
+            {cal !== 1 && <button className="ipac-btn ipac-btn-quiet" onClick={() => { setCal(1); kvSet("gpsCal", 1); setCalMsg("Calibration cleared."); }}>Clear</button>}
+          </div>
+          {calMsg && <p role="status" className="ipac-hint">{calMsg}</p>}
+        </details>)}
     </section>
   );
   if (!cfg.serverUrl) return <><section className="ipac-card"><h2>Live</h2><p className="ipac-hint">The live map, relay and shared timing need the club server. Add its address in the Club tab. GPS tracking works without it.</p>{whoAmI}</section>{gpsCard}</>;
@@ -138,7 +163,9 @@ function LiveMap({ live, trail, name, s, members, routes }: { live: Live; trail:
     <section className="ipac-card">
       <h2>Live map</h2>
       {routes.length > 0 && <select aria-label="Show a saved route" value={routeId} onChange={(e) => setRouteId(e.target.value)}><option value="">No route shown</option>{routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>}
-      {svg ?? <p className="ipac-empty">Runners appear here when they join the room, pick their name and turn on GPS tracking.</p>}
+      {svg ? <ClubMap label={`Live map with ${pos.length} runner${pos.length === 1 ? "" : "s"}`} fallback={svg} line={route?.points}
+        markers={pos.map((p) => ({ id: p.runnerId, lat: p.lat, lon: p.lon, label: p.runnerId, kind: flags[p.runnerId] ? "alert" : p.runnerId === lead ? "lead" : "dot" }))} />
+        : <p className="ipac-empty">Runners appear here when they join the room, pick their name and turn on GPS tracking.</p>}
       {alerts.length > 0 && (
         <div className="ipac-safety" role="alert"><h2>Check on {alerts.length}</h2><ul>{alerts.map(([k, f]) => {
           const c = contactFor(k);

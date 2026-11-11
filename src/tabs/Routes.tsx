@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_HUB, DEFAULT_ROUTER, MAX_VARIANTS, followRoads, generateLoops, reroute, type Route } from "../lib/routes";
 import { loadRoutes, saveRoutes } from "../lib/store";
+import ClubMap from "./ClubMap";
 
 const COMPASS = [["North", 0], ["North-east", 45], ["East", 90], ["South-east", 135], ["South", 180], ["South-west", 225], ["West", 270], ["North-west", 315]] as const;
 
@@ -55,7 +56,7 @@ export default function Routes({ distances, router }: { distances: number[]; rou
       {msg && <p role="alert" className="ipac-err">{msg}</p>}
       {shown && (
         <div className="ipac-card">
-          <RouteMap r={shown} />
+          <ClubMap key={shown.id} label={`Map of ${shown.name}`} fallback={<RouteMap r={shown} />} line={shown.points} markers={[{ id: "hub", ...shown.hub, label: "Start", kind: "hub" }]} />
           <p><b>{shown.name}</b> · {(shown.lengthM / 1000).toFixed(2)} km · option {i + 1} of {loops.length}</p>
           <p className="ipac-hint">{shown.roads ? "Follows roads and paths from OpenStreetMap. Still walk it once to check traffic and safety." : "Straight-line guide. Tap Follow roads to fit it to real roads and paths."}</p>
           {!shown.roads && <button className="ipac-btn ipac-btn-outline" disabled={roadBusy} onClick={roads}>{roadBusy ? "Finding roads…" : "Follow roads"}</button>}

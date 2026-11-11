@@ -49,7 +49,7 @@ async function setup(browser, name, server, token) {
   await runner.p.click("nav >> text=Club"); await runner.p.waitForSelector("text=Time trial Saturday", { timeout: 70000 }).catch(() => { throw new Error("notice did not reach runner"); }); console.log("notice ok");
   await coach.p.fill('[aria-label="Guest name"]', "Visitor"); assert.equal(await coach.p.locator("text=Join guest list").isDisabled(), true); await coach.p.check("text=I agree the club may contact me"); await coach.p.click("text=Join guest list");
   await coach.p.waitForSelector("text=Visitor ·"); console.log("guest ok");
-  await openRoutes(coach.p); await coach.p.click("text=Generate 15 loops"); await coach.p.waitForSelector("svg[aria-label^='Map of']");
+  await openRoutes(coach.p); await coach.p.click("text=Generate 15 loops"); await coach.p.waitForSelector("[aria-label^='Map of']");
   const len = await coach.p.locator("text=/option 1 of 15/").innerText(); await coach.p.selectOption("select:visible >> nth=0", "90").catch(() => {});
   await coach.p.click("text=Reroute"); console.log("routes:", len.slice(0, 40), "→", (await coach.p.locator("text=/option \\d+ of 15/").innerText()).slice(-20));
   await coach.p.fill('[aria-label="Route name"]', "Ivory Park 5k Loop"); await coach.p.click("text=Save this route"); await coach.p.waitForSelector("text=Saved routes");
@@ -81,7 +81,7 @@ async function setup(browser, name, server, token) {
   await coach.p.click('[aria-label="Switch to day theme"]'); assert.equal(await coach.p.evaluate(() => document.documentElement.dataset.theme), "light"); console.log("themes + distances ok");
   assert.deepEqual(jp.errs, []);
   // ---- batch 3: live map, shared timing, events, club page, backup ----
-  await openLive(coach.p); await coach.p.waitForSelector('svg[aria-label^="Map with"]', { timeout: 15000 }); console.log("live map shows runners");
+  await openLive(coach.p); await coach.p.waitForSelector('[aria-label^="Live map with"], svg[aria-label^="Map with"]', { timeout: 15000 }); console.log("live map shows runners");
   await coach.p.click("button:text-is('Leave room')"); await coach.p.fill('input[placeholder="e.g. IPARK"]', "RACE2"); await coach.p.click("button:text-is('Join room')"); await coach.p.waitForSelector("text=Connection: on");
   await coach.p.check("text=Share timing with other timekeepers");
   const tk2 = await setup(b, "tk2", SRV, "secret"); await openLive(tk2.p); await tk2.p.fill('input[placeholder="e.g. IPARK"]', "RACE2"); await tk2.p.click("button:text-is('Join room')"); await tk2.p.waitForSelector("text=Connection: on");
