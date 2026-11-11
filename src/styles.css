@@ -1,56 +1,169 @@
-/* Club colours sampled from the logo: red #E81820, navy #2A3090 */
-:root{--color-bg:#fff;--color-fg:#14162b;--color-accent:#e81820;--color-accent-fg:#fff;--color-navy:#2a3090;--color-ctl:#2a3090;--color-line:#d3d6ea;--color-err:#a10012}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--color-bg:#0f1022;--color-fg:#eceefb;--color-accent:#ff4a52;--color-accent-fg:#1a0204;--color-ctl:#a3a9ff;--color-line:#2d3060;--color-err:#ff8a94;color-scheme:dark}}
-:root[data-theme="dark"]{--color-bg:#0f1022;--color-fg:#eceefb;--color-accent:#ff4a52;--color-accent-fg:#1a0204;--color-ctl:#a3a9ff;--color-line:#2d3060;--color-err:#ff8a94;color-scheme:dark}
-body{margin:0;background:var(--color-bg);color:var(--color-fg);font:16px/1.4 system-ui,sans-serif;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 24px}
-.ipac-app{max-width:640px;margin:0 auto}
-.ipac-head{display:flex;align-items:center;gap:14px;background:var(--color-navy);color:#fff;margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px))) 12px;padding:12px max(16px,env(safe-area-inset-left,0px))}
-.ipac-logo{width:64px;height:64px;border-radius:12px;background:#fff;flex:none}
-.ipac-head h1{margin:0;font-size:1.25rem;line-height:1.15;text-wrap:balance}.ipac-head p{margin:4px 0 0;opacity:.9;font-size:.9rem}
-.ipac-tabs{display:flex;gap:6px;margin-bottom:10px}
-.ipac-tabs button{flex:1}
-.ipac-tabs button[aria-current=true]{background:var(--color-accent);color:var(--color-accent-fg);border-color:var(--color-accent)}
-button,input,select{font:inherit;padding:10px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-bg);color:var(--color-fg)}
-button{border-color:var(--color-ctl);color:var(--color-ctl)}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--color-accent);outline-offset:2px}
-button:disabled{opacity:.45}
-button{cursor:pointer;min-height:44px}
-.ipac-form{display:grid;gap:8px;margin:12px 0}
-.ipac-list{list-style:none;padding:0;display:grid;gap:8px}
-.ipac-clock{font-size:3.5rem;text-align:center;font-variant-numeric:tabular-nums;margin:8px 0}
-.ipac-big{width:100%;background:var(--color-accent);color:var(--color-accent-fg);border-color:var(--color-accent);font-size:1.3rem;min-height:64px}
-.ipac-finish{width:100%;text-align:left;min-height:56px}
-.ipac-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.ipac-table th,.ipac-table td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--color-line)}
-.ipac-err{color:var(--color-err)}.ipac-hint{opacity:.8}.ipac-actions{margin:12px 0}
-.ipac-tabs{flex-wrap:wrap}.ipac-tabs button{flex:1 1 30%}
-.ipac-card{border:1px solid var(--color-line);border-radius:10px;padding:10px;margin:10px 0}
-.ipac-banner{background:var(--color-accent);color:var(--color-accent-fg);padding:8px;border-radius:8px}
-.ipac-map{width:100%;max-height:300px;background:transparent;border:1px solid var(--color-line);border-radius:8px}
-.ipac-list li{display:flex;gap:8px;align-items:center;justify-content:space-between}
-.ipac-form label{display:grid;gap:4px}
-textarea{font:inherit;padding:10px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-bg);color:var(--color-fg);min-height:70px}
-
-/* Bigger touch targets for phones (min 48px, comfortable text) */
-body{font-size:18px}
-button,select,input:not([type=checkbox]){min-height:52px;font-size:1rem}
-button{padding:12px 16px;font-weight:600}
-.ipac-tabs{gap:8px}.ipac-tabs button{min-height:56px;flex:1 1 30%}
-.ipac-big{min-height:80px;font-size:1.5rem}
-.ipac-finish{min-height:72px;font-size:1.15rem}
-.ipac-form{gap:12px}.ipac-list{gap:10px}
-.ipac-list li button,.ipac-table td button{min-width:52px}
-.ipac-table td button{margin:2px 0}
-.ipac-actions{display:grid;gap:10px}
-input[type=checkbox]{width:26px;height:26px;vertical-align:middle;margin-right:8px}
-
-/* Results rows become cards on phones so the buttons never run off screen */
-@media (max-width:640px){
-  .ipac-table,.ipac-table tbody{display:block}
-  .ipac-table thead{display:none}
-  .ipac-table tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:12px 0;border-bottom:1px solid var(--color-line)}
-  .ipac-table td{border:0;padding:0}
-  .ipac-table td:nth-child(2){font-weight:700;flex:1 1 40%}
-  .ipac-table td:last-child{flex:1 1 100%;display:flex;gap:10px}
-  .ipac-table td:last-child button{flex:1}
+/* Ivory Park Athletics Club. Colours sampled from the logo: red #E81820, navy #2A3090.
+   Layout: navy header, one guided Session screen, bottom nav, large touch targets. */
+:root{
+  --color-bg:#f2f3fa;--color-surface:#fff;--color-fg:#14162b;--color-muted:#585c7e;
+  --color-navy:#2a3090;--color-deep:#1a1e5c;
+  --color-accent:#e81820;--color-accent-fg:#fff;--color-ctl:#2a3090;
+  --color-line:#d9dbee;--color-err:#a10012;--color-ok:#0e7a3d;
+  --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --shadow:0 1px 2px rgba(20,22,43,.08),0 6px 18px rgba(20,22,43,.06);
+  --gutter:max(16px,env(safe-area-inset-left,0px));--gutter-r:max(16px,env(safe-area-inset-right,0px));
 }
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --color-bg:#0b0c1a;--color-surface:#15173a;--color-fg:#eceefb;--color-muted:#a7abd0;--color-deep:#222880;
+  --color-accent:#ff4a52;--color-accent-fg:#1a0204;--color-ctl:#a3a9ff;--color-line:#2a2d5e;--color-err:#ff8a94;--color-ok:#4ad387;
+  --shadow:0 1px 2px rgba(0,0,0,.4);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --color-bg:#0b0c1a;--color-surface:#15173a;--color-fg:#eceefb;--color-muted:#a7abd0;--color-deep:#222880;
+  --color-accent:#ff4a52;--color-accent-fg:#1a0204;--color-ctl:#a3a9ff;--color-line:#2a2d5e;--color-err:#ff8a94;--color-ok:#4ad387;
+  --shadow:0 1px 2px rgba(0,0,0,.4);color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-bg);color:var(--color-fg);font:17px/1.4 var(--font-body)}
+h1,h2{margin:0;text-wrap:balance}
+h2{font-family:var(--font-display);font-weight:700;font-size:1.5rem;letter-spacing:.01em;text-transform:uppercase;margin-bottom:12px}
+.ipac-loading{padding:40px;text-align:center}
+.ipac-shell{min-height:100vh}
+
+/* header */
+.ipac-head{background:var(--color-navy);color:#fff;border-bottom:4px solid var(--color-accent);padding-top:env(safe-area-inset-top,0px)}
+.ipac-head-in{max-width:600px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px var(--gutter-r) 10px var(--gutter)}
+.ipac-logo{width:56px;height:56px;border-radius:12px;background:#fff;flex:none}
+.ipac-title{min-width:0;flex:1}
+.ipac-title h1{font-family:var(--font-display);font-weight:800;font-size:1.55rem;line-height:1;letter-spacing:.02em;text-transform:uppercase}
+.ipac-title p{margin:4px 0 0;font-size:.85rem;opacity:.85}
+.ipac-pill{flex:none;font-size:.78rem;font-weight:700;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.16);color:#fff;text-transform:uppercase;letter-spacing:.05em}
+.ipac-pill-running{background:var(--color-accent);color:var(--color-accent-fg)}
+
+/* layout */
+.ipac-main{max-width:600px;margin:0 auto;padding:16px var(--gutter-r) 190px var(--gutter);display:grid;gap:14px;align-content:start}
+.ipac-main>div:not([hidden]){display:grid;gap:14px;align-content:start;min-width:0}
+.ipac-card{background:var(--color-surface);border:1px solid var(--color-line);border-radius:16px;padding:16px;box-shadow:var(--shadow);min-width:0}
+.ipac-sub{font-size:1.15rem;color:var(--color-muted);margin:4px 2px 8px}
+.ipac-count{display:inline-block;min-width:1.7em;text-align:center;background:var(--color-navy);color:#fff;border-radius:99px;font-size:1rem;padding:0 8px;margin-left:6px;vertical-align:2px}
+.ipac-hint,.ipac-empty{color:var(--color-muted);font-size:.92rem;margin:6px 2px}
+.ipac-empty{background:var(--color-bg);border-radius:12px;padding:14px;margin:12px 0 0}
+.ipac-err{background:var(--color-err);color:#fff;border-radius:12px;padding:12px 14px;margin:0;font-weight:600}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ipac-err{color:#2a0007}}
+:root[data-theme="dark"] .ipac-err{color:#2a0007}
+.ipac-banner{background:var(--color-navy);color:#fff;border-radius:14px;padding:14px;margin:0;font-weight:600}
+
+/* buttons */
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;min-height:52px;padding:10px 16px;border-radius:12px;border:2px solid var(--color-ctl);background:var(--color-surface);color:var(--color-ctl);font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--color-accent);outline-offset:2px}
+.ipac-btn{min-height:52px}
+.ipac-btn-primary{background:var(--color-navy);border-color:var(--color-navy);color:#fff}
+.ipac-btn-quiet{border-color:transparent;background:transparent;min-height:44px;padding:8px 12px}
+.ipac-btn-outline{background:var(--color-surface)}
+.ipac-btn-wide{width:100%}
+.ipac-btn-danger{background:var(--color-err);border-color:var(--color-err);color:#fff;min-height:44px;padding:8px 14px}
+.ipac-btn-hero{width:100%;min-height:68px;font-family:var(--font-display);font-size:1.7rem;letter-spacing:.03em;text-transform:uppercase;background:var(--color-accent);border-color:var(--color-accent);color:var(--color-accent-fg);box-shadow:0 6px 18px rgba(232,24,32,.28)}
+.ipac-btn-hero:disabled{box-shadow:none;background:var(--color-line);border-color:var(--color-line);color:var(--color-muted);opacity:1}
+.ipac-confirm{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600}
+.ipac-btn-wide.ipac-btn{width:100%}
+.ipac-cta .ipac-confirm{width:100%;justify-content:center;background:var(--color-surface);border:2px solid var(--color-line);border-radius:14px;padding:10px}
+
+/* inputs */
+input:not([type=checkbox]),select,textarea{min-height:52px;padding:10px 12px;border-radius:12px;border:2px solid var(--color-line);background:var(--color-surface);width:100%}
+input:not([type=checkbox]):focus,select:focus,textarea:focus{border-color:var(--color-navy)}
+textarea{min-height:90px}
+input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:middle;accent-color:var(--color-navy)}
+.ipac-form{display:grid;gap:12px;margin:12px 0}
+.ipac-form label{display:grid;gap:6px;font-weight:600}
+.ipac-actions{display:grid;gap:10px;margin:10px 0}
+
+/* chips (distance) */
+.ipac-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ipac-chip{min-height:48px;padding:6px 16px;border-radius:99px;font-family:var(--font-display);font-size:1.25rem}
+.ipac-chip[aria-pressed=true]{background:var(--color-navy);border-color:var(--color-navy);color:#fff}
+.ipac-other{display:flex;align-items:center;gap:8px;font-weight:600;color:var(--color-muted);margin-left:auto}
+.ipac-other input{width:90px;min-height:48px}
+
+/* add runner */
+.ipac-add{display:grid;grid-template-columns:84px 1fr;gap:10px}
+.ipac-add .ipac-btn-primary{grid-column:1/-1}
+.ipac-bibin{font-family:var(--font-display);font-size:1.6rem;font-weight:700;text-align:center}
+.ipac-more{grid-column:1/-1;color:var(--color-muted)}
+.ipac-more summary{cursor:pointer;padding:6px 0;font-weight:600}
+.ipac-more select{margin-top:8px}
+
+/* lists */
+.ipac-roster,.ipac-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.ipac-roster li,.ipac-list li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--color-line);flex-wrap:wrap}
+.ipac-roster li:first-child,.ipac-list li:first-child{border-top:0}
+.ipac-bib{flex:none;min-width:48px;height:48px;border-radius:12px;background:var(--color-navy);color:#fff;display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:1.5rem;padding:0 6px}
+.ipac-who{flex:1;min-width:120px;display:grid}
+.ipac-who small{color:var(--color-muted);font-size:.85rem}
+.ipac-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1}
+.ipac-inline input{flex:1;min-width:70px;width:auto}
+.ipac-past summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+
+/* sticky call to action above the nav */
+.ipac-cta{position:fixed;left:0;right:0;bottom:calc(66px + env(safe-area-inset-bottom,0px));padding:24px var(--gutter-r) 10px var(--gutter);background:linear-gradient(to bottom,transparent,var(--color-bg) 40%);pointer-events:none;z-index:5}
+.ipac-cta-in{max-width:600px;margin:0 auto;pointer-events:auto}
+
+/* bottom nav */
+.ipac-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,1fr);background:var(--color-surface);border-top:1px solid var(--color-line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.ipac-nav button{border:0;border-radius:0;min-height:66px;display:grid;justify-items:center;align-content:center;gap:2px;background:transparent;color:var(--color-muted);font-size:.78rem;position:relative}
+.ipac-nav button[aria-current=page]{color:var(--color-accent)}
+.ipac-nav button[aria-current=page]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:4px;border-radius:0 0 4px 4px;background:var(--color-accent)}
+@media (prefers-color-scheme:light){.ipac-nav button[aria-current=page]{color:var(--color-navy)}}
+:root[data-theme="light"] .ipac-nav button[aria-current=page]{color:var(--color-navy)}
+
+/* toast */
+.ipac-toast{position:fixed;left:var(--gutter);right:var(--gutter-r);bottom:calc(168px + env(safe-area-inset-bottom,0px));z-index:7;max-width:568px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--color-deep);color:#fff;border-radius:14px;padding:6px 8px 6px 16px;box-shadow:0 8px 24px rgba(0,0,0,.3);font-weight:600}
+.ipac-toast button{background:transparent;border:0;color:#fff;text-decoration:underline;min-height:48px;padding:0 14px}
+
+/* race clock */
+.ipac-clockcard{background:var(--color-deep);color:#fff;border-radius:20px;padding:18px 18px 16px;box-shadow:var(--shadow)}
+.ipac-live{display:flex;align-items:center;gap:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.8rem;opacity:.9}
+.ipac-live i{width:10px;height:10px;border-radius:50%;background:var(--color-accent);animation:ipac-pulse 1.4s ease-in-out infinite}
+@keyframes ipac-pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.ipac-live i{animation:none}}
+.ipac-clock{font-family:var(--font-display);font-weight:800;font-size:clamp(4.2rem,22vw,6.5rem);line-height:1;font-variant-numeric:tabular-nums;margin:6px 0 12px}
+.ipac-prog{height:8px;border-radius:8px;background:rgba(255,255,255,.2);overflow:hidden}
+.ipac-prog span{display:block;height:100%;background:var(--color-accent);border-radius:8px;transition:width .25s}
+.ipac-clockfoot{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:.9rem;opacity:.9;flex-wrap:wrap}
+
+/* finish tiles */
+.ipac-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ipac-tile{min-height:104px;display:grid;justify-items:start;align-content:center;gap:0;text-align:left;border-radius:16px;padding:10px 14px;background:var(--color-surface);border:2px solid var(--color-line);color:var(--color-fg);box-shadow:var(--shadow);touch-action:manipulation}
+.ipac-tile b{font-family:var(--font-display);font-size:2.6rem;line-height:1;color:var(--color-ctl)}
+.ipac-tile span{font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ipac-tile small{color:var(--color-muted);font-weight:500}
+.ipac-tile:active{transform:scale(.97);background:var(--color-accent);border-color:var(--color-accent)}
+.ipac-tile:active b,.ipac-tile:active span,.ipac-tile:active small{color:var(--color-accent-fg)}
+
+/* leaderboard */
+.ipac-board{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ipac-board li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--color-surface);border:1px solid var(--color-line);border-radius:14px;padding:8px 8px 8px 14px;min-height:60px}
+.ipac-rank{font-family:var(--font-display);font-weight:800;font-size:1.7rem;min-width:2.6rem;color:var(--color-ctl)}
+.ipac-time{font-family:var(--font-display);font-weight:700;font-size:1.6rem;font-variant-numeric:tabular-nums}
+.ipac-pod-1{background:var(--color-navy)!important;border-color:var(--color-navy)!important;color:#fff;padding-block:14px!important}
+.ipac-pod-1 .ipac-rank{color:#fff;font-size:2.6rem}.ipac-pod-1 .ipac-time{font-size:2.3rem}.ipac-pod-1 .ipac-who b{font-size:1.25rem}.ipac-pod-1 .ipac-who small{color:rgba(255,255,255,.8)}
+.ipac-pod-1 button{color:#fff}
+
+/* results summary */
+.ipac-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.ipac-stats div{background:var(--color-bg);border-radius:12px;padding:10px 4px;display:grid}
+.ipac-stats b{font-family:var(--font-display);font-size:1.8rem;line-height:1.1}.ipac-stats span{font-size:.8rem;color:var(--color-muted)}
+.ipac-next{display:grid;gap:10px}.ipac-row2{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+
+/* Live relay */
+.ipac-lead{background:var(--color-deep);color:#fff;border-radius:16px;padding:14px 16px;display:grid}
+.ipac-lead small{opacity:.8;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.ipac-lead b{font-family:var(--font-display);font-size:2.4rem;line-height:1.1}
+.ipac-relay{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.ipac-relay button{min-height:88px;font-family:var(--font-display);font-size:1.7rem;text-transform:uppercase;letter-spacing:.03em}
+.ipac-relay .ipac-pass{background:var(--color-navy);border-color:var(--color-navy);color:#fff}
+.ipac-relay .ipac-take{background:var(--color-accent);border-color:var(--color-accent);color:var(--color-accent-fg)}
+.ipac-relay button:disabled{background:var(--color-bg);border-color:var(--color-line);color:var(--color-muted);opacity:1}
+
+/* routes */
+.ipac-map{width:100%;max-height:300px;border:1px solid var(--color-line);border-radius:12px;background:var(--color-bg)}
+.ipac-card details>summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+.ipac-more-routes{margin:10px 0}.ipac-more-routes summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center;color:var(--color-muted)}
+.ipac-chips+details+.ipac-btn-hero,.ipac-chips+.ipac-btn-hero{margin-top:6px}

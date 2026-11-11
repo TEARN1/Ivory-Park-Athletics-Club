@@ -63,16 +63,16 @@ export default function Live({ s, act, cfg, running }: { s: S.Session; act: (f: 
       <div className="ipac-form">
         {whoAmI}
         <label>Room code<input value={room} onChange={(e) => setRoom(e.target.value.toUpperCase())} maxLength={8} disabled={joined} placeholder="e.g. IPARK" /></label>
-        <button onClick={() => { setJoined(!joined); act((x) => ({ ...x, room })); }} disabled={!room}>{joined ? "Leave room" : "Join room"}</button>
+        <button className="ipac-btn ipac-btn-primary" onClick={() => { setJoined(!joined); act((x) => ({ ...x, room })); }} disabled={!room}>{joined ? "Leave room" : "Join room"}</button>
       </div>
       {joined && <p aria-live="polite">Connection: {live.status}{live.error && <span className="ipac-err"> · {live.error}</span>}</p>}
       {live.state && (
         <div className="ipac-card">
-          <p>Lead: <b>{name(lead)}</b></p>
+          <div className="ipac-lead"><small>In front</small><b>{name(lead)}</b></div>
           {offered && <p role="status" className="ipac-banner">{name(offered)} is passing the lead. Tap Take to run in front.</p>}
-          <div className="ipac-actions">
-            <button disabled={!me || lead !== me || !!offered} onClick={() => live.send({ type: "pass" })}>Pass Over</button>{" "}
-            <button disabled={!me || !offered || lead === me} onClick={() => live.send({ type: "take" })}>Take</button>
+          <div className="ipac-relay">
+            <button className="ipac-pass" disabled={!me || lead !== me || !!offered} onClick={() => live.send({ type: "pass" })}>Pass Over</button>
+            <button className="ipac-take" disabled={!me || !offered || lead === me} onClick={() => live.send({ type: "take" })}>Take</button>
           </div>
           {cfg.token && <div className="ipac-actions">
             <button onClick={() => live.send({ type: "start" })}>Start room clock</button>{" "}

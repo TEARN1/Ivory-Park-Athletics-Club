@@ -31,15 +31,22 @@ export default function Routes() {
   };
   const persist = (r: Route[]) => { setSaved(r); saveRoutes(r); };
   return (
-    <section>
+    <section className="ipac-card">
+      <h2>Route planner</h2>
       <p className="ipac-hint">Guide loops are drawn as straight legs from the club hub and are not checked against real roads. Walk or drive a loop and adjust it before the group runs it.</p>
-      <div className="ipac-form">
-        <label>Target distance (km)<input type="number" min={0.5} max={100} step={0.5} value={km} onChange={(e) => setKm(+e.target.value)} /></label>
-        <label>Hub latitude<input type="number" step="any" value={hub.lat} onChange={(e) => setHub({ ...hub, lat: +e.target.value })} /></label>
-        <label>Hub longitude<input type="number" step="any" value={hub.lon} onChange={(e) => setHub({ ...hub, lon: +e.target.value })} /></label>
-        <button type="button" onClick={() => navigator.geolocation?.getCurrentPosition((p) => setHub({ lat: p.coords.latitude, lon: p.coords.longitude }), () => setMsg("Could not read your location."))}>Use my location as the hub</button>
-        <button onClick={gen}>Generate {MAX_VARIANTS} loops</button>
+      <div className="ipac-chips" role="group" aria-label="Target distance">
+        {[3, 5, 10, 15, 21.1, 42.2].map((d) => <button key={d} className="ipac-chip" aria-pressed={km === d} onClick={() => setKm(d)}>{d} km</button>)}
+        <label className="ipac-other">Other<input type="number" inputMode="decimal" min={0.5} max={100} step={0.5} value={km} aria-label="Target distance (km)" onChange={(e) => setKm(+e.target.value)} /></label>
       </div>
+      <details className="ipac-more-routes">
+        <summary>Start and finish point</summary>
+        <div className="ipac-form">
+          <label>Hub latitude<input type="number" step="any" value={hub.lat} onChange={(e) => setHub({ ...hub, lat: +e.target.value })} /></label>
+          <label>Hub longitude<input type="number" step="any" value={hub.lon} onChange={(e) => setHub({ ...hub, lon: +e.target.value })} /></label>
+          <button type="button" onClick={() => navigator.geolocation?.getCurrentPosition((p) => setHub({ lat: p.coords.latitude, lon: p.coords.longitude }), () => setMsg("Could not read your location."))}>Use my location as the hub</button>
+        </div>
+      </details>
+      <button className="ipac-btn ipac-btn-hero" onClick={gen}>Generate {MAX_VARIANTS} loops</button>
       {msg && <p role="alert" className="ipac-err">{msg}</p>}
       {shown && (
         <div className="ipac-card">
@@ -56,9 +63,9 @@ export default function Routes() {
                 {COMPASS.map(([n, b]) => <option key={b} value={b}>{n}</option>)}
               </select>
             </label>
-            <button onClick={doReroute}>Reroute</button>
+            <button className="ipac-btn ipac-btn-hero" onClick={doReroute}>Reroute</button>
             <input aria-label="Route name" placeholder="Name, e.g. Ivory Park 5k Loop" value={name} onChange={(e) => setName(e.target.value)} />
-            <button disabled={!name.trim()} onClick={() => { persist([...saved, { ...shown, id: crypto.randomUUID(), name: name.trim() }]); setName(""); }}>Save this route</button>
+            <button className="ipac-btn ipac-btn-outline" disabled={!name.trim()} onClick={() => { persist([...saved, { ...shown, id: crypto.randomUUID(), name: name.trim() }]); setName(""); }}>Save this route</button>
           </div>
         </div>
       )}

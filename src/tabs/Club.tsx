@@ -13,17 +13,18 @@ export default function Club({ cfg, setCfg, notices }: { cfg: Config; setCfg: (c
   const loadGuests = async () => { if (cfg.token) { const j = await call("/guests", { headers: hdr }); if (j) setGuests(j); } };
   useEffect(() => { if (cfg.serverUrl && cfg.token) loadGuests(); }, [cfg]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <section>
-      <h2>Club server</h2>
+    <section className="ipac-card">
+      <details open={!cfg.serverUrl}>
+      <summary>Club server settings</summary>
       <div className="ipac-form">
         <input aria-label="Server address" placeholder="https://your-club-server" value={draft.serverUrl} onChange={(e) => setDraft({ ...draft, serverUrl: e.target.value })} />
         <input aria-label="Coach token" type="password" placeholder="Coach token (coaches only)" value={draft.token} onChange={(e) => setDraft({ ...draft, token: e.target.value })} />
-        <button onClick={() => { saveConfig(draft); setCfg(draft); setMsg("Saved on this device."); }}>Save</button>
+        <button className="ipac-btn ipac-btn-primary" onClick={() => { saveConfig(draft); setCfg(draft); setMsg("Saved on this device."); }}>Save</button>
       </div>
       <p className="ipac-hint">The coach token is kept on this device only. Do not enter it on a shared phone.</p>
-      {msg && <p role="status">{msg}</p>}
-
-      <h2>Club notices</h2>
+      </details>
+      {msg && <p role="status" className="ipac-hint">{msg}</p>}
+      <h2 style={{marginTop:16}}>Club notices</h2>
       {notices.length === 0 ? <p className="ipac-hint">No notices yet.</p> : <ul className="ipac-list">{[...notices].reverse().map((n) => <li key={n.id}>{n.text}<br /><small>{new Date(n.at).toLocaleString()}</small></li>)}</ul>}
       {cfg.token && cfg.serverUrl && (
         <div className="ipac-form">
@@ -32,7 +33,7 @@ export default function Club({ cfg, setCfg, notices }: { cfg: Config; setCfg: (c
         </div>
       )}
 
-      <h2>Guest list</h2>
+      <h2 style={{marginTop:16}}>Guest list</h2>
       {cfg.serverUrl ? (
         <form className="ipac-form" onSubmit={async (e) => { e.preventDefault(); if (await call("/guests", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(g) })) { setG({ name: "", contact: "", consent: false }); setMsg("Thank you. You are on the club's guest list."); loadGuests(); } }}>
           <input aria-label="Guest name" placeholder="Name" value={g.name} onChange={(e) => setG({ ...g, name: e.target.value })} />

@@ -38,4 +38,20 @@ describe("session", () => {
     expect(s.runners[0].buddyId).toBeUndefined();
     expect(() => S.setBuddy(s, a.id, a.id)).toThrow();
   });
+  it("moves through setup, running and done; no finishes after the end", () => {
+    let s = S.start(base(), 100); expect(S.phase(base())).toBe("setup"); expect(S.phase(s)).toBe("running");
+    s = S.endSession(s, 500); expect(S.phase(s)).toBe("done");
+    expect(S.finish(s, s.runners[0].id, 900).finishes).toEqual({});
+    s = S.resumeSession(s); expect(S.phase(s)).toBe("running");
+    expect(S.endSession(base(), 1).endedAt).toBeUndefined();
+  });
+  it("next session keeps the squad but clears the clock and results", () => {
+    let s = S.start(base(), 0); s = S.finish(s, s.runners[0].id, 1000); s = S.setBuddy(s, s.runners[1].id, s.runners[0].id);
+    const n = S.nextSession(s, true);
+    expect(n.id).not.toBe(s.id); expect(n.runners.map((r) => r.bib)).toEqual(["1", "2", "3"]); expect(n.runners[1].buddyId).toBe(s.runners[0].id);
+    expect(n.startedAt).toBeUndefined(); expect(n.finishes).toEqual({}); expect(S.nextSession(s, false).runners).toEqual([]);
+  });
+  it("suggests the next free bib", () => {
+    expect(S.nextBib(S.newSession())).toBe("1"); expect(S.nextBib(base())).toBe("4");
+  });
 });

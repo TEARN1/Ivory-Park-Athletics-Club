@@ -6,6 +6,7 @@ export interface Session {
   finishes: Record<string, number>;   // runnerId -> elapsed ms
   tracks?: Record<string, import("./geo").TrackPoint[]>;  // GPS points per runner (device-held)
   room?: string;                      // live-session code for relay
+  endedAt?: number;                   // coach pressed End session
 }
 export interface Row { runner: Runner; elapsedMs: number; rank: number; paceSecPerKm: number; gapMs: number }
 
@@ -29,7 +30,7 @@ export const setBuddy = (s: Session, id: string, buddyId?: string): Session => {
 };
 export const start = (s: Session, now: number): Session => (s.startedAt !== undefined ? s : { ...s, startedAt: now });
 export function finish(s: Session, id: string, now: number): Session {
-  if (s.startedAt === undefined || s.finishes[id] !== undefined) return s;
+  if (s.startedAt === undefined || s.endedAt !== undefined || s.finishes[id] !== undefined) return s;
   return { ...s, finishes: { ...s.finishes, [id]: Math.max(0, now - s.startedAt) } };
 }
 export const undoFinish = (s: Session, id: string): Session => {
@@ -88,3 +89,17 @@ export function fmtTime(ms: number): string {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 export const label = (r: Runner) => [r.bib && `#${r.bib}`, r.name].filter(Boolean).join(" ");
+
+export type Phase = "setup" | "running" | "done";
+export const phase = (s: Session): Phase => (s.startedAt === undefined ? "setup" : s.endedAt === undefined ? "running" : "done");
+export const endSession = (s: Session, now: number): Session => (s.startedAt === undefined ? s : { ...s, endedAt: s.endedAt ?? now });
+export const resumeSession = (s: Session): Session => ({ ...s, endedAt: undefined });
+/** Next week's session: same squad (optional), clean clock and results. */
+export function nextSession(s: Session, keepRunners: boolean): Session {
+  const n = newSession(s.distanceKm);
+  return keepRunners ? { ...n, runners: s.runners.map((r) => ({ ...r })), room: s.room } : n;
+}
+export function nextBib(s: Session): string {
+  const nums = s.runners.map((r) => parseInt(r.bib, 10)).filter(Number.isFinite);
+  return String((nums.length ? Math.max(...nums) : 0) + 1);
+}
