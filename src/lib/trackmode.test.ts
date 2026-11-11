@@ -61,3 +61,18 @@ describe("marker boards", () => {
     expect(markerSplits(markers, 0).map((s) => s.ms)).toEqual([300_000, 310_000]); expect(markerSplits(markers, 0)[1].paceSecPerKm).toBe(310);
   });
 });
+import { pointOnTrack, trackOutline, along as alongFn } from "./trackmode";
+import { DEMO_RUNNERS, demoDistance, demoPositions } from "./demo";
+import { addPositions, liveFlags } from "./livemap";
+describe("demo track", () => {
+  const place = { center: C, bearing: B };
+  it("points on the track sit on the lane line and the outline closes", () => {
+    for (const s of [0, 50, 120, 200, 300, 399]) { const fit = trackDistance([{ ...pointOnTrack(place, 0), t: 0 }, { ...pointOnTrack(place, s), t: 1 }], place); expect(fit.offTrack).toBe(false); }
+    const o = trackOutline(place); expect(o[0].lat).toBeCloseTo(o[o.length - 1].lat, 9); void alongFn;
+  });
+  it("demo runners lap at their own speeds, and runner E stops (flagged after 3 minutes)", () => {
+    expect(demoDistance(DEMO_RUNNERS[0], 100)).toBeCloseTo(560); expect(demoDistance(DEMO_RUNNERS[4], 1000)).toBe(360);
+    let trail = {}; for (let s = 0; s <= 300; s += 5) trail = addPositions(trail, demoPositions(place, s, s * 1000, 1), s * 1000);
+    const f = liveFlags(trail, 300_000); expect(f["5"]).toBe("stopped"); expect(f["1"]).toBeUndefined();
+  });
+});

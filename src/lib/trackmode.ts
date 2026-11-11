@@ -106,3 +106,16 @@ export function markedDistance(markers: Marker[], gpsNowM: number, gpsAtMarkersM
 export function markerSplits(markers: Marker[], startMs: number) {
   return markers.map((m, i) => { const prevM = i ? markers[i - 1] : { atMs: startMs, distM: 0 }; return { distM: m.distM, ms: m.atMs - prevM.atMs, paceSecPerKm: (m.atMs - prevM.atMs) / 1000 / ((m.distM - prevM.distM) / 1000) }; });
 }
+
+/** The point at metres `s` along a lane (inverse of `along`), for drawing the track and for the demo. */
+export function pointOnTrack(place: Pick<TrackPlace, "center" | "bearing">, s0: number, lane = 1): LatLon {
+  const r = laneRadius(lane), bend = Math.PI * r, per = 2 * STRAIGHT + 2 * bend, s = ((s0 % per) + per) % per; let u: number, v: number;
+  if (s < STRAIGHT) { u = s - HALF; v = -r; }
+  else if (s < STRAIGHT + bend) { const a = (s - STRAIGHT) / r - Math.PI / 2; u = HALF + r * Math.cos(a); v = r * Math.sin(a); }
+  else if (s < 2 * STRAIGHT + bend) { u = HALF - (s - STRAIGHT - bend); v = r; }
+  else { const a = (s - 2 * STRAIGHT - bend) / r + Math.PI / 2; u = -HALF + r * Math.cos(a); v = r * Math.sin(a); }
+  const b = place.bearing * rad, east = u * Math.sin(b) - v * Math.cos(b), north = u * Math.cos(b) + v * Math.sin(b);
+  return { lat: place.center.lat + north / M, lon: place.center.lon + east / (M * Math.cos(place.center.lat * rad)) };
+}
+export const trackOutline = (place: Pick<TrackPlace, "center" | "bearing">, lane = 1, n = 120): LatLon[] =>
+  Array.from({ length: n + 1 }, (_, i) => pointOnTrack(place, (i / n) * lapLength(lane), lane));

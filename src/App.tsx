@@ -21,6 +21,7 @@ import Live from "./tabs/Live";
 import Routes from "./tabs/Routes";
 import Session from "./tabs/Session";
 import Today from "./tabs/Today";
+import Demo from "./tabs/Demo";
 import { Confirm, Icons } from "./ui";
 
 type Tab = "today" | "session" | "runners" | "map" | "club";
@@ -33,7 +34,7 @@ const prefersDark = () => window.matchMedia?.("(prefers-color-scheme: dark)").ma
 export default function App() {
   const [s, setS] = useState<S.Session | null>(null), [tab, setTab] = useState<Tab>(deepLink ? "today" : "session"), [now, setNow] = useState(Date.now());
   const [err, setErr] = useState(""), [pending, setPending] = useState(0), [cfg, setCfg] = useState<Config>({ serverUrl: "", token: "" }), [notices, setNotices] = useState<Notice[]>([]);
-  const [prefs, setPrefsState] = useState<Prefs>(defaultPrefs()), [sheet, setSheet] = useState(false), [mapView, setMapView] = useState<"live" | "routes">("live");
+  const [prefs, setPrefsState] = useState<Prefs>(defaultPrefs()), [sheet, setSheet] = useState(false), [mapView, setMapView] = useState<"live" | "routes" | "demo">("live");
   const [club, setClubState] = useState<C.ClubData>(C.emptyClub()), [history, setHistory] = useState<S.Session[]>([]);
   const clubRef = useRef(club); clubRef.current = club;
   const [countdown, setCountdown] = useState<number | null>(null), lastTick = useRef(0);
@@ -188,9 +189,11 @@ export default function App() {
           <div className="ipac-seg" role="group" aria-label="Map views">
             <button aria-pressed={mapView === "live"} onClick={() => setMapView("live")}>Live</button>
             <button aria-pressed={mapView === "routes"} onClick={() => setMapView("routes")}>Routes</button>
+            <button aria-pressed={mapView === "demo"} onClick={() => setMapView("demo")}>Demo</button>
           </div>
           <div hidden={mapView !== "live"}><Live s={s} act={act} cfg={cfg} running={ph === "running"} live={live} join={liveJoin} setJoin={setLiveJoin} trail={trail} members={club.members} routes={routes} /></div>
           <div hidden={mapView !== "routes"}><Routes distances={prefs.distances} router={cfg.router} /></div>
+          {mapView === "demo" && <div><Demo /></div>}
         </div>
         <div hidden={tab !== "club"}><Club cfg={cfg} setCfg={setCfg} notices={notices} prefs={prefs} setPrefs={setPrefs} club={club} setClub={setClub} publish={publish} publishNow={publishNow} /></div>
       </main>
