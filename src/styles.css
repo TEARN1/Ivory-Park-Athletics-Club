@@ -1,0 +1,18 @@
+:root{--color-bg:#fff;--color-fg:#111;--color-accent:#0b6b3a;--color-accent-fg:#fff;--color-line:#ccc;--color-err:#b00020}
+@media (prefers-color-scheme:dark){:root{--color-bg:#101412;--color-fg:#eee;--color-accent:#2fb36b;--color-accent-fg:#06180e;--color-line:#333;--color-err:#ff7a8a}}
+body{margin:0;background:var(--color-bg);color:var(--color-fg);font:16px/1.4 system-ui,sans-serif}
+.ipac-app{max-width:640px;margin:0 auto;padding:12px}
+.ipac-head h1{margin:0;font-size:1.3rem}.ipac-head p{margin:2px 0 8px}
+.ipac-tabs{display:flex;gap:6px;margin-bottom:10px}
+.ipac-tabs button{flex:1}
+.ipac-tabs button[aria-current=true]{background:var(--color-accent);color:var(--color-accent-fg)}
+button,input,select{font:inherit;padding:10px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-bg);color:var(--color-fg)}
+button{cursor:pointer;min-height:44px}
+.ipac-form{display:grid;gap:8px;margin:12px 0}
+.ipac-list{list-style:none;padding:0;display:grid;gap:8px}
+.ipac-clock{font-size:3.5rem;text-align:center;font-variant-numeric:tabular-nums;margin:8px 0}
+.ipac-big{width:100%;background:var(--color-accent);color:var(--color-accent-fg);font-size:1.3rem;min-height:64px}
+.ipac-finish{width:100%;text-align:left;min-height:56px}
+.ipac-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.ipac-table th,.ipac-table td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--color-line)}
+.ipac-err{color:var(--color-err)}.ipac-hint{opacity:.8}.ipac-actions{margin:12px 0}
