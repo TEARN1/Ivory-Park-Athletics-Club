@@ -24,7 +24,9 @@ export const loadSession = () => kvGet<Session>("current");
 export const saveSession = (s: Session) => kvSet("current", s);
 
 export interface Config { serverUrl: string; token: string; router?: string }
-export const loadConfig = async (): Promise<Config> => (await kvGet<Config>("config")) ?? { serverUrl: (import.meta.env.VITE_SERVER_URL as string) ?? "", token: "" };
+/** Built-in server address. "same-origin" means the server sits behind the same address as the app (the droplet set-up). */
+export const defaultServer = () => { const v = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? ""; return v === "same-origin" ? location.origin : v; };
+export const loadConfig = async (): Promise<Config> => { const c = await kvGet<Config>("config"); return c ? { ...c, serverUrl: c.serverUrl || defaultServer() } : { serverUrl: defaultServer(), token: "" }; };
 export const saveConfig = (c: Config) => kvSet("config", c);
 export const loadHistory = async () => (await kvGet<Session[]>("history")) ?? [];
 export async function archive(s: Session) {

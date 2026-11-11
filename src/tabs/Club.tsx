@@ -8,6 +8,7 @@ import type { ClubData } from "../lib/club";
 
 export default function Club({ cfg, setCfg, notices, prefs, setPrefs, club, setClub, publish, publishNow }: { cfg: Config; setCfg: (c: Config) => void; notices: Notice[]; prefs: Prefs; setPrefs: (p: Prefs) => void; club: ClubData; setClub: (c: ClubData) => void; publish: PublishState; publishNow: () => void }) {
   const [draft, setDraft] = useState(cfg), [msg, setMsg] = useState(""), [text, setText] = useState("");
+  useEffect(() => { setDraft(cfg); }, [cfg]); // settings load after the first render
   const [g, setG] = useState({ name: "", contact: "", consent: false }), [guests, setGuests] = useState<any[]>([]);
   const base = cfg.serverUrl.replace(/\/$/, ""), hdr = { "content-type": "application/json", authorization: `Bearer ${cfg.token}` };
   const call = async (path: string, init?: RequestInit) => {

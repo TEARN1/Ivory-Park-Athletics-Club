@@ -1,0 +1,17 @@
+{$DOMAIN} {
+	encode gzip
+	# Club server: live room (WebSocket), joining, events, club page, uploads
+	@api path /live* /health /sync /sessions /guests* /notices* /programs* /events* /public /public.json /club /club/*
+	handle @api {
+		reverse_proxy app:8787
+	}
+	# The app itself (single page; offline cache file must never be cached)
+	handle {
+		root * /srv
+		header /sw.js Cache-Control "no-cache"
+		header X-Content-Type-Options nosniff
+		header Referrer-Policy same-origin
+		try_files {path} /index.html
+		file_server
+	}
+}

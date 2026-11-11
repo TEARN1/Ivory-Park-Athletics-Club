@@ -58,4 +58,6 @@ Centimetre accuracy needs RTK GNSS hardware with correction data (for example Tr
 - GPS needs the screen/app kept open on most phones. Median pace per individual is shown per km split, not yet on the dashboard.
 - The coach token is stored on the coach's device. There are no user accounts.
 
+Hosting: on a DigitalOcean droplet run `sudo bash deploy/droplet/setup.sh` (see [docs/deploy.md](docs/deploy.md)).
+
 Plan: [docs/architecture.md](docs/architecture.md)

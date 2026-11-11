@@ -1,4 +1,21 @@
-# Deploying on free tiers
+# Deploying
+
+## Recommended: your own DigitalOcean droplet (everything on one address, data kept)
+On the droplet (Ubuntu or Debian), as a user with sudo:
+```
+git clone https://github.com/TEARN1/ivory-park-athletics-club.git
+cd ivory-park-athletics-club
+sudo bash deploy/droplet/setup.sh                                  # address: <droplet-ip>.sslip.io
+# or, with your own domain whose A record points at the droplet:
+sudo DOMAIN=club.example.org.za bash deploy/droplet/setup.sh
+```
+It installs Docker if needed (and 2 GB swap on small droplets), builds the app, starts the server behind Caddy
+(free HTTPS certificate, needed for GPS and installing the app), creates a coach token and prints it.
+Data lives in the `ipac-data` Docker volume, so it survives restarts and updates. Turn on DigitalOcean backups.
+Update: `git pull && sudo bash deploy/droplet/setup.sh`. Logs: `cd deploy/droplet && sudo docker compose logs -f`.
+The coach token is in `deploy/droplet/.env` (readable by root only).
+
+# Other option: free tiers
 
 Two parts: the **client** (static site) and the **server** (live relay, sync, notices). Costs R0 on free tiers, with the limits below. Both hosts give you HTTPS, which GPS and installing the app require.
 

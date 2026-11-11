@@ -1,0 +1,17 @@
+services:
+  app:   # Node server: live room, joining, events, club page. Data kept in the ipac-data volume.
+    build: { context: ../.., dockerfile: Dockerfile }
+    restart: unless-stopped
+    environment:
+      COACH_TOKEN: ${COACH_TOKEN:?set COACH_TOKEN in .env}
+      ALLOWED_ORIGIN: https://${DOMAIN}
+      DATA_FILE: /data/db.json
+    volumes: [ "ipac-data:/data" ]
+  web:   # Caddy: HTTPS certificate, the app, and the doorway to the server
+    build: { context: ../.., dockerfile: deploy/droplet/Dockerfile.web }
+    restart: unless-stopped
+    depends_on: [ app ]
+    environment: { DOMAIN: "${DOMAIN}" }
+    ports: [ "80:80", "443:443", "443:443/udp" ]
+    volumes: [ "caddy-data:/data", "caddy-config:/config" ]
+volumes: { ipac-data: {}, caddy-data: {}, caddy-config: {} }
