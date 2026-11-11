@@ -4,6 +4,8 @@ export interface Session {
   runners: Runner[];
   startedAt?: number;                 // epoch ms
   finishes: Record<string, number>;   // runnerId -> elapsed ms
+  tracks?: Record<string, import("./geo").TrackPoint[]>;  // GPS points per runner (device-held)
+  room?: string;                      // live-session code for relay
 }
 export interface Row { runner: Runner; elapsedMs: number; rank: number; paceSecPerKm: number; gapMs: number }
 
@@ -42,6 +44,26 @@ export function standings(s: Session): Row[] {
     runner, rank: i + 1, elapsedMs: s.finishes[runner.id],
     paceSecPerKm: s.finishes[runner.id] / 1000 / s.distanceKm, gapMs: s.finishes[runner.id] - lead,
   }));
+}
+export function updateRunner(s: Session, id: string, name: string, bib: string): Session {
+  const n = name.trim(), b = bib.trim();
+  if (!n && !b) throw new Error("Enter a name or a bib number");
+  if (b && s.runners.some((r) => r.id !== id && r.bib === b)) throw new Error(`Bib ${b} is already taken`);
+  return { ...s, runners: s.runners.map((r) => (r.id === id ? { ...r, name: n, bib: b } : r)) };
+}
+/** Coach correction for a finish tapped late or early. */
+export function setFinishTime(s: Session, id: string, elapsedMs: number): Session {
+  if (!(elapsedMs >= 0) || s.finishes[id] === undefined) throw new Error("Pick a finished runner and a valid time");
+  return { ...s, finishes: { ...s.finishes, [id]: Math.round(elapsedMs) } };
+}
+export function parseTime(text: string): number {
+  const p = text.trim().split(":").map(Number);
+  if (!p.length || p.length > 3 || p.some((x) => !isFinite(x) || x < 0)) throw new Error("Use m:ss or h:mm:ss");
+  return p.reduce((a, x) => a * 60 + x, 0) * 1000;
+}
+export function addTrackPoint(s: Session, id: string, p: import("./geo").TrackPoint): Session {
+  const tr = s.tracks?.[id] ?? [];
+  return { ...s, tracks: { ...s.tracks, [id]: [...tr, p].slice(-20000) } };
 }
 export const stillRunning = (s: Session) => s.runners.filter((r) => s.finishes[r.id] === undefined);
 

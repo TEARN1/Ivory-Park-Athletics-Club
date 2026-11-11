@@ -22,21 +22,30 @@ export async function kvSet(key: string, value: unknown): Promise<void> {
 export const loadSession = () => kvGet<Session>("current");
 export const saveSession = (s: Session) => kvSet("current", s);
 
-/** Set VITE_SYNC_URL when the club has a server. Until then the outbox just holds data. */
-const SYNC_URL = import.meta.env.VITE_SYNC_URL as string | undefined;
-export async function queueForSync(s: Session) {
+export interface Config { serverUrl: string; token: string }
+export const loadConfig = async (): Promise<Config> => (await kvGet<Config>("config")) ?? { serverUrl: (import.meta.env.VITE_SERVER_URL as string) ?? "", token: "" };
+export const saveConfig = (c: Config) => kvSet("config", c);
+export const loadHistory = async () => (await kvGet<Session[]>("history")) ?? [];
+export async function archive(s: Session) {
+  await kvSet("history", [...(await loadHistory()).filter((x) => x.id !== s.id), s].slice(-200));
   const box = (await kvGet<Session[]>("outbox")) ?? [];
   await kvSet("outbox", [...box.filter((x) => x.id !== s.id), s]);
 }
 export const pendingCount = async () => ((await kvGet<Session[]>("outbox")) ?? []).length;
+/** Uploads queued sessions to the club server. Needs a server URL and the coach token. */
 export async function flushOutbox(): Promise<{ sent: number; pending: number }> {
-  const box = (await kvGet<Session[]>("outbox")) ?? [];
-  if (!SYNC_URL || !navigator.onLine) return { sent: 0, pending: box.length };
+  const box = (await kvGet<Session[]>("outbox")) ?? [], cfg = await loadConfig();
+  if (!cfg.serverUrl || !cfg.token || !navigator.onLine) return { sent: 0, pending: box.length };
   const left: Session[] = []; let sent = 0;
   for (const s of box) {
-    try { const r = await fetch(SYNC_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(s) }); if (r.ok) sent++; else left.push(s); }
-    catch { left.push(s); }
+    // GPS tracks stay on the device; only results are uploaded.
+    const { tracks: _t, ...lean } = s;
+    try {
+      const r = await fetch(cfg.serverUrl.replace(/\/$/, "") + "/sync", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${cfg.token}` }, body: JSON.stringify(lean) });
+      if (r.ok) sent++; else left.push(s);
+    } catch { left.push(s); }
   }
   await kvSet("outbox", left); return { sent, pending: left.length };
 }
-export const syncConfigured = !!SYNC_URL;
+export const loadRoutes = async () => (await kvGet<import("./routes").Route[]>("routes")) ?? [];
+export const saveRoutes = (r: import("./routes").Route[]) => kvSet("routes", r);

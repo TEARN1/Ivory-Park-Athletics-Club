@@ -25,4 +25,4 @@ Live ordinal rank and split, pace per km, group and individual median pace.
 Target distance generates up to 15 loops from the club hub; **Reroute** gives an alternative of the same distance; named circuits; notices to past guests about time trials and long runs.
 
 ## Status
-Phase 1 (check-in, buddy, timer, results, offline storage) is built. Phase 2 is not.
+Phase 1 and 2 are built (see README for known limits). Not built: road-snapped routing with OSM tiles, SMS/push, accounts.

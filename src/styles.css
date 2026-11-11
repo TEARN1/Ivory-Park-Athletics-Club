@@ -16,3 +16,10 @@ button{cursor:pointer;min-height:44px}
 .ipac-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .ipac-table th,.ipac-table td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--color-line)}
 .ipac-err{color:var(--color-err)}.ipac-hint{opacity:.8}.ipac-actions{margin:12px 0}
+.ipac-tabs{flex-wrap:wrap}.ipac-tabs button{flex:1 1 30%}
+.ipac-card{border:1px solid var(--color-line);border-radius:10px;padding:10px;margin:10px 0}
+.ipac-banner{background:var(--color-accent);color:var(--color-accent-fg);padding:8px;border-radius:8px}
+.ipac-map{width:100%;max-height:300px;background:transparent;border:1px solid var(--color-line);border-radius:8px}
+.ipac-list li{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.ipac-form label{display:grid;gap:4px}
+textarea{font:inherit;padding:10px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-bg);color:var(--color-fg);min-height:70px}
