@@ -4,7 +4,10 @@ import { assignBibs, closeProgram, fetchJoiners, parseJoinParams } from "./lib/j
 import type { Notice } from "./lib/live";
 import { applyPrefs, defaultPrefs, type Prefs } from "./lib/prefs";
 import * as S from "./lib/session";
-import { archive, flushOutbox, loadConfig, loadPrefs, loadSession, pendingCount, savePrefs, saveSession, type Config } from "./lib/store";
+import * as C from "./lib/club";
+import { archive, flushOutbox, loadClub, loadConfig, loadHistory, loadPrefs, loadSession, pendingCount, saveClub, savePrefs, saveSession, type Config } from "./lib/store";
+import { localDate } from "./lib/join";
+import Runners from "./tabs/Runners";
 import Club from "./tabs/Club";
 import JoinPanel from "./tabs/JoinPanel";
 import Live from "./tabs/Live";
@@ -13,8 +16,8 @@ import Session from "./tabs/Session";
 import Today from "./tabs/Today";
 import { Confirm, Icons } from "./ui";
 
-type Tab = "today" | "session" | "live" | "routes" | "club";
-const NAV: [Tab, string][] = [["today", "Today"], ["session", "Session"], ["live", "Live"], ["routes", "Routes"], ["club", "Club"]];
+type Tab = "today" | "session" | "runners" | "map" | "club";
+const NAV: [Tab, string][] = [["today", "Today"], ["session", "Session"], ["runners", "Runners"], ["map", "Map"], ["club", "Club"]];
 const PHASE_LABEL = { setup: "Setting up", running: "Race on", done: "Finished" };
 const STAGES: [S.Phase, string][] = [["setup", "Set up"], ["running", "Race on"], ["done", "Results"]];
 const deepLink = parseJoinParams(location.search);
@@ -23,7 +26,9 @@ const prefersDark = () => window.matchMedia?.("(prefers-color-scheme: dark)").ma
 export default function App() {
   const [s, setS] = useState<S.Session | null>(null), [tab, setTab] = useState<Tab>(deepLink ? "today" : "session"), [now, setNow] = useState(Date.now());
   const [err, setErr] = useState(""), [pending, setPending] = useState(0), [cfg, setCfg] = useState<Config>({ serverUrl: "", token: "" }), [notices, setNotices] = useState<Notice[]>([]);
-  const [prefs, setPrefsState] = useState<Prefs>(defaultPrefs()), [sheet, setSheet] = useState(false);
+  const [prefs, setPrefsState] = useState<Prefs>(defaultPrefs()), [sheet, setSheet] = useState(false), [mapView, setMapView] = useState<"live" | "routes">("live");
+  const [club, setClubState] = useState<C.ClubData>(C.emptyClub()), [history, setHistory] = useState<S.Session[]>([]);
+  const clubRef = useRef(club); clubRef.current = club;
   const [toast, setToast] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
 
@@ -31,7 +36,9 @@ export default function App() {
     loadSession().then((x) => { const v = x ?? S.newSession(); ref.current = v; setS(v); });
     loadConfig().then((c) => { setCfg(c); if (!deepLink && !c.token && c.serverUrl) setTab("today"); });
     loadPrefs().then((p) => { setPrefsState(p); applyPrefs(p); });
+    loadClub().then(setClubState); loadHistory().then(setHistory);
   }, []);
+  const setClub = (c: C.ClubData) => { setClubState(c); saveClub(c); };
   const setPrefs = (p: Prefs) => { setPrefsState(p); applyPrefs(p); savePrefs(p); };
   const isNight = prefs.mode === "dark" || (prefs.mode === "auto" && prefersDark());
   useEffect(() => { if (s) saveSession(s); }, [s]);
@@ -60,7 +67,7 @@ export default function App() {
     const tick = async () => {
       if (!ref.current || S.phase(ref.current) !== "setup") return;
       try {
-        const plan = S.planJoins(ref.current, await fetchJoiners(cfg.serverUrl, cfg.token, prog));
+        const plan = S.planJoins(ref.current, await fetchJoiners(cfg.serverUrl, cfg.token, prog), (n) => C.findMemberByName(clubRef.current.members, n)?.id);
         if (!Object.keys(plan.assignments).length) return;
         if (plan.added) { ref.current = plan.session; setS(plan.session); showToast(`${plan.added} runner${plan.added > 1 ? "s" : ""} joined`); }
         await assignBibs(cfg.serverUrl, cfg.token, prog, plan.assignments);
@@ -78,7 +85,16 @@ export default function App() {
   if (!s) return <p className="ipac-loading">Loading…</p>;
   // Compute from a ref so async callbacks (GPS, polling) never use a stale session.
   const act = (fn: (x: S.Session) => S.Session) => { try { const n = fn(ref.current!); ref.current = n; setS(n); setErr(""); } catch (e) { setErr((e as Error).message); } };
-  const onEnd = async (ended: S.Session) => { act(() => ended); await archive(ended); setPending(await pendingCount()); flushOutbox().then((r) => setPending(r.pending)); };
+  const onEnd = async (ended: S.Session) => { act(() => ended); await archive(ended); setHistory(await loadHistory()); setPending(await pendingCount()); flushOutbox().then((r) => setPending(r.pending)); };
+  const onSaveMember = (r: S.Runner) => {
+    try {
+      if (!r.name.trim()) throw new Error("Add a name first (Edit), then save the runner to the club");
+      const m = C.findMemberByName(club.members, r.name) ?? C.newMember(r.name, { bib: r.bib || undefined });
+      if (!club.members.includes(m)) setClub({ ...club, members: [...club.members, m] });
+      act((x) => ({ ...x, runners: x.runners.map((y) => (y.id === r.id ? { ...y, memberId: m.id } : y)) }));
+      showToast(`${m.name} saved to the club`);
+    } catch (e) { setErr((e as Error).message); }
+  };
   const onNew = (keep: boolean) => { const n = S.nextSession(s, keep); ref.current = n; setS(n); setTab("session"); setSheet(false); window.scrollTo(0, 0); };
   const go = (t: Tab) => { setTab(t); setSheet(false); window.scrollTo(0, 0); };
   const joinPanel = (bare?: boolean) => <JoinPanel s={s} act={act} cfg={cfg} bare={bare} />;
@@ -101,9 +117,16 @@ export default function App() {
       <main className="ipac-main">
         {err && <p role="alert" className="ipac-err">{err}</p>}
         <div hidden={tab !== "today"}><Today cfg={cfg} deepLink={deepLink} /></div>
-        <div hidden={tab !== "session"}><Session s={s} act={act} now={now} pending={pending} serverOn={!!(cfg.serverUrl && cfg.token)} toast={showToast} onEnd={onEnd} onNew={onNew} distances={prefs.distances} joinSlot={joinPanel()} /></div>
-        <div hidden={tab !== "live"}><Live s={s} act={act} cfg={cfg} running={ph === "running"} /></div>
-        <div hidden={tab !== "routes"}><Routes distances={prefs.distances} /></div>
+        <div hidden={tab !== "session"}><Session s={s} act={act} now={now} pending={pending} serverOn={!!(cfg.serverUrl && cfg.token)} toast={showToast} onEnd={onEnd} onNew={onNew} distances={prefs.distances} joinSlot={joinPanel()} members={club.members} onSaveMember={onSaveMember} /></div>
+        <div hidden={tab !== "runners"}><Runners club={club} setClub={setClub} history={history} today={localDate()} /></div>
+        <div hidden={tab !== "map"}>
+          <div className="ipac-seg" role="group" aria-label="Map views">
+            <button aria-pressed={mapView === "live"} onClick={() => setMapView("live")}>Live</button>
+            <button aria-pressed={mapView === "routes"} onClick={() => setMapView("routes")}>Routes</button>
+          </div>
+          <div hidden={mapView !== "live"}><Live s={s} act={act} cfg={cfg} running={ph === "running"} /></div>
+          <div hidden={mapView !== "routes"}><Routes distances={prefs.distances} /></div>
+        </div>
         <div hidden={tab !== "club"}><Club cfg={cfg} setCfg={setCfg} notices={notices} prefs={prefs} setPrefs={setPrefs} /></div>
       </main>
 

@@ -52,3 +52,5 @@ export const loadRoutes = async () => (await kvGet<import("./routes").Route[]>("
 export const saveRoutes = (r: import("./routes").Route[]) => kvSet("routes", r);
 export const loadPrefs = async () => cleanPrefs(await kvGet<Partial<Prefs>>("prefs"));
 export const savePrefs = (p: Prefs) => kvSet("prefs", p);
+export const loadClub = async (): Promise<import("./club").ClubData> => ({ ...(await import("./club")).emptyClub(), ...((await kvGet<import("./club").ClubData>("club")) ?? {}) });
+export const saveClub = (c: import("./club").ClubData) => kvSet("club", c);

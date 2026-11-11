@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { sessionCsv } from "../lib/csv";
+import * as C from "../lib/club";
 import * as S from "../lib/session";
 import { loadHistory } from "../lib/store";
 import { Confirm, download } from "../ui";
@@ -10,6 +11,7 @@ export interface SessionProps {
   toast: (msg: string, undo?: () => void) => void;
   onEnd: (ended: S.Session) => void; onNew: (keepRunners: boolean) => void;
   distances: number[]; joinSlot: ReactNode;
+  members: C.Member[]; onSaveMember: (r: S.Runner) => void;
 }
 
 export default function Session(p: SessionProps) {
@@ -18,12 +20,14 @@ export default function Session(p: SessionProps) {
 }
 
 /* ---------- 1. Set up ---------- */
-function Setup({ s, act, pending, serverOn, distances, joinSlot }: SessionProps) {
+function Setup({ s, act, pending, serverOn, distances, joinSlot, members, onSaveMember }: SessionProps) {
   const [qty, setQty] = useState(20), [name, setName] = useState(""), [bib, setBib] = useState(S.nextBib(s)), [buddy, setBuddy] = useState("");
   const [edit, setEdit] = useState<{ id: string; name: string; bib: string } | null>(null), [hist, setHist] = useState<S.Session[]>([]);
   useEffect(() => { loadHistory().then(setHist); }, [pending]);
   useEffect(() => { setBib(S.nextBib(s)); }, [s.runners.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  const n = s.runners.length;
+  const n = s.runners.length, yr = new Date().getFullYear();
+  const notIn = members.filter((m) => m.active && !s.runners.some((r) => r.memberId === m.id));
+  const regulars = notIn.filter((m) => !C.needsConsent(m, yr)), blocked = notIn.filter((m) => C.needsConsent(m, yr));
   return (
     <>
       <section className="ipac-card">
@@ -44,9 +48,16 @@ function Setup({ s, act, pending, serverOn, distances, joinSlot }: SessionProps)
             <input type="number" inputMode="numeric" min={1} max={200} value={qty} aria-label="How many runners" onChange={(e) => setQty(+e.target.value)} /></label>
           <button className="ipac-btn ipac-btn-outline" onClick={() => act((x) => S.addNumbered(x, qty))}>Add {qty || 0} numbered runners</button>
         </div>
-        <form className="ipac-add" onSubmit={(e) => { e.preventDefault(); act((x) => S.addRunner(x, name, bib, buddy || undefined)); setName(""); setBuddy(""); }}>
+        {regulars.length > 0 && <button className="ipac-btn ipac-btn-outline ipac-btn-wide ipac-regulars" onClick={() => act((x) => regulars.reduce((acc, m) => checkIn(acc, m, S.nextBib(acc)), x))}>Check in {regulars.length} club runner{regulars.length > 1 ? "s" : ""}</button>}
+        {blocked.length > 0 && <p className="ipac-hint">Not checked in until a parent or guardian's consent is recorded: {blocked.map((m) => m.name).join(", ")}.</p>}
+        <form className="ipac-add" onSubmit={(e) => {
+          e.preventDefault();
+          const mem = C.findMemberByName(members, name);
+          act((x) => (mem ? checkIn(x, mem, bib, buddy || undefined) : S.addRunner(x, name, bib, buddy || undefined))); setName(""); setBuddy("");
+        }}>
           <input className="ipac-bibin" aria-label="Bib number" inputMode="numeric" placeholder="Bib" value={bib} onChange={(e) => setBib(e.target.value)} />
-          <input className="ipac-namein" aria-label="Name" placeholder="Name (optional)" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="ipac-namein" aria-label="Name" placeholder="Name (optional)" autoComplete="off" list="ipac-members" value={name} onChange={(e) => setName(e.target.value)} />
+          <datalist id="ipac-members">{members.filter((m) => m.active && !s.runners.some((r) => r.memberId === m.id)).map((m) => <option key={m.id} value={m.name} />)}</datalist>
           <button className="ipac-btn ipac-btn-primary" type="submit">Add runner</button>
           {n > 0 && (
             <details className="ipac-more">
@@ -69,6 +80,7 @@ function Setup({ s, act, pending, serverOn, distances, joinSlot }: SessionProps)
               ) : (<>
                 <span className="ipac-bib">{r.bib || "–"}</span>
                 <span className="ipac-who"><b>{r.name || `Bib ${r.bib}`}</b>{r.buddyId && <small>Runs with {S.label(s.runners.find((q) => q.id === r.buddyId) ?? r)}</small>}</span>
+                {!r.memberId && members !== undefined && <button className="ipac-btn ipac-btn-quiet" aria-label={`Save ${S.label(r)} to the club`} onClick={() => onSaveMember(r)}>Save</button>}
                 <button className="ipac-btn ipac-btn-quiet" aria-label={`Edit ${S.label(r)}`} onClick={() => setEdit({ id: r.id, name: r.name, bib: r.bib })}>Edit</button>
                 <Confirm label="Remove" aria={`Remove ${S.label(r)}`} ask="Remove?" onYes={() => act((x) => S.removeRunner(x, r.id))} />
               </>)}
@@ -185,4 +197,13 @@ function Standings({ s, act, podium }: { s: S.Session; act: Act; podium?: boolea
         </>)}
       </li>))}</ol>
   );
+}
+
+/** Check a club runner in, using their usual bib when it is free. Under-18s need recorded consent. */
+function checkIn(s: S.Session, m: C.Member, fallbackBib: string, buddyId?: string): S.Session {
+  if (s.runners.some((r) => r.memberId === m.id)) throw new Error(`${m.name} is already checked in`);
+  if (C.needsConsent(m, new Date().getFullYear())) throw new Error(`${m.name} is under 18. Record a parent or guardian's consent in Runners first.`);
+  const bib = m.bib && !s.runners.some((r) => r.bib === m.bib) ? m.bib : fallbackBib;
+  const n = S.addRunner(s, m.name, bib, buddyId);
+  return { ...n, runners: n.runners.map((r, i) => (i === n.runners.length - 1 ? { ...r, memberId: m.id } : r)) };
 }
