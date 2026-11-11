@@ -54,4 +54,11 @@ describe("session", () => {
   it("suggests the next free bib", () => {
     expect(S.nextBib(S.newSession())).toBe("1"); expect(S.nextBib(base())).toBe("4");
   });
+  it("adds numbered runners from the next free bib", () => {
+    const s = S.addNumbered(S.newSession(), 20);
+    expect(s.runners).toHaveLength(20); expect(s.runners[0].bib).toBe("1"); expect(s.runners[19].bib).toBe("20");
+    const t = S.addNumbered(S.addRunner(S.newSession(), "A", "5"), 3);
+    expect(t.runners.map((r) => r.bib)).toEqual(["5", "6", "7", "8"]);
+    expect(() => S.addNumbered(s, 0)).toThrow(); expect(() => S.addNumbered(s, 500)).toThrow();
+  });
 });

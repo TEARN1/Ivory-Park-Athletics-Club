@@ -167,3 +167,7 @@ input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:midd
 .ipac-card details>summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
 .ipac-more-routes{margin:10px 0}.ipac-more-routes summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center;color:var(--color-muted)}
 .ipac-chips+details+.ipac-btn-hero,.ipac-chips+.ipac-btn-hero{margin-top:6px}
+.ipac-quick{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:end;margin-bottom:12px}
+.ipac-quick label{display:grid;gap:4px;font-weight:600;font-size:.85rem;color:var(--color-muted)}
+.ipac-tiles-many{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ipac-tiles-many .ipac-tile{min-height:84px;padding:8px 10px}.ipac-tiles-many .ipac-tile b{font-size:2.2rem}

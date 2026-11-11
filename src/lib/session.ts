@@ -103,3 +103,12 @@ export function nextBib(s: Session): string {
   const nums = s.runners.map((r) => parseInt(r.bib, 10)).filter(Number.isFinite);
   return String((nums.length ? Math.max(...nums) : 0) + 1);
 }
+
+/** Add `count` runners that only have a bib number, continuing from the next free number. */
+export function addNumbered(s: Session, count: number): Session {
+  const n = Math.floor(count);
+  if (!(n >= 1 && n <= 200)) throw new Error("Pick between 1 and 200 runners");
+  const taken = new Set(s.runners.map((r) => r.bib)); let next = parseInt(nextBib(s), 10); const add: Runner[] = [];
+  while (add.length < n) { const b = String(next++); if (!taken.has(b)) add.push({ id: crypto.randomUUID(), name: "", bib: b }); }
+  return { ...s, runners: [...s.runners, ...add] };
+}

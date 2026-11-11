@@ -19,7 +19,7 @@ export default function Session(p: SessionProps) {
 
 /* ---------- 1. Set up ---------- */
 function Setup({ s, act, pending, serverOn }: SessionProps) {
-  const [name, setName] = useState(""), [bib, setBib] = useState(S.nextBib(s)), [buddy, setBuddy] = useState("");
+  const [qty, setQty] = useState(20), [name, setName] = useState(""), [bib, setBib] = useState(S.nextBib(s)), [buddy, setBuddy] = useState("");
   const [edit, setEdit] = useState<{ id: string; name: string; bib: string } | null>(null), [hist, setHist] = useState<S.Session[]>([]);
   useEffect(() => { loadHistory().then(setHist); }, [pending]);
   useEffect(() => { setBib(S.nextBib(s)); }, [s.runners.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -37,6 +37,11 @@ function Setup({ s, act, pending, serverOn }: SessionProps) {
 
       <section className="ipac-card">
         <h2>Who is running? <span className="ipac-count">{n}</span></h2>
+        <div className="ipac-quick">
+          <label>Numbers only
+            <input type="number" inputMode="numeric" min={1} max={200} value={qty} aria-label="How many runners" onChange={(e) => setQty(+e.target.value)} /></label>
+          <button className="ipac-btn ipac-btn-outline" onClick={() => act((x) => S.addNumbered(x, qty))}>Add {qty || 0} numbered runners</button>
+        </div>
         <form className="ipac-add" onSubmit={(e) => { e.preventDefault(); act((x) => S.addRunner(x, name, bib, buddy || undefined)); setName(""); setBuddy(""); }}>
           <input className="ipac-bibin" aria-label="Bib number" inputMode="numeric" placeholder="Bib" value={bib} onChange={(e) => setBib(e.target.value)} />
           <input className="ipac-namein" aria-label="Name" placeholder="Name (optional)" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
@@ -61,7 +66,7 @@ function Setup({ s, act, pending, serverOn }: SessionProps) {
                 </form>
               ) : (<>
                 <span className="ipac-bib">{r.bib || "–"}</span>
-                <span className="ipac-who"><b>{r.name || "No name"}</b>{r.buddyId && <small>Runs with {S.label(s.runners.find((q) => q.id === r.buddyId) ?? r)}</small>}</span>
+                <span className="ipac-who"><b>{r.name || `Bib ${r.bib}`}</b>{r.buddyId && <small>Runs with {S.label(s.runners.find((q) => q.id === r.buddyId) ?? r)}</small>}</span>
                 <button className="ipac-btn ipac-btn-quiet" aria-label={`Edit ${S.label(r)}`} onClick={() => setEdit({ id: r.id, name: r.name, bib: r.bib })}>Edit</button>
                 <Confirm label="Remove" aria={`Remove ${S.label(r)}`} ask="Remove?" onYes={() => act((x) => S.removeRunner(x, r.id))} />
               </>)}
@@ -110,9 +115,9 @@ function Running({ s, act, now, toast, onEnd }: SessionProps) {
       {left.length > 0 ? (
         <section>
           <h2 className="ipac-sub">Tap a runner as they cross the line</h2>
-          <div className="ipac-tiles">{left.map((r) => (
+          <div className={`ipac-tiles${left.length > 8 ? " ipac-tiles-many" : ""}`}>{left.map((r) => (
             <button key={r.id} className="ipac-tile" aria-label={`Finish ${S.label(r)}`} onClick={() => tap(r)}>
-              <b>{r.bib || "–"}</b><span>{r.name || "No name"}</span>
+              <b>{r.bib || "–"}</b>{r.name && <span>{r.name}</span>}
               {r.buddyId && <small>with {S.label(s.runners.find((q) => q.id === r.buddyId) ?? r)}</small>}
             </button>))}</div>
         </section>
