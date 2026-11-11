@@ -9,6 +9,7 @@ export interface Member {
   id: string; name: string; bib?: string; gender?: Gender; birthYear?: number;
   emergency?: Contact; guardian?: Contact; consentAt?: number;   // parent or guardian consent, needed under 18
   active: boolean; joinedAt: number; targetPaceSec?: number; notes: Note[]; plan: PlanItem[];
+  updatedAt?: number;   // used to merge backups from two phones: the newer edit wins
 }
 export function newMember(name: string, extra: Partial<Member> = {}, now = Date.now()): Member {
   const n = name.trim().replace(/\s+/g, " ").slice(0, 80);

@@ -146,6 +146,7 @@ function RaceRunning({ s, act, now, toast, onEnd, announce, members, safetyPaceS
       </section>
 
       <SafetyCard s={s} now={now} members={members} safetyPaceSec={safetyPaceSec} />
+      {!laps && <BibKeypad s={s} act={act} toast={toast} announce={announce} />}
       {left.length > 0 ? (
         <section>
           <h2 className="ipac-sub">{laps ? "Tap a runner each time they finish a lap" : "Tap a runner as they cross the line"}</h2>
@@ -359,5 +360,25 @@ function WorkoutTable({ s }: { s: S.Session }) {
       </table></div>
       <p className="ipac-hint">Best time for each runner is highlighted. A small spread means even pacing.</p>
     </section>
+  );
+}
+
+/** Type a bib to finish someone: fast for big fields and for a second timekeeper without the full list. */
+function BibKeypad({ s, act, toast, announce }: Pick<SessionProps, "s" | "act" | "toast" | "announce">) {
+  const [bib, setBib] = useState(""), [err, setErr] = useState("");
+  return (
+    <form className="ipac-keypad" onSubmit={(e) => {
+      e.preventDefault();
+      try {
+        const t = Date.now(), { session, runner } = S.finishByBib(s, bib, t); act(() => session); setBib(""); setErr(""); navigator.vibrate?.(30);
+        const place = S.standings(session).find((x) => x.runner.id === runner.id);
+        toast(`${S.label(runner)} finished`, () => act((x) => S.undoFinish(x, runner.id)));
+        if (place) announce("finishes", `${runner.name.trim() ? runner.name.trim().split(/\s+/)[0] : `Bib ${runner.bib}`}, ${S.ordinal(place.rank)}, ${spokenTime(place.elapsedMs)}`);
+      } catch (x) { setErr((x as Error).message); }
+    }}>
+      <input aria-label="Finish by bib number" inputMode="numeric" placeholder="Type a bib" value={bib} onChange={(e) => setBib(e.target.value)} />
+      <button className="ipac-btn ipac-btn-primary" disabled={!bib.trim()}>Finish</button>
+      {err && <p role="alert" className="ipac-err">{err}</p>}
+    </form>
   );
 }

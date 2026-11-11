@@ -137,3 +137,14 @@ export function planJoins(s: Session, joiners: Joiner[], memberFor?: (name: stri
   return { session: cur, assignments, added };
 }
 export const setProgram = (s: Session, code?: string): Session => ({ ...s, program: code ? { code } : undefined });
+
+/** Finish by typing a bib (second timekeeper, big fields). Unknown bibs are added as numbered runners. */
+export function finishByBib(s: Session, bib: string, now: number): { session: Session; runner: Runner } {
+  const b = bib.trim(); if (!/^[0-9A-Za-z]{1,6}$/.test(b)) throw new Error("Type a bib number");
+  let cur = s, r = s.runners.find((x) => x.bib === b);
+  if (!r) { cur = addRunner(cur, "", b); r = cur.runners[cur.runners.length - 1]; }
+  if (cur.finishes[r.id] !== undefined) throw new Error(`#${b} already has a finish time`);
+  return { session: finish(cur, r.id, now), runner: r };
+}
+export const finishesByBib = (s: Session): Record<string, number> =>
+  Object.fromEntries(s.runners.filter((r) => r.bib && s.finishes[r.id] !== undefined).map((r) => [r.bib, s.finishes[r.id]]));

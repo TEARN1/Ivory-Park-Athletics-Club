@@ -4,20 +4,24 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import { initialRelay, relayReduce, type RelayState } from "../src/lib/relay";
+import { emptyTiming, timingReduce, type SharedTiming } from "../src/lib/timing";
+import { renderClubPage, renderResultsPage, sanitizeBundle, type PublicBundle } from "../src/lib/publicSite";
 
 export interface Options { coachToken?: string; dataFile?: string; allowedOrigin?: string }
 interface Joiner { id: string; deviceId: string; name: string; bib: string | null; at: number }
 interface Program { code: string; date: string; distanceKm: number; open: boolean; createdAt: number; joiners: Joiner[] }
-interface Db { programs: Program[]; sessions: any[]; guests: { id: string; name: string; contact: string; consentAt: number }[]; notices: { id: string; text: string; at: number }[] }
-interface Client { ws: WebSocket; room: string; runnerId?: string; coach: boolean }
-interface Room { relay: RelayState; startedAt?: number; clients: Set<Client>; beacon?: { runnerId: string; lat: number; lon: number; at: number } }
+interface Db { public?: PublicBundle; rsvps: Record<string, Rsvp[]>; programs: Program[]; sessions: any[]; guests: { id: string; name: string; contact: string; consentAt: number }[]; notices: { id: string; text: string; at: number }[] }
+interface Client { ws: WebSocket; room: string; runnerId?: string; coach: boolean; deviceTag: string }
+interface Pos { runnerId: string; lat: number; lon: number; at: number }
+interface Room { relay: RelayState; startedAt?: number; clients: Set<Client>; beacon?: Pos; positions: Map<string, Pos>; timing: SharedTiming }
+interface Rsvp { deviceId: string; name: string; coming: boolean; at: number }
 
 const MAX_BODY = 1_000_000;
 const same = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
 
 export function createApp(opts: Options): { server: Server; close: () => Promise<void> } {
   const origin = opts.allowedOrigin ?? "*";
-  let db: Db = { programs: [], sessions: [], guests: [], notices: [] };
+  let db: Db = { rsvps: {}, programs: [], sessions: [], guests: [], notices: [] };
   if (opts.dataFile && existsSync(opts.dataFile)) { try { db = { ...db, ...JSON.parse(readFileSync(opts.dataFile, "utf8")) }; } catch { /* start empty */ } }
   const persist = () => {
     if (!opts.dataFile) return;
@@ -27,19 +31,24 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
   const isCoach = (tok?: string | null) => !!opts.coachToken && !!tok && same(tok, opts.coachToken);
   const rooms = new Map<string, Room>();
   const send = (ws: WebSocket, m: unknown) => ws.readyState === 1 && ws.send(JSON.stringify(m));
-  const roomState = (r: Room) => ({ type: "state", relay: r.relay, startedAt: r.startedAt, beacon: r.beacon, runners: [...r.clients].map((c) => c.runnerId).filter(Boolean) });
+  const roomState = (r: Room) => ({ type: "state", serverNow: Date.now(), relay: r.relay, startedAt: r.startedAt, beacon: r.beacon, positions: [...r.positions.values()].slice(-200), timing: r.timing, runners: [...r.clients].map((c) => c.runnerId).filter(Boolean) });
   const broadcast = (r: Room, m: unknown) => r.clients.forEach((c) => send(c.ws, m));
 
   const reply = (res: ServerResponse, code: number, body: unknown) => {
     res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": origin, "access-control-allow-headers": "content-type,authorization", "access-control-allow-methods": "GET,POST,DELETE,OPTIONS" });
     res.end(JSON.stringify(body));
   };
-  const readJson = (req: IncomingMessage) => new Promise<any>((ok, bad) => {
+  const readJson = (req: IncomingMessage, limit = MAX_BODY) => new Promise<any>((ok, bad) => {
     let n = 0; const chunks: Buffer[] = [];
-    req.on("data", (c: Buffer) => { n += c.length; if (n > MAX_BODY) { bad(new Error("too large")); req.destroy(); } else chunks.push(c); });
+    req.on("data", (c: Buffer) => { n += c.length; if (n > limit) { bad(new Error("too large")); req.destroy(); } else chunks.push(c); });
     req.on("end", () => { try { ok(JSON.parse(Buffer.concat(chunks).toString() || "{}")); } catch { bad(new Error("bad json")); } });
   });
 
+  const rsvpCounts = () => Object.fromEntries(Object.entries(db.rsvps).map(([k, v]) => [k, v.filter((r) => r.coming).length]));
+  const html = (res: ServerResponse, code: number, body: string) => {
+    res.writeHead(code, { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'", "x-content-type-options": "nosniff" });
+    res.end(body);
+  };
   const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L: easy to read out loud
   const clean = (v: unknown, n: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, n);
   async function programs(req: IncomingMessage, res: ServerResponse, pm: RegExpMatchArray, url: URL) {
@@ -94,14 +103,30 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
     if (req.method === "OPTIONS") return reply(res, 204, {});
     try {
       if (path === "/health") return reply(res, 200, { ok: true });
+      if (req.method === "GET" && (path === "/club" || path === "/club/")) return html(res, 200, renderClubPage(db.public, rsvpCounts()));
+      const rm = path.match(/^\/club\/results\/([\w-]{1,60})$/);
+      if (req.method === "GET" && rm) { const h = renderResultsPage(db.public, rm[1]); return h ? html(res, 200, h) : html(res, 404, renderClubPage(db.public, rsvpCounts())); }
+      if (req.method === "GET" && path === "/public.json") return reply(res, 200, { bundle: db.public ?? null, counts: rsvpCounts() });
+      const em = path.match(/^\/events\/([\w-]{1,60})\/(rsvp|rsvps)$/);
+      if (em && em[2] === "rsvp" && req.method === "POST") {
+        const ev = db.public?.events.find((e) => e.id === em[1]); if (!ev) return reply(res, 404, { error: "That event is not on the club calendar" });
+        const b = await readJson(req), name = clean(b.name, 60), deviceId = clean(b.deviceId, 64);
+        if (!name || deviceId.length < 8) return reply(res, 400, { error: "Please enter your name" });
+        const list = (db.rsvps[ev.id] ?? []).filter((r) => r.deviceId !== deviceId);
+        if (list.length >= 500) return reply(res, 409, { error: "This event is full" });
+        db.rsvps[ev.id] = [...list, { deviceId, name, coming: b.coming !== false, at: Date.now() }]; persist();
+        return reply(res, 200, { ok: true, coming: rsvpCounts()[ev.id] ?? 0 });
+      }
       if (path === "/notices" && req.method === "GET") return reply(res, 200, db.notices.slice(-20));
       const pm = path.match(/^\/programs(?:\/([A-Z0-9]{4,8}))?(?:\/([a-z]+))?$/);
       const programCoach = !!pm && ((req.method === "POST" && (!pm[1] || pm[2] === "close" || pm[2] === "assign")) || pm[2] === "joiners");
-      const needCoach = programCoach || ["/sync", "/sessions"].includes(path) || (path === "/notices" && req.method === "POST") || (path === "/guests" && req.method === "GET") || path.startsWith("/guests/");
+      const needCoach = programCoach || (path === "/public" && req.method === "POST") || (!!em && em[2] === "rsvps") || ["/sync", "/sessions"].includes(path) || (path === "/notices" && req.method === "POST") || (path === "/guests" && req.method === "GET") || path.startsWith("/guests/");
       if (needCoach && !opts.coachToken) return reply(res, 503, { error: "Coach token not configured on the server" });
       if (needCoach && !coach) return reply(res, 401, { error: "Coach token required" });
 
       if (pm) return await programs(req, res, pm, url);
+      if (path === "/public" && req.method === "POST") { db.public = sanitizeBundle(await readJson(req, 4_000_000)); persist(); return reply(res, 200, { ok: true }); }
+      if (em && em[2] === "rsvps" && req.method === "GET") return reply(res, 200, (db.rsvps[em[1]] ?? []).map(({ name, coming, at }) => ({ name, coming, at })));
       if (path === "/sync" && req.method === "POST") {
         const s = await readJson(req);
         if (typeof s.id !== "string" || !Array.isArray(s.runners)) return reply(res, 400, { error: "Not a session" });
@@ -132,8 +157,8 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url ?? "", "http://x"); const code = (url.searchParams.get("room") ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
     if (!code) { ws.close(1008, "room required"); return; }
-    const c: Client = { ws, room: code, coach: isCoach(url.searchParams.get("token")), runnerId: url.searchParams.get("runner") || undefined };
-    if (!rooms.has(code)) { if (!c.coach) { send(ws, { type: "error", error: "Room not open. Ask your coach to start it." }); ws.close(1008); return; } rooms.set(code, { relay: initialRelay(), clients: new Set() }); }
+    const c: Client = { ws, room: code, coach: isCoach(url.searchParams.get("token")), runnerId: url.searchParams.get("runner") || undefined, deviceTag: randomUUID() };
+    if (!rooms.has(code)) { if (!c.coach) { send(ws, { type: "error", error: "Room not open. Ask your coach to start it." }); ws.close(1008); return; } rooms.set(code, { relay: initialRelay(), clients: new Set(), positions: new Map(), timing: emptyTiming() }); }
     const room = rooms.get(code)!; room.clients.add(c); send(ws, roomState(room)); broadcast(room, roomState(room));
     ws.on("message", (raw) => {
       let m: any; try { m = JSON.parse(String(raw)); } catch { return; }
@@ -142,7 +167,17 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
       else if (m.type === "setLead" && c.coach && typeof m.runnerId === "string") room.relay = relayReduce(room.relay, { type: "setLead", runnerId: m.runnerId, at: now });
       else if (m.type === "pass" && c.runnerId) room.relay = relayReduce(room.relay, { type: "pass", runnerId: c.runnerId });
       else if (m.type === "take" && c.runnerId) room.relay = relayReduce(room.relay, { type: "take", runnerId: c.runnerId, at: now });
-      else if (m.type === "pos" && c.runnerId && room.relay.leadId === c.runnerId && Number.isFinite(m.lat) && Number.isFinite(m.lon)) room.beacon = { runnerId: c.runnerId, lat: m.lat, lon: m.lon, at: now };
+      else if (m.type === "pos" && c.runnerId && Number.isFinite(m.lat) && Number.isFinite(m.lon) && Math.abs(m.lat) <= 90 && Math.abs(m.lon) <= 180) {
+        const p = { runnerId: c.runnerId, lat: m.lat, lon: m.lon, at: now }; room.positions.set(c.runnerId, p); if (room.relay.leadId === c.runnerId) room.beacon = p;
+      }
+      else if (m.type === "timing" && c.coach && m.action && typeof m.action === "object") {
+        const a = m.action; // the server stamps who and when; phones send times relative to the shared start
+        if (a.type === "start") room.timing = timingReduce(room.timing, { type: "start", at: now - Math.max(0, Math.min(10_000, Number(a.lagMs) || 0)) });
+        else if (a.type === "finish") room.timing = timingReduce(room.timing, { type: "finish", bib: String(a.bib ?? ""), ms: Number(a.ms), by: c.deviceTag, at: now });
+        else if (a.type === "undo") room.timing = timingReduce(room.timing, { type: "undo", bib: String(a.bib ?? "") });
+        else if (a.type === "reset") room.timing = timingReduce(room.timing, { type: "reset" });
+        else return;
+      }
       else return;
       broadcast(room, roomState(room));
     });

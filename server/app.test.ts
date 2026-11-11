@@ -80,3 +80,38 @@ describe("join programs", () => {
     expect((await J("/programs/ZZZZZ")).status).toBe(404);
   });
 });
+
+describe("club page and events", () => {
+  const bundle = { events: [{ id: "e1", date: "2099-01-01", time: "06:30", title: "Time trial <b>", distanceKm: 5 }], news: [], sponsors: [],
+    results: [{ id: "r1", date: "2026-11-10", distanceKm: 5, rows: [{ place: "1st", name: "Thandi Mokoena", time: "25:00" }] }], at: 1 };
+  it("only coaches publish; the page is public, escaped and shows initials", async () => {
+    expect((await fetch(`${base}/public`, { method: "POST", body: JSON.stringify(bundle) })).status).toBe(401);
+    expect((await fetch(`${base}/public`, { method: "POST", headers: auth, body: JSON.stringify(bundle) })).status).toBe(200);
+    const page = await fetch(`${base}/club`); expect(page.headers.get("content-type")).toMatch(/text\/html/); expect(page.headers.get("content-security-policy")).toContain("default-src 'none'");
+    const html = await page.text(); expect(html).toContain("Time trial &lt;b&gt;"); expect(html).not.toContain("Mokoena");
+    expect(await (await fetch(`${base}/club/results/r1`)).text()).toContain("Thandi M."); expect((await fetch(`${base}/club/results/nope`)).status).toBe(404);
+  });
+  it("runners say they're coming once per phone; coaches see names", async () => {
+    const rsvp = (deviceId: string, name: string, coming = true) => fetch(`${base}/events/e1/rsvp`, { method: "POST", body: JSON.stringify({ deviceId, name, coming }) });
+    expect((await rsvp("device-0001", "")).status).toBe(400); expect((await fetch(`${base}/events/nope/rsvp`, { method: "POST", body: "{}" })).status).toBe(404);
+    await rsvp("device-0001", "Naledi"); await rsvp("device-0001", "Naledi"); await rsvp("device-0002", "Themba"); await rsvp("device-0003", "Sipho", false);
+    expect(((await (await fetch(`${base}/public.json`)).json()) as any).counts.e1).toBe(2);
+    expect((await fetch(`${base}/events/e1/rsvps`)).status).toBe(401);
+    expect(((await (await fetch(`${base}/events/e1/rsvps`, { headers: auth })).json()) as any[]).map((r) => r.name)).toEqual(["Naledi", "Themba", "Sipho"]);
+  });
+});
+describe("live map and shared timing", () => {
+  it("shares every runner's position, and merges two timekeepers", async () => {
+    const coach = await open("room=TIME1&token=secret"), tk2 = await open("room=TIME1&token=secret"), r = await open("room=TIME1&runner=7"), viewer = await open("room=TIME1&runner=8");
+    r.ws.send(JSON.stringify({ type: "pos", lat: -26, lon: 28.2 })); viewer.ws.send(JSON.stringify({ type: "pos", lat: 999, lon: 0 }));
+    await until(() => coach.msgs.at(-1)?.positions?.length === 1); expect(coach.msgs.at(-1).positions[0].runnerId).toBe("7");
+    r.ws.send(JSON.stringify({ type: "timing", action: { type: "start" } }));          // runners cannot drive the clock
+    coach.ws.send(JSON.stringify({ type: "timing", action: { type: "start", lagMs: 0 } }));
+    await until(() => tk2.msgs.at(-1)?.timing?.startedAt !== undefined);
+    coach.ws.send(JSON.stringify({ type: "timing", action: { type: "finish", bib: "7", ms: 600_000 } }));
+    tk2.ws.send(JSON.stringify({ type: "timing", action: { type: "finish", bib: "7", ms: 597_000 } }));
+    await until(() => coach.msgs.at(-1)?.timing?.conflicts?.length === 1);
+    const tm = coach.msgs.at(-1).timing; expect(tm.finishes["7"].ms).toBe(597_000); expect(typeof coach.msgs.at(-1).serverNow).toBe("number");
+    [coach, tk2, r, viewer].forEach((x) => x.ws.close());
+  });
+});

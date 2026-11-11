@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { deviceId, getProgram, joinProgram, listToday, loadJoined, localDate, myJoin, saveJoined, type Joined, type Program } from "../lib/join";
 import { kvGet, kvSet, type Config } from "../lib/store";
+import type { ClubEvent } from "../lib/club";
 import { Confirm } from "../ui";
 
 /** Runner landing: pick the run that is open today and join it. */
 export default function Today({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; server: string } | null }) {
+  const server = deepLink?.server ?? cfg.serverUrl;
+  return <><TodayRun cfg={cfg} deepLink={deepLink} /><Upcoming server={server} /></>;
+}
+function TodayRun({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; server: string } | null }) {
   const server = deepLink?.server ?? cfg.serverUrl;
   const [joined, setJoined] = useState<Joined | null>(null), [me, setMe] = useState<{ bib: string | null; open: boolean } | null>(null);
   const [programs, setPrograms] = useState<Program[] | null>(null), [name, setName] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState("");
@@ -55,6 +60,36 @@ export default function Today({ cfg, deepLink }: { cfg: Config; deepLink: { code
           </li>))}</ul>)}
       {err && <p role="alert" className="ipac-err">{err}</p>}
       <button className="ipac-btn ipac-btn-quiet" onClick={refresh}>Check again</button>
+    </section>
+  );
+}
+
+/** Coming up: time trials and long runs. Runners say whether they're coming (one answer per phone). */
+function Upcoming({ server }: { server: string }) {
+  const [events, setEvents] = useState<ClubEvent[]>([]), [counts, setCounts] = useState<Record<string, number>>({}), [mine, setMine] = useState<Record<string, boolean>>({});
+  const [name, setName] = useState(""), [err, setErr] = useState("");
+  const load = useCallback(() => { if (server) fetch(server.replace(/\/$/, "") + "/public.json").then((r) => r.json()).then((j) => { setEvents(j.bundle?.events ?? []); setCounts(j.counts ?? {}); }).catch(() => {}); }, [server]);
+  useEffect(() => { load(); kvGet<Record<string, boolean>>("rsvps").then((r) => r && setMine(r)); kvGet<string>("myName").then((n) => n && setName(n)); }, [load]);
+  const answer = async (e: ClubEvent, coming: boolean) => {
+    if (!name.trim()) { setErr("Type your name first"); return; }
+    try {
+      const r = await fetch(`${server.replace(/\/$/, "")}/events/${e.id}/rsvp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, coming, deviceId: await deviceId() }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error ?? "Could not save your answer");
+      const m = { ...mine, [e.id]: coming }; setMine(m); kvSet("rsvps", m); kvSet("myName", name.trim()); setCounts({ ...counts, [e.id]: j.coming }); setErr("");
+    } catch (x) { setErr((x as Error).message === "Failed to fetch" ? "Cannot reach the club server." : (x as Error).message); }
+  };
+  if (!server || !events.length) return null;
+  return (
+    <section className="ipac-card">
+      <h2>Coming up</h2>
+      {(!name.trim() || Object.keys(mine).length === 0) && <label className="ipac-namefield">Your name<input aria-label="Your name for events" value={name} onChange={(e) => setName(e.target.value)} /></label>}
+      <ul className="ipac-programs">{events.map((e) => (
+        <li key={e.id}><span className="ipac-who"><b>{e.title}</b><small>{e.date} {e.time}{e.distanceKm ? ` · ${e.distanceKm} km` : ""} · {counts[e.id] ?? 0} coming</small>{e.notes && <small>{e.notes}</small>}</span>
+          <div className="ipac-seg" role="group" aria-label={`Are you coming to ${e.title}?`}>
+            <button aria-pressed={mine[e.id] === true} onClick={() => answer(e, true)}>I'm coming</button>
+            <button aria-pressed={mine[e.id] === false} onClick={() => answer(e, false)}>Can't make it</button>
+          </div></li>))}</ul>
+      {err && <p role="alert" className="ipac-err">{err}</p>}
     </section>
   );
 }

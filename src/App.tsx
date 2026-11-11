@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import logo from "./assets/logo.jpg";
 import { assignBibs, closeProgram, fetchJoiners, parseJoinParams } from "./lib/join";
-import type { Notice } from "./lib/live";
+import { useLive, wsUrl, type LiveJoin, type Notice } from "./lib/live";
+import { addPositions, type Trail } from "./lib/livemap";
+import type { Route } from "./lib/routes";
+import { applyShared, localChanges } from "./lib/timing";
 import { applyPrefs, defaultPrefs, timeCallDue, type Prefs } from "./lib/prefs";
 import { beep, say } from "./lib/sound";
 import * as W from "./lib/workout";
 import * as S from "./lib/session";
 import * as C from "./lib/club";
-import { archive, flushOutbox, loadClub, loadConfig, loadHistory, loadPrefs, loadSession, pendingCount, saveClub, savePrefs, saveSession, type Config } from "./lib/store";
+import { archive, flushOutbox, kvGet, kvSet, loadRoutes, loadClub, loadConfig, loadHistory, loadPrefs, loadSession, pendingCount, saveClub, savePrefs, saveSession, type Config } from "./lib/store";
 import { localDate } from "./lib/join";
 import Runners from "./tabs/Runners";
 import Club from "./tabs/Club";
+import type { PublishState } from "./tabs/ClubAdmin";
+import { buildBundle } from "./lib/publicSite";
 import JoinPanel from "./tabs/JoinPanel";
 import Live from "./tabs/Live";
 import Routes from "./tabs/Routes";
@@ -32,6 +37,11 @@ export default function App() {
   const [club, setClubState] = useState<C.ClubData>(C.emptyClub()), [history, setHistory] = useState<S.Session[]>([]);
   const clubRef = useRef(club); clubRef.current = club;
   const [countdown, setCountdown] = useState<number | null>(null), lastTick = useRef(0);
+  const [liveJoin, setLiveJoinState] = useState<LiveJoin | null>(null), [trail, setTrail] = useState<Trail>({}), [routes, setRoutes] = useState<Route[]>([]);
+  const setLiveJoin = (j: LiveJoin | null) => { setLiveJoinState(j); kvSet("liveJoin", j); };
+  const live = useLive(liveJoin && cfg.serverUrl ? wsUrl(cfg.serverUrl, liveJoin.room, liveJoin.me, cfg.token) : null);
+  const [publish, setPublish] = useState<PublishState>({}), loaded = useRef({ club: false, history: false }), histRef = useRef(history); histRef.current = history;
+  const synced = useRef<Record<string, number>>({}), seen = useRef<string[]>([]), resetAt = useRef(Date.now());
   const [toast, setToast] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
 
@@ -39,7 +49,7 @@ export default function App() {
     loadSession().then((x) => { const v = x ?? S.newSession(); ref.current = v; setS(v); });
     loadConfig().then((c) => { setCfg(c); if (!deepLink && !c.token && c.serverUrl) setTab("today"); });
     loadPrefs().then((p) => { setPrefsState(p); applyPrefs(p); });
-    loadClub().then(setClubState); loadHistory().then(setHistory);
+    loadClub().then((c) => { loaded.current.club = true; setClubState(c); }); loadHistory().then((h) => { loaded.current.history = true; setHistory(h); }); kvGet<LiveJoin>("liveJoin").then((j) => j && setLiveJoinState(j));
   }, []);
   const setClub = (c: C.ClubData) => { setClubState(c); saveClub(c); };
   const setPrefs = (p: Prefs) => { setPrefsState(p); applyPrefs(p); savePrefs(p); };
@@ -103,6 +113,38 @@ export default function App() {
     if (m && prefs.sound.voice) say(`${m} minute${m > 1 ? "s" : ""}`);
   }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => { if (tab === "map") loadRoutes().then(setRoutes); }, [tab]);
+  // Club web page: republish a moment after anything changes (also puts it back after the free server restarts).
+  const publishNow = useCallback(async () => {
+    if (!cfg.serverUrl || !cfg.token || !loaded.current.club || !loaded.current.history) return;
+    try {
+      const r = await fetch(cfg.serverUrl.replace(/\/$/, "") + "/public", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${cfg.token}` }, body: JSON.stringify(buildBundle(clubRef.current, histRef.current, localDate())) });
+      if (!r.ok) throw new Error(r.status === 401 ? "the coach token was not accepted" : `the server said ${r.status}`);
+      setPublish({ at: Date.now() });
+    } catch (e) { setPublish({ error: `Could not publish the club page: ${(e as Error).message === "Failed to fetch" ? "cannot reach the server" : (e as Error).message}.` }); }
+  }, [cfg.serverUrl, cfg.token]);
+  useEffect(() => { if (!cfg.token || !cfg.serverUrl) return; const t = setTimeout(publishNow, 2500); return () => clearTimeout(t); }, [club, history, publishNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const p = live.state?.positions; if (p) setTrail((t) => addPositions(t, p, Date.now() + live.offset)); }, [live.state?.positions]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Shared timing: this phone's new taps go to the room; the room's merged copy comes back into this phone.
+  const sharing = !!(liveJoin?.share && cfg.token && live.status === "on" && s && (s.mode ?? "race") === "race");
+  useEffect(() => { synced.current = {}; seen.current = []; resetAt.current = Date.now(); }, [s?.id, sharing]);
+  useEffect(() => {
+    if (!sharing || !s || !live.state) return;
+    if (s.startedAt !== undefined && live.state.timing.startedAt === undefined) live.send({ type: "timing", action: { type: "start", lagMs: Date.now() - s.startedAt } });
+    const cur = S.finishesByBib(s), ch = localChanges(synced.current, cur);
+    ch.finish.forEach((f) => live.send({ type: "timing", action: { type: "finish", ...f } })); ch.undo.forEach((bib) => live.send({ type: "timing", action: { type: "undo", bib } }));
+    synced.current = cur;
+  }, [s, sharing]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const t = live.state?.timing, cur0 = ref.current;
+    if (!sharing || !t || !cur0) return;
+    if (cur0.startedAt === undefined && t.startedAt !== undefined && t.startedAt - live.offset < resetAt.current - 5000) return; // an older race in this room
+    let cur = cur0;
+    if (t.startedAt !== undefined && cur.startedAt !== undefined && Math.abs(cur.startedAt - (t.startedAt - live.offset)) > 1500) cur = { ...cur, startedAt: t.startedAt - live.offset };
+    const a = applyShared(cur, t, live.offset, seen.current); seen.current = a.seen; synced.current = S.finishesByBib(a.session);
+    if (JSON.stringify(a.session.finishes) !== JSON.stringify(cur0.finishes) || a.session.startedAt !== cur0.startedAt || a.session.runners.length !== cur0.runners.length) { ref.current = a.session; setS(a.session); }
+  }, [live.state?.timing, sharing]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!s) return <p className="ipac-loading">Loading…</p>;
   // Compute from a ref so async callbacks (GPS, polling) never use a stale session.
   const act = (fn: (x: S.Session) => S.Session) => { try { const n = fn(ref.current!); ref.current = n; setS(n); setErr(""); } catch (e) { setErr((e as Error).message); } };
@@ -116,7 +158,7 @@ export default function App() {
       showToast(`${m.name} saved to the club`);
     } catch (e) { setErr((e as Error).message); }
   };
-  const onNew = (keep: boolean) => { const n = S.nextSession(s, keep); ref.current = n; setS(n); setTab("session"); setSheet(false); window.scrollTo(0, 0); };
+  const onNew = (keep: boolean) => { if (sharing) live.send({ type: "timing", action: { type: "reset" } }); const n = S.nextSession(s, keep); ref.current = n; setS(n); setTab("session"); setSheet(false); window.scrollTo(0, 0); };
   const go = (t: Tab) => { setTab(t); setSheet(false); window.scrollTo(0, 0); };
   const startRace = () => { setSheet(false); if (!s.runners.length) return; if (prefs.sound.countdownSec > 0) setCountdown(prefs.sound.countdownSec); else { if (prefs.sound.beeps) beep(1200, 600); startNow(); go("session"); } };
   const announce = (kind: "finishes" | "laps", text: string) => { if (prefs.sound.beeps) beep(1000, 90, 0.25); if (prefs.sound.voice && prefs.sound[kind]) say(text); };
@@ -147,10 +189,10 @@ export default function App() {
             <button aria-pressed={mapView === "live"} onClick={() => setMapView("live")}>Live</button>
             <button aria-pressed={mapView === "routes"} onClick={() => setMapView("routes")}>Routes</button>
           </div>
-          <div hidden={mapView !== "live"}><Live s={s} act={act} cfg={cfg} running={ph === "running"} /></div>
-          <div hidden={mapView !== "routes"}><Routes distances={prefs.distances} /></div>
+          <div hidden={mapView !== "live"}><Live s={s} act={act} cfg={cfg} running={ph === "running"} live={live} join={liveJoin} setJoin={setLiveJoin} trail={trail} members={club.members} routes={routes} /></div>
+          <div hidden={mapView !== "routes"}><Routes distances={prefs.distances} router={cfg.router} /></div>
         </div>
-        <div hidden={tab !== "club"}><Club cfg={cfg} setCfg={setCfg} notices={notices} prefs={prefs} setPrefs={setPrefs} /></div>
+        <div hidden={tab !== "club"}><Club cfg={cfg} setCfg={setCfg} notices={notices} prefs={prefs} setPrefs={setPrefs} club={club} setClub={setClub} publish={publish} publishNow={publishNow} /></div>
       </main>
 
       {toast && (

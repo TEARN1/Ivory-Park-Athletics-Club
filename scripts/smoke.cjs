@@ -1,6 +1,8 @@
 // End-to-end smoke test. Needs: server on :8787 (COACH_TOKEN=secret) and `vite preview` on :4173.
 const { chromium } = require("playwright"); const assert = require("node:assert/strict");
 const APP = "http://localhost:4173/", SRV = "http://localhost:8787";
+const openLive = async (p) => { await p.click("nav >> text=Map"); await p.click(".ipac-seg >> button:text-is('Live')"); };
+const openRoutes = async (p) => { await p.click("nav >> text=Map"); await p.click(".ipac-seg >> button:text-is('Routes')"); };
 async function addRunner(p, name, bib) { await p.fill('[aria-label="Name"]', name); await p.fill('[aria-label="Bib number"]', bib); await p.click("text=Add runner"); }
 async function setup(browser, name, server, token) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, geolocation: { latitude: -25.9967, longitude: 28.2 }, permissions: ["geolocation"], acceptDownloads: true });
@@ -15,20 +17,20 @@ async function setup(browser, name, server, token) {
   const coach = await setup(b, "coach", SRV, "secret"), runner = await setup(b, "runner", SRV, "");
   // Relay: coach opens room and sets lead; runner 2 joins, lead 1 passes, 2 takes
   for (const [who, me] of [[coach, ""], [runner, "2"]]) {
-    await who.p.click("nav >> text=Live"); if (me) await who.p.selectOption('select:visible >> nth=0', me); await who.p.fill('input[placeholder="e.g. IPARK"]', "IPARK"); await who.p.click("text=Join room");
+    await openLive(who.p); if (me) await who.p.selectOption('select:visible >> nth=0', me); await who.p.fill('input[placeholder="e.g. IPARK"]', "IPARK"); await who.p.click("text=Join room");
     await who.p.waitForSelector("text=Connection: on");
   }
   await coach.p.selectOption('[aria-label="Set lead"]', "1");
   await runner.p.waitForSelector(".ipac-lead >> text=#1 Thandi");
   assert.equal(await runner.p.locator("button:text-is('Take')").isDisabled(), true, "Take must wait for an offer");
   // Thandi's device
-  const t = await setup(b, "t", SRV, ""); await t.p.click("nav >> text=Live"); await t.p.selectOption('select:visible >> nth=0', "1"); await t.p.fill('input[placeholder="e.g. IPARK"]', "IPARK"); await t.p.click("text=Join room"); await t.p.waitForSelector("text=Connection: on");
+  const t = await setup(b, "t", SRV, ""); await openLive(t.p); await t.p.selectOption('select:visible >> nth=0', "1"); await t.p.fill('input[placeholder="e.g. IPARK"]', "IPARK"); await t.p.click("text=Join room"); await t.p.waitForSelector("text=Connection: on");
   await t.p.click("text=Pass Over");
   await runner.p.waitForSelector("text=is passing the lead");
   await runner.p.click("button:text-is('Take')");
   await coach.p.waitForSelector(".ipac-lead >> text=#2 Sipho"); console.log("relay ok");
   // GPS + splits on the runner device (mock a ~1.2 km walk)
-  await runner.p.click("nav >> text=Session"); await runner.p.click("text=/Start for 2 runner/"); await runner.p.click("nav >> text=Live"); await runner.p.check("text=Track my run with GPS");
+  await runner.p.click("nav >> text=Session"); await runner.p.click("text=/Start for 2 runner/"); await openLive(runner.p); await runner.p.check("text=Track my run with GPS");
   for (let i = 0; i < 6; i++) { await runner.ctx.setGeolocation({ latitude: -25.9967 + i * 0.0022, longitude: 28.2 }); await runner.p.waitForTimeout(300); }
   console.log("gps:", (await runner.p.locator("text=/\\d+\\.\\d+ km · \\d+ points/").first().innerText()));
   // finish, edit, csv, archive + upload
@@ -47,7 +49,7 @@ async function setup(browser, name, server, token) {
   await runner.p.click("nav >> text=Club"); await runner.p.waitForSelector("text=Time trial Saturday", { timeout: 70000 }).catch(() => { throw new Error("notice did not reach runner"); }); console.log("notice ok");
   await coach.p.fill('[aria-label="Guest name"]', "Visitor"); assert.equal(await coach.p.locator("text=Join guest list").isDisabled(), true); await coach.p.check("text=I agree the club may contact me"); await coach.p.click("text=Join guest list");
   await coach.p.waitForSelector("text=Visitor ·"); console.log("guest ok");
-  await coach.p.click("nav >> text=Routes"); await coach.p.click("text=Generate 15 loops"); await coach.p.waitForSelector("svg[aria-label^='Map of']");
+  await openRoutes(coach.p); await coach.p.click("text=Generate 15 loops"); await coach.p.waitForSelector("svg[aria-label^='Map of']");
   const len = await coach.p.locator("text=/option 1 of 15/").innerText(); await coach.p.selectOption("select:visible >> nth=0", "90").catch(() => {});
   await coach.p.click("text=Reroute"); console.log("routes:", len.slice(0, 40), "→", (await coach.p.locator("text=/option \\d+ of 15/").innerText()).slice(-20));
   await coach.p.fill('[aria-label="Route name"]', "Ivory Park 5k Loop"); await coach.p.click("text=Save this route"); await coach.p.waitForSelector("text=Saved routes");
@@ -75,9 +77,30 @@ async function setup(browser, name, server, token) {
   await coach.p.click("nav >> text=Club"); await coach.p.click("button:text-is('Night')"); assert.equal(await coach.p.evaluate(() => document.documentElement.dataset.theme), "dark");
   await coach.p.click("button:has-text('Pitch')"); assert.equal(await coach.p.evaluate(() => document.documentElement.dataset.palette), "pitch");
   await coach.p.fill('[aria-label="Distance shortcuts"]', "2.4, abc"); await coach.p.click("text=Save shortcuts"); await coach.p.waitForSelector("[role=alert]:has-text('abc')");
-  await coach.p.fill('[aria-label="Distance shortcuts"]', "2.4, 8"); await coach.p.click("text=Save shortcuts"); await coach.p.click("nav >> text=Routes"); await coach.p.waitForSelector("button:text-is('2.4 km')");
+  await coach.p.fill('[aria-label="Distance shortcuts"]', "2.4, 8"); await coach.p.click("text=Save shortcuts"); await openRoutes(coach.p); await coach.p.waitForSelector("button:text-is('2.4 km')");
   await coach.p.click('[aria-label="Switch to day theme"]'); assert.equal(await coach.p.evaluate(() => document.documentElement.dataset.theme), "light"); console.log("themes + distances ok");
   assert.deepEqual(jp.errs, []);
+  // ---- batch 3: live map, shared timing, events, club page, backup ----
+  await openLive(coach.p); await coach.p.waitForSelector('svg[aria-label^="Map with"]', { timeout: 15000 }); console.log("live map shows runners");
+  await coach.p.click("button:text-is('Leave room')"); await coach.p.fill('input[placeholder="e.g. IPARK"]', "RACE2"); await coach.p.click("button:text-is('Join room')"); await coach.p.waitForSelector("text=Connection: on");
+  await coach.p.check("text=Share timing with other timekeepers");
+  const tk2 = await setup(b, "tk2", SRV, "secret"); await openLive(tk2.p); await tk2.p.fill('input[placeholder="e.g. IPARK"]', "RACE2"); await tk2.p.click("button:text-is('Join room')"); await tk2.p.waitForSelector("text=Connection: on");
+  await tk2.p.check("text=Share timing with other timekeepers");
+  await tk2.p.click("nav >> text=Session"); await tk2.p.waitForSelector("text=Race clock", { timeout: 10000 });                    // the shared start reached the second phone
+  await tk2.p.fill('[aria-label="Finish by bib number"]', "2"); await tk2.p.click("button:text-is('Finish')");
+  await coach.p.click("nav >> text=Session"); await coach.p.waitForSelector(".ipac-board >> text=#2 Sipho", { timeout: 10000 }); console.log("second timekeeper's finish reached the coach");
+  await coach.p.fill('[aria-label="Finish by bib number"]', "77"); await coach.p.click("button:text-is('Finish')");
+  await tk2.p.waitForSelector(".ipac-board >> text=#77", { timeout: 10000 }); console.log("shared timing both ways ok");
+  await coach.p.click("nav >> text=Club"); await coach.p.getByLabel("What").fill("Saturday time trial"); await coach.p.getByLabel("km", { exact: true }).fill("5"); await coach.p.click("button:text-is('Add event')");
+  await coach.p.waitForTimeout(3500);                                                                                           // auto-publish
+  await lp.click("nav >> text=Today"); await lp.reload(); await lp.waitForSelector("text=Coming up", { timeout: 10000 });
+  if (await lp.locator('[aria-label="Your name for events"]').count()) await lp.fill('[aria-label="Your name for events"]', "Themba");
+  await lp.click("button:text-is(\"I'm coming\")"); await lp.waitForSelector("text=/1 coming/");
+  const club = await (await fetch(SRV + "/club")).text(); assert.match(club, /Saturday time trial/); assert.match(club, /1 coming/); console.log("events + club page ok");
+  await coach.p.click('[aria-label="Who is coming to Saturday time trial"]'); await coach.p.waitForSelector("small:text-is('Themba')");
+  const [bk] = await Promise.all([coach.p.waitForEvent("download"), coach.p.click("text=Download backup")]);
+  const bf = require("node:fs").readFileSync(await bk.path(), "utf8"); assert.equal(JSON.parse(bf).app, "ipac"); assert.ok(!bf.includes("secret"), "token never in backup"); console.log("backup ok");
+  assert.deepEqual(tk2.p.errs, []);
   for (const x of [coach, runner, t]) assert.deepEqual(x.p.errs, []);
   console.log("ALL OK"); await b.close();
 })().catch((e) => { console.error("FAIL", e.message); process.exit(1); });

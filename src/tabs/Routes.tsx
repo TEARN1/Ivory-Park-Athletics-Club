@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_HUB, MAX_VARIANTS, generateLoops, reroute, type Route } from "../lib/routes";
+import { DEFAULT_HUB, DEFAULT_ROUTER, MAX_VARIANTS, followRoads, generateLoops, reroute, type Route } from "../lib/routes";
 import { loadRoutes, saveRoutes } from "../lib/store";
 
 const COMPASS = [["North", 0], ["North-east", 45], ["East", 90], ["South-east", 135], ["South", 180], ["South-west", 225], ["West", 270], ["North-west", 315]] as const;
@@ -16,11 +16,16 @@ function RouteMap({ r }: { r: Route }) {
   );
 }
 
-export default function Routes({ distances }: { distances: number[] }) {
+export default function Routes({ distances, router }: { distances: number[]; router?: string }) {
   const [km, setKm] = useState(5), [hub, setHub] = useState(DEFAULT_HUB), [loops, setLoops] = useState<Route[]>([]), [i, setI] = useState(0);
   const [blocked, setBlocked] = useState(""), [name, setName] = useState(""), [saved, setSaved] = useState<Route[]>([]), [msg, setMsg] = useState("");
   useEffect(() => { loadRoutes().then(setSaved); }, []);
-  const cur = loops[i] as Route | undefined;
+  const cur = loops[i] as Route | undefined, [roadBusy, setRoadBusy] = useState(false);
+  const roads = async () => {
+    if (!cur) return; setRoadBusy(true); setMsg("");
+    try { const r = await followRoads(cur.hub, cur.targetKm, cur.variant, router || DEFAULT_ROUTER, (u) => fetch(u).then((x) => x.json())); setLoops(loops.map((x, k) => (k === i ? r : x))); }
+    catch (e) { setMsg((e as Error).message); } finally { setRoadBusy(false); }
+  };
   const shown = useMemo(() => cur, [cur]);
   const gen = () => { try { const l = generateLoops(hub, km); setLoops(l); setI(0); setMsg(""); } catch (e) { setMsg((e as Error).message); } };
   const doReroute = () => {
@@ -52,6 +57,8 @@ export default function Routes({ distances }: { distances: number[] }) {
         <div className="ipac-card">
           <RouteMap r={shown} />
           <p><b>{shown.name}</b> · {(shown.lengthM / 1000).toFixed(2)} km · option {i + 1} of {loops.length}</p>
+          <p className="ipac-hint">{shown.roads ? "Follows roads and paths from OpenStreetMap. Still walk it once to check traffic and safety." : "Straight-line guide. Tap Follow roads to fit it to real roads and paths."}</p>
+          {!shown.roads && <button className="ipac-btn ipac-btn-outline" disabled={roadBusy} onClick={roads}>{roadBusy ? "Finding roads…" : "Follow roads"}</button>}
           <div className="ipac-actions">
             <button onClick={() => setI((i + loops.length - 1) % loops.length)}>Previous</button>{" "}
             <button onClick={() => setI((i + 1) % loops.length)}>Next</button>
@@ -70,7 +77,8 @@ export default function Routes({ distances }: { distances: number[] }) {
         </div>
       )}
       {saved.length > 0 && <><h2>Saved routes</h2><ul className="ipac-list">{saved.map((r) => (
-        <li key={r.id}>{r.name} · {(r.lengthM / 1000).toFixed(2)} km
+        <li key={r.id}><span className="ipac-who"><b>{r.name} · {(r.lengthM / 1000).toFixed(2)} km</b><small>{r.roads ? "Follows roads" : "Straight-line guide"} · {r.checkedAt ? `checked and safe (${new Date(r.checkedAt).toLocaleDateString()})` : "not checked yet"}</small></span>
+          <button className="ipac-btn ipac-btn-quiet" aria-label={r.checkedAt ? `Unmark ${r.name} as checked` : `Mark ${r.name} as checked and safe`} onClick={() => persist(saved.map((x) => (x.id === r.id ? { ...x, checkedAt: x.checkedAt ? undefined : Date.now() } : x)))}>{r.checkedAt ? "Unmark" : "Checked"}</button>
           <button aria-label={`Show ${r.name}`} onClick={() => { setLoops([r]); setI(0); }}>Show</button>
           <button aria-label={`Delete ${r.name}`} onClick={() => persist(saved.filter((x) => x.id !== r.id))}>×</button></li>))}</ul></>}
     </section>

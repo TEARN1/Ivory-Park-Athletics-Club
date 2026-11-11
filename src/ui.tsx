@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 
-export function download(name: string, text: string) {
-  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+export function download(name: string, text: string, type = "text/csv") {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); URL.revokeObjectURL(a.href);
 }
 /** Two-step button: the first tap asks, the second confirms. No browser dialogs. */
 export function Confirm({ label, ask, onYes, className = "ipac-btn ipac-btn-quiet", aria }: { label: ReactNode; ask: string; onYes: () => void; className?: string; aria?: string }) {

@@ -3,8 +3,10 @@ import type { Notice } from "../lib/live";
 import type { Prefs } from "../lib/prefs";
 import { saveConfig, type Config } from "../lib/store";
 import Appearance, { SoundSettings } from "./Appearance";
+import ClubAdmin, { type PublishState } from "./ClubAdmin";
+import type { ClubData } from "../lib/club";
 
-export default function Club({ cfg, setCfg, notices, prefs, setPrefs }: { cfg: Config; setCfg: (c: Config) => void; notices: Notice[]; prefs: Prefs; setPrefs: (p: Prefs) => void }) {
+export default function Club({ cfg, setCfg, notices, prefs, setPrefs, club, setClub, publish, publishNow }: { cfg: Config; setCfg: (c: Config) => void; notices: Notice[]; prefs: Prefs; setPrefs: (p: Prefs) => void; club: ClubData; setClub: (c: ClubData) => void; publish: PublishState; publishNow: () => void }) {
   const [draft, setDraft] = useState(cfg), [msg, setMsg] = useState(""), [text, setText] = useState("");
   const [g, setG] = useState({ name: "", contact: "", consent: false }), [guests, setGuests] = useState<any[]>([]);
   const base = cfg.serverUrl.replace(/\/$/, ""), hdr = { "content-type": "application/json", authorization: `Bearer ${cfg.token}` };
@@ -24,6 +26,7 @@ export default function Club({ cfg, setCfg, notices, prefs, setPrefs }: { cfg: C
       <div className="ipac-form">
         <input aria-label="Server address" placeholder="https://your-club-server" value={draft.serverUrl} onChange={(e) => setDraft({ ...draft, serverUrl: e.target.value })} />
         <input aria-label="Coach token" type="password" placeholder="Coach token (coaches only)" value={draft.token} onChange={(e) => setDraft({ ...draft, token: e.target.value })} />
+        <input aria-label="Routing service" placeholder="Routing service (optional)" value={draft.router ?? ""} onChange={(e) => setDraft({ ...draft, router: e.target.value.trim() || undefined })} />
         <button className="ipac-btn ipac-btn-primary" onClick={() => { saveConfig(draft); setCfg(draft); setMsg("Saved on this device."); }}>Save</button>
       </div>
       <p className="ipac-hint">The coach token is kept on this device only. Do not enter it on a shared phone.</p>
@@ -50,6 +53,7 @@ export default function Club({ cfg, setCfg, notices, prefs, setPrefs }: { cfg: C
       {guests.length > 0 && <ul className="ipac-list">{guests.map((x) => <li key={x.id}>{x.name} · {x.contact || "no contact"}<button aria-label={`Remove ${x.name}`} onClick={async () => { if (await call(`/guests/${x.id}`, { method: "DELETE", headers: hdr })) loadGuests(); }}>Remove</button></li>)}</ul>}
       <p className="ipac-hint">Notices appear in the app. SMS and phone push messages are not set up.</p>
     </section>
+    <ClubAdmin club={club} setClub={setClub} cfg={cfg} publish={publish} publishNow={publishNow} />
     </>
   );
 }

@@ -28,7 +28,11 @@
 - Club website page for results and events.
 - Automated browser tests in CI (scripts/smoke.cjs is manual today).
 
-## 20 ideas to add (not built yet)
+## 20 ideas: status
+Built: 1, 2, 6, 7, 8, 9, 10, 11, 12 (image only, no PDF), 14, 15 (adjustable), 16 (several timekeepers only), 17, 18, 19, 20.
+Not wanted: 3 (WhatsApp/SMS/push), 4 (accounts and PINs), 5 (permanent database, to confirm), 13 (languages), photo finish and bib scanning.
+
+### The original list
 1. Road-based routes (OpenStreetMap routing) with a coach "checked and safe" tick before sharing.
 2. Safety alerts: runner far behind or stopped, plus an emergency contact per runner.
 3. WhatsApp, SMS and push messages for notices and results (today: in-app only).

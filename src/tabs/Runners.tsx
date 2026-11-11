@@ -74,7 +74,7 @@ function Members({ club, setClub, history, today, openMember }: Props & { openMe
 
 function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Member; back: () => void }) {
   const yr = year(today), age = C.ageThisYear(m, yr), cat = C.categoryOf(age);
-  const save = (patch: Partial<C.Member>) => setClub({ ...club, members: club.members.map((x) => (x.id === m.id ? { ...x, ...patch } : x)) });
+  const save = (patch: Partial<C.Member>) => setClub({ ...club, members: club.members.map((x) => (x.id === m.id ? { ...x, ...patch, updatedAt: Date.now() } : x)) });
   const res = useMemo(() => C.memberResults(history, m.id), [history, m.id]);
   const pbs = C.personalBests(res), att = C.attendance(history, m.id), streak = C.weekStreak(att, today), bdg = C.badges(history, m.id, today);
   const [d, setD] = useState({ name: m.name, gender: m.gender ?? "", birthYear: m.birthYear ? String(m.birthYear) : "", bib: m.bib ?? "", pace: C.fmtPaceInput(m.targetPaceSec) });

@@ -1,7 +1,7 @@
 import { bearingDeg, destination, pathLengthM, type LatLon } from "./geo";
 /** Ivory Park, Midrand (approximate town centre). The coach should set the real club hub. */
 export const DEFAULT_HUB: LatLon = { lat: -25.9967, lon: 28.2 };
-export interface Route { id: string; name: string; hub: LatLon; points: LatLon[]; lengthM: number; targetKm: number; variant: number }
+export interface Route { id: string; name: string; hub: LatLon; points: LatLon[]; lengthM: number; targetKm: number; variant: number; roads?: boolean; checkedAt?: number }
 export const MAX_VARIANTS = 15;
 
 function rng(seed: number) { let x = seed * 2654435761 >>> 0 || 1; return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
@@ -33,4 +33,29 @@ export function reroute(all: Route[], current: Route, blockedBearing?: number): 
     if (blockedBearing === undefined || !usesBearing(c, blockedBearing)) return c;
   }
   return undefined;
+}
+
+/** Default foot-routing service (OpenStreetMap data, OSRM API). Coaches can point the app at another one. */
+export const DEFAULT_ROUTER = "https://routing.openstreetmap.de/routed-foot";
+export type FetchJson = (url: string) => Promise<any>;
+/**
+ * Turn a guide loop into one that follows real footpaths and roads. Roads add distance,
+ * so the shape is resized and asked again until the road distance is within 4% of the target.
+ */
+export async function followRoads(hub: LatLon, targetKm: number, variant: number, router: string, fetchJson: FetchJson): Promise<Route> {
+  let want = targetKm, best: Route | undefined;
+  for (let i = 0; i < 4; i++) {
+    const loop = makeLoop(hub, want, variant), coords = loop.points.map((p) => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(";");
+    let j: any;
+    try { j = await fetchJson(`${router.replace(/\/$/, "")}/route/v1/foot/${coords}?overview=full&geometries=geojson`); }
+    catch { throw new Error("Cannot reach the routing service. Check your connection, or keep the guide loop."); }
+    const r = j?.code === "Ok" ? j.routes?.[0] : undefined;
+    if (!r?.geometry?.coordinates?.length) throw new Error("The routing service found no roads for this loop. Try another loop or move the hub.");
+    const points: LatLon[] = r.geometry.coordinates.map(([lon, lat]: [number, number]) => ({ lat, lon })), km = r.distance / 1000;
+    const cand: Route = { ...loop, id: `${targetKm}-${variant}-roads`, name: `${targetKm} km road loop ${variant + 1}`, points, lengthM: r.distance, targetKm, roads: true };
+    if (!best || Math.abs(km - targetKm) < Math.abs(best.lengthM / 1000 - targetKm)) best = cand;
+    if (Math.abs(km - targetKm) / targetKm <= 0.04) break;
+    want = (want * targetKm) / km;
+  }
+  return best!;
 }

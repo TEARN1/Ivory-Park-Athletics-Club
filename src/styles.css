@@ -276,3 +276,17 @@ input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:midd
 .ipac-wtable thead th{color:var(--color-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
 .ipac-best{color:var(--color-accent);font-weight:800}
 .ipac-cta-in>button,.ipac-cta-in>.ipac-confirm{width:100%}
+.ipac-keypad{display:grid;grid-template-columns:1fr auto;gap:10px}
+.ipac-keypad input{font-family:var(--font-display);font-size:1.5rem;font-weight:700}
+.ipac-keypad .ipac-err{grid-column:1/-1}
+.ipac-maproute{stroke:var(--color-ctl);opacity:.5;stroke-linejoin:round}
+.ipac-mapdot{fill:var(--color-navy);stroke:var(--color-surface)}
+.ipac-mapdot-lead{fill:var(--color-accent);stroke:var(--color-surface)}
+.ipac-mapdot-alert{fill:var(--color-err);stroke:var(--color-fg)}
+.ipac-maplabel{fill:var(--color-fg);font-family:var(--font-display);font-weight:700}
+.ipac-thumb{width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none}
+.ipac-preview{max-height:220px;border-radius:12px;justify-self:start}
+.ipac-filepick{display:grid;gap:6px;font-weight:600;margin-top:12px}
+.ipac-restore{display:grid;gap:10px;margin-top:12px;background:var(--color-bg);border-radius:12px;padding:12px}
+.ipac-restore p{margin:0}
+.ipac-cta-in{width:100%}
