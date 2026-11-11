@@ -1,0 +1,16 @@
+# Render Blueprint: free web service for the club server (HTTP + WebSocket on one port).
+services:
+  - type: web
+    name: ipac-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: COACH_TOKEN
+        generateValue: true        # read it in the Render dashboard, then enter it in the app's Club tab (coaches only)
+      - key: ALLOWED_ORIGIN
+        sync: false                # your client address, e.g. https://ivory-park-athletics-club.vercel.app
+      - key: DATA_FILE
+        value: /tmp/ipac-db.json   # free tier disk is wiped on restart/redeploy (see docs/deploy.md)
