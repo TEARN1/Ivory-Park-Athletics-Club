@@ -3,7 +3,9 @@ import type * as C from "../lib/club";
 import { splits, type LatLon } from "../lib/geo";
 import type { LiveJoin, useLive } from "../lib/live";
 import { liveFlags, type Trail } from "../lib/livemap";
-import { MAX_ACCURACY_M, accuracyLabel, calibrationFactor, pathM, routeProgressM, smoothTrack } from "../lib/gpsfilter";
+import { MAX_ACCURACY_M, accuracyLabel, calibrationFactor, routeProgressM } from "../lib/gpsfilter";
+import { fmtMetres, gpsReady, trackRun } from "../lib/tracker";
+import { useMemo } from "react";
 import { kvGet, kvSet } from "../lib/store";
 import ClubMap from "./ClubMap";
 import type { Route } from "../lib/routes";
@@ -35,11 +37,12 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
     const id = navigator.geolocation.watchPosition(
       (p) => {
         const cur = sRef.current, r = cur.runners.find((x) => relayKey(x) === myKey), a = p.coords.accuracy;
-        setGpsErr(""); setAcc(a); fixes.current.push({ lat: p.coords.latitude, lon: p.coords.longitude, t: Date.now(), acc: a }); bump((n) => n + 1);
+        const fix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: a, speed: p.coords.speed, heading: p.coords.heading };
+        setGpsErr(""); setAcc(a); fixes.current.push({ ...fix, t: Date.now() }); bump((n) => n + 1);
         if (a > MAX_ACCURACY_M) return; // too rough to use or share
         if (Date.now() - lastSent.current > 5000) { lastSent.current = Date.now(); sendRef.current({ type: "pos", lat: p.coords.latitude, lon: p.coords.longitude }); } // shared with the coach's map
         if (cur.startedAt === undefined || !r) return;
-        act((x) => S.addTrackPoint(x, r.id, { lat: p.coords.latitude, lon: p.coords.longitude, t: Date.now() - cur.startedAt!, acc: a }));
+        act((x) => S.addTrackPoint(x, r.id, { ...fix, t: Date.now() - cur.startedAt! }));
       },
       (e) => { // only permission loss stops tracking; a missing fix is temporary and the watch keeps trying
         if (e.code === 1) { setGpsErr("Location permission was denied."); setGps(false); } else setGpsErr("Searching for a GPS signal…");
@@ -49,8 +52,9 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
   }, [gps, myKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const name = (k?: string) => { const r = s.runners.find((x) => relayKey(x) === k); return r ? S.label(r) : k ? `#${k}` : "nobody"; };
-  const track = mine ? s.tracks?.[mine.id] ?? [] : [], smooth = smoothTrack(track), sp = splits(smooth);
-  const route = routes.find((r) => r.id === runRoute), distM = route ? routeProgressM(smooth, route.points) : pathM(smooth) * cal;
+  const track = mine ? s.tracks?.[mine.id] ?? [] : [];
+  const run = useMemo(() => trackRun(track), [Math.floor(track.length / 3)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sp = splits(run.points), route = routes.find((r) => r.id === runRoute), distM = route ? routeProgressM(run.points, route.points) : run.distanceM * cal;
   const whoAmI = (
     <label>Who am I?
       <select value={myKey} onChange={(e) => setMe(e.target.value)} disabled={!!join}>
@@ -65,22 +69,22 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
       <label className="ipac-check"><input type="checkbox" checked={gps} disabled={!myKey} onChange={(e) => { setGpsErr(""); setGps(e.target.checked); }} /> Track my run with GPS{join ? " and share my position with the coach" : ""}</label>
       {!myKey && <p className="ipac-hint">Pick your name above first.</p>}
       {gpsErr && <p role="alert" className="ipac-err">{gpsErr}</p>}
-      {gps && <p className={`ipac-gpsq ipac-gpsq-${accuracyLabel(acc)}`} role="status">GPS {acc === undefined ? "searching…" : `±${Math.round(acc)} m (${accuracyLabel(acc)})`}</p>}
+      {gps && <p className={`ipac-gpsq ipac-gpsq-${accuracyLabel(acc)}`} role="status">GPS {acc === undefined ? "searching…" : `±${Math.round(acc)} m (${accuracyLabel(acc)})`}{acc !== undefined && (gpsReady(acc) ? " · ready to run" : " · wait in the open until it is ±10 m or better")}</p>}
       {routes.length > 0 && <label>Measure along a route<select value={runRoute} onChange={(e) => setRunRoute(e.target.value)}><option value="">No, follow my GPS trace</option>{routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>}
-      {mine && <p>{(distM / 1000).toFixed(2)} km{route ? " along the route" : cal !== 1 ? ` (calibrated ×${cal})` : ""} · {track.length} points{!running && " (distance starts when the timer starts)"}</p>}
+      {mine && <p className="ipac-dist"><b>{fmtMetres(distM)}</b><small>{route ? "along the route" : cal !== 1 ? `calibrated ×${cal}` : "GPS"} · moving {S.fmtTime(run.movingMs)}{run.stoppedMs > 5000 ? ` · stopped ${S.fmtTime(run.stoppedMs)} (not counted)` : ""}{!running ? " · counting starts when the timer starts" : ""}</small></p>}
       {sp.length > 0 && <ol>{sp.map((x) => <li key={x.km}>{x.partial ? "last part" : `km ${x.km}`}: {S.fmtTime(x.ms)} ({S.fmtPace(x.paceSecPerKm)})</li>)}</ol>}
-      <p className="ipac-hint">Phone GPS is accurate to a few metres, not centimetres. Fixes worse than {MAX_ACCURACY_M} m are dropped and the rest are smoothed. For exact distances, run Laps on a measured track. Your GPS trail stays on this phone.</p>
+      <p className="ipac-hint">Each GPS position is good to a few metres, not centimetres. The app drops fixes worse than {MAX_ACCURACY_M} m, combines positions with the phone's Doppler speed, smooths the whole run, and adds nothing while you stand still. Expect a total within about 1% on open roads; for exact distances, run Laps on a measured track. Your GPS trail stays on this phone.</p>
       {gps && (
         <details className="ipac-more">
           <summary>Calibrate this phone on a measured distance</summary>
           <p className="ipac-hint">Tap Start, run exactly a measured distance in the open (a 400 m track lap in lane 1, or a measured km), then tap Done. Away from buildings works best.</p>
           <div className="ipac-grid2">
             <label>Measured metres<input inputMode="numeric" value={calM} onChange={(e) => setCalM(e.target.value.replace(/\D/g, ""))} /></label>
-            <span className="ipac-hint">So far: {Math.round(pathM(smoothTrack(fixes.current)))} m by GPS</span>
+            <span className="ipac-hint">So far: {fmtMetres(trackRun(fixes.current).distanceM)} by GPS</span>
           </div>
           <div className="ipac-row2">
             <button className="ipac-btn ipac-btn-outline" onClick={() => { fixes.current = []; setCalMsg("Started. Run the measured distance now."); bump((n) => n + 1); }}>Start</button>
-            <button className="ipac-btn ipac-btn-primary" onClick={() => { try { const f = calibrationFactor(+calM, pathM(smoothTrack(fixes.current))); setCal(f); kvSet("gpsCal", f); setCalMsg(`Saved. This phone's GPS distances are now multiplied by ${f}.`); } catch (x) { setCalMsg((x as Error).message); } }}>Done</button>
+            <button className="ipac-btn ipac-btn-primary" onClick={() => { try { const f = calibrationFactor(+calM, trackRun(fixes.current).distanceM); setCal(f); kvSet("gpsCal", f); setCalMsg(`Saved. This phone's GPS distances are now multiplied by ${f}.`); } catch (x) { setCalMsg((x as Error).message); } }}>Done</button>
             {cal !== 1 && <button className="ipac-btn ipac-btn-quiet" onClick={() => { setCal(1); kvSet("gpsCal", 1); setCalMsg("Calibration cleared."); }}>Clear</button>}
           </div>
           {calMsg && <p role="status" className="ipac-hint">{calMsg}</p>}

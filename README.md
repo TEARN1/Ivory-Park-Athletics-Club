@@ -32,11 +32,16 @@ Server environment: `COACH_TOKEN` (required for sync, guest list, notices and fo
 Browsers only allow GPS and install on HTTPS, so host the client and server behind HTTPS (a `wss://` address is used automatically).
 
 ## GPS accuracy (read this before promising anything)
-Phone GPS is accurate to a few metres (about 3–5 m in the open, worse between buildings), never centimetres.
-The app drops fixes worse than 25 m, smooths the rest with a Kalman filter weighted by each fix's own accuracy,
-can measure along a planned route (sideways wobble does not add distance), and learns a per-phone correction on a
-measured distance. For exact distances use Laps on a measured track (times shown to 0.1 s; hand taps are good to ~0.2 s).
-Centimetre accuracy needs RTK GNSS hardware with correction data (for example from TrigNet); that is not built.
+Each phone GPS position is good to about 3–5 m in the open (worse between buildings), never centimetres.
+`src/lib/tracker.ts` gets the most out of it: drops fixes worse than 25 m, fuses positions with the phone's
+Doppler speed and heading in a Kalman filter, smooths the whole run forwards and backwards (RTS), and adds no
+distance while the runner stands still. Distance is shown in whole metres.
+
+Simulated 5 km runs (1 fix/s, independent noise of 3, 5 or 10 m): raw GPS was 1.4–10.8 km too long, the old
+smoothing 0.4–0.7 km, the new tracker 6–10 m. Real GPS error drifts slowly instead of being independent each
+second, so expect roughly 1% on open roads (about 10 m per km) until this is measured on real phones.
+For exact distances use Laps on a measured track (times to 0.1 s; hand taps are good to about 0.2 s).
+Centimetre accuracy needs RTK GNSS hardware with correction data (for example TrigNet); not built.
 
 ## Known limits (be honest with athletes and coaches)
 - No permanent database (by choice): the coach's phone holds the club's data; the free server forgets on restart and the app republishes. Use Backup.
