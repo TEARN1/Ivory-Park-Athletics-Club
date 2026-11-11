@@ -5,6 +5,7 @@ import type { LiveJoin, useLive } from "../lib/live";
 import { liveFlags, type Trail } from "../lib/livemap";
 import { MAX_ACCURACY_M, accuracyLabel, calibrationFactor, routeProgressM } from "../lib/gpsfilter";
 import { fmtMetres, gpsReady, trackRun } from "../lib/tracker";
+import { fitTrack, lapLength, markedDistance, markerSplits, trackDistance, type Marker, type TrackPlace } from "../lib/trackmode";
 import { useMemo } from "react";
 import { kvGet, kvSet } from "../lib/store";
 import ClubMap from "./ClubMap";
@@ -29,7 +30,10 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
   const sendRef = useRef(live.send); sendRef.current = live.send;
   const lastSent = useRef(0), fixes = useRef<TrackPoint[]>([]);
   const [acc, setAcc] = useState<number | undefined>(), [cal, setCal] = useState(1), [calM, setCalM] = useState("400"), [calMsg, setCalMsg] = useState(""), [runRoute, setRunRoute] = useState(""), [, bump] = useState(0);
-  useEffect(() => { kvGet<number>("gpsCal").then((f) => f && setCal(f)); }, []);
+  const [where, setWhere] = useState<"road" | "track">("road"), [lane, setLane] = useState(1), [place, setPlace] = useState<TrackPlace | null>(null), [fitMsg, setFitMsg] = useState("");
+  const [markers, setMarkers] = useState<Marker[]>([]), [gpsAt, setGpsAt] = useState<number[]>([]), [boardM, setBoardM] = useState(1000);
+  useEffect(() => { kvGet<number>("gpsCal").then((f) => f && setCal(f)); kvGet<TrackPlace>("trackPlace").then((p) => p && setPlace(p)); kvGet<"road" | "track">("runWhere").then((w) => w && setWhere(w)); kvGet<number>("runLane").then((l) => l && setLane(l)); }, []);
+  useEffect(() => { if (gps) { setMarkers([]); setGpsAt([]); } }, [gps, s.id]);
 
   useEffect(() => {
     if (!gps) return;
@@ -52,9 +56,14 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
   }, [gps, myKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const name = (k?: string) => { const r = s.runners.find((x) => relayKey(x) === k); return r ? S.label(r) : k ? `#${k}` : "nobody"; };
-  const track = mine ? s.tracks?.[mine.id] ?? [] : [];
-  const run = useMemo(() => trackRun(track), [Math.floor(track.length / 3)]); // eslint-disable-line react-hooks/exhaustive-deps
-  const sp = splits(run.points), route = routes.find((r) => r.id === runRoute), distM = route ? routeProgressM(run.points, route.points) : run.distanceM * cal;
+  const track = mine ? s.tracks?.[mine.id] ?? [] : [], src = track.length ? track : gps ? fixes.current : [];
+  const run = useMemo(() => trackRun(src), [Math.floor(src.length / 3), src === track]); // eslint-disable-line react-hooks/exhaustive-deps
+  const route = routes.find((r) => r.id === runRoute), roadM = route ? routeProgressM(run.points, route.points) : run.distanceM * cal;
+  const onTrack = where === "track" && place ? trackDistance(run.points, place, lane) : null;
+  const distM = onTrack ? onTrack.distanceM : markedDistance(markers, roadM, gpsAt);
+  const sp = onTrack ? [] : splits(run.points), lapsSeen = useRef(0);
+  useEffect(() => { const n = onTrack?.laps.length ?? 0; if (n > lapsSeen.current) navigator.vibrate?.([60, 40, 60]); lapsSeen.current = n; }, [onTrack?.laps.length]);
+  const setWhereSaved = (w: "road" | "track") => { setWhere(w); kvSet("runWhere", w); };
   const whoAmI = (
     <label>Who am I?
       <select value={myKey} onChange={(e) => setMe(e.target.value)} disabled={!!join}>
@@ -70,8 +79,25 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
       {!myKey && <p className="ipac-hint">Pick your name above first.</p>}
       {gpsErr && <p role="alert" className="ipac-err">{gpsErr}</p>}
       {gps && <p className={`ipac-gpsq ipac-gpsq-${accuracyLabel(acc)}`} role="status">GPS {acc === undefined ? "searching…" : `±${Math.round(acc)} m (${accuracyLabel(acc)})`}{acc !== undefined && (gpsReady(acc) ? " · ready to run" : " · wait in the open until it is ±10 m or better")}</p>}
-      {routes.length > 0 && <label>Measure along a route<select value={runRoute} onChange={(e) => setRunRoute(e.target.value)}><option value="">No, follow my GPS trace</option>{routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>}
-      {mine && <p className="ipac-dist"><b>{fmtMetres(distM)}</b><small>{route ? "along the route" : cal !== 1 ? `calibrated ×${cal}` : "GPS"} · moving {S.fmtTime(run.movingMs)}{run.stoppedMs > 5000 ? ` · stopped ${S.fmtTime(run.stoppedMs)} (not counted)` : ""}{!running ? " · counting starts when the timer starts" : ""}</small></p>}
+      <div className="ipac-seg" role="group" aria-label="Where are you running?">
+        <button aria-pressed={where === "road"} onClick={() => setWhereSaved("road")}>Road</button>
+        <button aria-pressed={where === "track"} onClick={() => setWhereSaved("track")}>Track</button>
+      </div>
+      {where === "track" && <TrackPanel place={place} lane={lane} setLane={(l) => { setLane(l); kvSet("runLane", l); }} msg={fitMsg}
+        learn={() => { try { const f = fitTrack(run.points.length >= 20 ? run.points : smoothSource(fixes.current)); setPlace(f); kvSet("trackPlace", f); setFitMsg(`Track saved. Your lap sits within about ±${Math.max(1, Math.round(f.rms))} m of the lane line.`); } catch (x) { setFitMsg((x as Error).message); } }}
+        forget={() => { setPlace(null); kvSet("trackPlace", null); setFitMsg("Track forgotten. Run one lap and learn it again."); }} />}
+      {where === "road" && routes.length > 0 && <label>Measure along a route<select value={runRoute} onChange={(e) => setRunRoute(e.target.value)}><option value="">No, follow my GPS trace</option>{routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>}
+      {(mine || gps) && <p className="ipac-dist"><b>{fmtMetres(distM)}</b><small>{onTrack ? `track, lane ${lane}` : markers.length ? `from the ${fmtMetres(markers[markers.length - 1].distM)} board` : route ? "along the route" : cal !== 1 ? `calibrated ×${cal}` : "GPS"} · moving {S.fmtTime(run.movingMs)}{run.stoppedMs > 5000 ? ` · stopped ${S.fmtTime(run.stoppedMs)} (not counted)` : ""}{!running ? " · counting starts when the timer starts" : ""}</small></p>}
+      {onTrack?.offTrack && <p role="alert" className="ipac-err">You seem to be off the track. Switch to Road, or learn the track again.</p>}
+      {onTrack && onTrack.laps.length > 0 && <ol className="ipac-laps">{onTrack.laps.map((l) => <li key={l.lap}>Lap {l.lap}: <b>{S.fmtTime(l.ms, true)}</b> ({S.fmtPace(l.ms / 1000 / (lapLength(lane) / 1000))})</li>)}</ol>}
+      {where === "road" && gps && (
+        <div className="ipac-boards">
+          <button className="ipac-btn ipac-btn-hero" onClick={() => { navigator.vibrate?.(40); setMarkers([...markers, { atMs: Date.now(), distM: (markers.length + 1) * boardM }]); setGpsAt([...gpsAt, roadM]); }}>I'm at the {fmtMetres((markers.length + 1) * boardM)} board</button>
+          <label className="ipac-inline">Boards every<select aria-label="Distance between boards" value={boardM} onChange={(e) => setBoardM(+e.target.value)} disabled={markers.length > 0}>{[200, 400, 500, 1000, 2000].map((m) => <option key={m} value={m}>{fmtMetres(m)}</option>)}</select>
+            {markers.length > 0 && <button className="ipac-btn ipac-btn-quiet" onClick={() => { setMarkers(markers.slice(0, -1)); setGpsAt(gpsAt.slice(0, -1)); }}>Undo board</button>}</label>
+          {markers.length > 0 && <ol className="ipac-laps">{markerSplits(markers, src[0] ? (src === track ? (s.startedAt ?? Date.now()) : src[0].t) : Date.now()).map((x) => <li key={x.distM}>{fmtMetres(x.distM)}: <b>{S.fmtTime(x.ms, true)}</b> ({S.fmtPace(x.paceSecPerKm)})</li>)}</ol>}
+          <p className="ipac-hint">On a loop with measured boards, tap as you pass each one: the distance snaps to the exact board and the splits between boards are exact.</p>
+        </div>)}
       {sp.length > 0 && <ol>{sp.map((x) => <li key={x.km}>{x.partial ? "last part" : `km ${x.km}`}: {S.fmtTime(x.ms)} ({S.fmtPace(x.paceSecPerKm)})</li>)}</ol>}
       <p className="ipac-hint">Each GPS position is good to a few metres, not centimetres. The app drops fixes worse than {MAX_ACCURACY_M} m, combines positions with the phone's Doppler speed, smooths the whole run, and adds nothing while you stand still. Expect a total within about 1% on open roads; for exact distances, run Laps on a measured track. Your GPS trail stays on this phone.</p>
       {gps && (
@@ -180,5 +206,23 @@ function LiveMap({ live, trail, name, s, members, routes }: { live: Live; trail:
         <li key={p.runnerId}><span className="ipac-who"><b>{name(p.runnerId)}{p.runnerId === lead ? " · in front" : ""}</b><small>Seen {Math.max(0, Math.round((now - p.at) / 1000))} s ago</small></span></li>))}</ul>}
       <p className="ipac-hint">A stopped or silent runner may simply be resting or out of signal. Check before you worry.</p>
     </section>
+  );
+}
+
+const smoothSource = (fixes: TrackPoint[]) => trackRun(fixes).points;
+/** Track set-up: pick a lane; learn the track once from one lap of GPS. */
+function TrackPanel({ place, lane, setLane, learn, forget, msg }: { place: TrackPlace | null; lane: number; setLane: (l: number) => void; learn: () => void; forget: () => void; msg: string }) {
+  return (
+    <div className="ipac-trackpanel">
+      <label>Lane<select aria-label="Lane" value={lane} onChange={(e) => setLane(+e.target.value)}>{[1, 2, 3, 4, 5, 6, 7, 8].map((l) => <option key={l} value={l}>Lane {l} · {lapLength(l).toFixed(2)} m a lap</option>)}</select></label>
+      {place ? <p className="ipac-hint">Track learned. Distance comes from where you are on the track, so it stays accurate lap after lap. Laps count by themselves from where you start.</p>
+        : <p className="ipac-hint">First time on this track: turn on GPS, run one full lap in lane 1, then tap Learn this track. You only do this once.</p>}
+      <div className="ipac-row2">
+        <button className="ipac-btn ipac-btn-primary" onClick={learn}>{place ? "Learn it again" : "Learn this track"}</button>
+        {place && <button className="ipac-btn ipac-btn-quiet" onClick={forget}>Forget track</button>}
+      </div>
+      {msg && <p role="status" className="ipac-hint">{msg}</p>}
+      <p className="ipac-hint">Made for standard 400 m tracks. Lane lengths follow World Athletics rules.</p>
+    </div>
   );
 }

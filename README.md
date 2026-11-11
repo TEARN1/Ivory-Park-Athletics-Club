@@ -25,6 +25,7 @@ npm run build && npx vite preview --port 4173   # then, with the server running 
 node scripts/smoke.cjs <dir>                  # full flow: relay, joining, shared timing, events, club page, backup
 node scripts/session-modes-smoke.cjs <dir>    # countdown, laps, intervals, results image
 node scripts/runners-smoke.cjs <dir>          # club runners, consent, league
+node scripts/track-mode-smoke.cjs             # learn a track, automatic laps, board taps (about 4 min)
 ```
 In the app: Club tab → enter the server address and (coaches only) the token.
 
@@ -40,7 +41,12 @@ distance while the runner stands still. Distance is shown in whole metres.
 Simulated 5 km runs (1 fix/s, independent noise of 3, 5 or 10 m): raw GPS was 1.4–10.8 km too long, the old
 smoothing 0.4–0.7 km, the new tracker 6–10 m. Real GPS error drifts slowly instead of being independent each
 second, so expect roughly 1% on open roads (about 10 m per km) until this is measured on real phones.
-For exact distances use Laps on a measured track (times to 0.1 s; hand taps are good to about 0.2 s).
+**Track mode** (Map → My run → Track): learn a standard 400 m track once from one lap of GPS; after that distance
+comes from the runner's position on the oval (lane lengths per World Athletics: lane 1 400.00 m, lane 2 407.04 m,
+lane 8 453.03 m), so the error stays a few metres however many laps; laps count and time themselves.
+Simulated with 5 m GPS noise: 4 laps and 10 laps both within 5 m. **Boards** (Road): on a loop with measured
+boards, tap as you pass each one; distance snaps to the board and splits between boards are exact.
+Hand-tapped times (Laps, Intervals, boards) show tenths; a tap is good to about 0.2 s.
 Centimetre accuracy needs RTK GNSS hardware with correction data (for example TrigNet); not built.
 
 ## Known limits (be honest with athletes and coaches)
