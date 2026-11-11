@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import logo from "./assets/logo.jpg";
 import * as S from "./lib/session";
 import type { Notice } from "./lib/live";
 import { archive, flushOutbox, loadConfig, loadSession, pendingCount, saveSession, type Config } from "./lib/store";
@@ -36,7 +37,7 @@ export default function App() {
 
   return (
     <div className="ipac-app">
-      <header className="ipac-head"><h1>Ivory Park Athletics Club</h1><p>{s.date} · {s.distanceKm} km · {s.runners.length} runners</p></header>
+      <header className="ipac-head"><img className="ipac-logo" src={logo} alt="Ivory Park Athletics Club logo" /><div><h1>Ivory Park Athletics Club</h1><p>{s.date} · {s.distanceKm} km · {s.runners.length} runners</p></div></header>
       <nav className="ipac-tabs" aria-label="Sections">
         {TABS.map(([t, l]) => <button key={t} aria-current={tab === t} onClick={() => setTab(t)}>{l}</button>)}
       </nav>
