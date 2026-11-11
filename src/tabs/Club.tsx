@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Notice } from "../lib/live";
 import type { Prefs } from "../lib/prefs";
 import { saveConfig, type Config } from "../lib/store";
-import Appearance from "./Appearance";
+import Appearance, { SoundSettings } from "./Appearance";
 
 export default function Club({ cfg, setCfg, notices, prefs, setPrefs }: { cfg: Config; setCfg: (c: Config) => void; notices: Notice[]; prefs: Prefs; setPrefs: (p: Prefs) => void }) {
   const [draft, setDraft] = useState(cfg), [msg, setMsg] = useState(""), [text, setText] = useState("");
@@ -17,6 +17,7 @@ export default function Club({ cfg, setCfg, notices, prefs, setPrefs }: { cfg: C
   return (
     <>
     <Appearance prefs={prefs} setPrefs={setPrefs} />
+    <SoundSettings prefs={prefs} setPrefs={setPrefs} />
     <section className="ipac-card">
       <details open={!cfg.serverUrl}>
       <summary>Club server settings</summary>

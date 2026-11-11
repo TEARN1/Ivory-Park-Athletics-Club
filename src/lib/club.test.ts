@@ -60,3 +60,10 @@ describe("history", () => {
     expect(r.find((x) => x.distanceKm === 5 && x.group === "M")!.ms).toBe(1_400_000);
   });
 });
+import { imageRows, shareName } from "./shareImage";
+describe("shared results", () => {
+  it("never shows a full surname, and falls back to the bib", () => {
+    expect(shareName({ name: "Thandi Mokoena", bib: "3" })).toBe("Thandi M."); expect(shareName({ name: "", bib: "7" })).toBe("Bib 7");
+    expect(imageRows(hist[0]).map((r) => r.name)).toEqual(["Sipho D.", "Thandi M."]);
+  });
+});

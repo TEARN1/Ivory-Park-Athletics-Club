@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { DEFAULT_DISTANCES, PALETTES, parseDistances, type Mode, type Prefs } from "../lib/prefs";
+import { COUNTDOWNS, DEFAULT_DISTANCES, PALETTES, QUIET_AFTER, SAFETY_PACES, TIME_CALLS, parseDistances, type Mode, type Prefs, type SoundPrefs } from "../lib/prefs";
+import { beep, say } from "../lib/sound";
 
 const MODES: [Mode, string][] = [["auto", "Auto"], ["light", "Day"], ["dark", "Night"]];
 export default function Appearance({ prefs, setPrefs }: { prefs: Prefs; setPrefs: (p: Prefs) => void }) {
@@ -28,6 +29,33 @@ export default function Appearance({ prefs, setPrefs }: { prefs: Prefs; setPrefs
           <button type="button" className="ipac-btn ipac-btn-quiet" onClick={() => { setErr(""); save(DEFAULT_DISTANCES); }}>Reset</button></div>
       </form>
       <p className="ipac-hint">These appear as buttons when you set up a run and plan routes. You can always type any other distance.</p>
+    </section>
+  );
+}
+
+/** Race-day sound, voice and safety settings. Everything can be turned down or off. */
+export function SoundSettings({ prefs, setPrefs }: { prefs: Prefs; setPrefs: (p: Prefs) => void }) {
+  const s = prefs.sound, set = (patch: Partial<SoundPrefs>) => setPrefs({ ...prefs, sound: { ...s, ...patch } });
+  const seg = (label: string, values: number[], cur: number, fmt: (v: number) => string, key: keyof SoundPrefs) => (
+    <><p className="ipac-label">{label}</p>
+      <div className="ipac-seg ipac-seg-wrap" role="group" aria-label={label}>{values.map((v) => <button key={v} aria-pressed={cur === v} onClick={() => set({ [key]: v } as Partial<SoundPrefs>)}>{fmt(v)}</button>)}</div></>);
+  const tog = (key: "beeps" | "voice" | "finishes" | "laps", label: string, disabled = false) => (
+    <label className="ipac-check"><input type="checkbox" checked={s[key]} disabled={disabled} onChange={(e) => set({ [key]: e.target.checked })} /> {label}</label>);
+  return (
+    <section className="ipac-card">
+      <h2>Sound and voice</h2>
+      {seg("Countdown before the start", COUNTDOWNS, s.countdownSec, (v) => (v ? `${v} s` : "Off"), "countdownSec")}
+      {tog("beeps", "Beeps")}
+      {tog("voice", "Voice announcements")}
+      {tog("finishes", "Say name, place and time at the finish", !s.voice)}
+      {tog("laps", "Say lap and rep times, with target pace", !s.voice)}
+      {seg("Call out the race time", TIME_CALLS, s.timeCallMin, (v) => (v ? `Every ${v} min` : "Never"), "timeCallMin")}
+      {s.timeCallMin > 0 && seg("Stop calling the time after", QUIET_AFTER, s.quietAfterMin, (v) => (v ? `${v} min` : "Never stop"), "quietAfterMin")}
+      <p className="ipac-hint">Time calls can feel like nagging on long runs. Call less often, stop after a while, or switch them off.</p>
+      <button className="ipac-btn ipac-btn-outline" onClick={() => { if (s.beeps) beep(); if (s.voice) say("Thandi, first, 18 minutes 42 seconds"); }}>Test sound</button>
+      <h2 className="ipac-h2gap">Safety</h2>
+      {seg("Flag a runner still out slower than", SAFETY_PACES, s.safetyPaceSec, (v) => `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}/km`, "safetyPaceSec")}
+      <p className="ipac-hint">Runners are also flagged when most of the group is home and they are well behind the last finisher. Their emergency contact shows on the timer screen.</p>
     </section>
   );
 }

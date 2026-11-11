@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import logo from "./assets/logo.jpg";
 import { assignBibs, closeProgram, fetchJoiners, parseJoinParams } from "./lib/join";
 import type { Notice } from "./lib/live";
-import { applyPrefs, defaultPrefs, type Prefs } from "./lib/prefs";
+import { applyPrefs, defaultPrefs, timeCallDue, type Prefs } from "./lib/prefs";
+import { beep, say } from "./lib/sound";
+import * as W from "./lib/workout";
 import * as S from "./lib/session";
 import * as C from "./lib/club";
 import { archive, flushOutbox, loadClub, loadConfig, loadHistory, loadPrefs, loadSession, pendingCount, saveClub, savePrefs, saveSession, type Config } from "./lib/store";
@@ -29,6 +31,7 @@ export default function App() {
   const [prefs, setPrefsState] = useState<Prefs>(defaultPrefs()), [sheet, setSheet] = useState(false), [mapView, setMapView] = useState<"live" | "routes">("live");
   const [club, setClubState] = useState<C.ClubData>(C.emptyClub()), [history, setHistory] = useState<S.Session[]>([]);
   const clubRef = useRef(club); clubRef.current = club;
+  const [countdown, setCountdown] = useState<number | null>(null), lastTick = useRef(0);
   const [toast, setToast] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
 
@@ -55,7 +58,7 @@ export default function App() {
   }, [cfg.serverUrl]);
   useEffect(() => { if (!err) return; const t = setTimeout(() => setErr(""), 5000); return () => clearTimeout(t); }, [err]);
   useEffect(() => { if (ph !== "running") setToast(null); }, [ph]);
-  useEffect(() => { if (!sheet) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setSheet(false); window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [sheet]);
+  useEffect(() => { if (!sheet && countdown === null) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") { setSheet(false); setCountdown(null); } }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [sheet, countdown]);
 
   const showToast = useCallback((msg: string, undo?: () => void) => {
     clearTimeout(tid.current); setToast({ id: Date.now(), msg, undo }); tid.current = setTimeout(() => setToast(null), 6000);
@@ -82,6 +85,24 @@ export default function App() {
     const n = S.setProgram(ref.current!); ref.current = n; setS(n);
   }, [prog, ph]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Start: optional countdown with beeps and voice, then the clock starts on "Go".
+  const startNow = () => { const cur = ref.current; if (!cur || cur.startedAt !== undefined) return; const n = cur.mode === "reps" ? W.startReps(cur, Date.now()) : S.start(cur, Date.now()); ref.current = n; setS(n); };
+  useEffect(() => {
+    if (countdown === null) return;
+    const snd = prefs.sound;
+    if (countdown <= 0) { if (snd.beeps) beep(1200, 600); if (snd.voice) say("Go"); startNow(); setCountdown(null); setTab("session"); return; }
+    if (snd.beeps) beep(880, 150); if (snd.voice && countdown <= 5) say(String(countdown));
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000); return () => clearTimeout(t);
+  }, [countdown]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Time calls ("10 minutes"), as often as the coach chose, or never.
+  useEffect(() => {
+    if (ph !== "running" || !s?.startedAt) { lastTick.current = 0; return; }
+    const el = now - s.startedAt, prev = lastTick.current; lastTick.current = el;
+    if (!prev) return;
+    const m = timeCallDue(prev, el, prefs.sound.timeCallMin, prefs.sound.quietAfterMin);
+    if (m && prefs.sound.voice) say(`${m} minute${m > 1 ? "s" : ""}`);
+  }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!s) return <p className="ipac-loading">Loading…</p>;
   // Compute from a ref so async callbacks (GPS, polling) never use a stale session.
   const act = (fn: (x: S.Session) => S.Session) => { try { const n = fn(ref.current!); ref.current = n; setS(n); setErr(""); } catch (e) { setErr((e as Error).message); } };
@@ -97,6 +118,8 @@ export default function App() {
   };
   const onNew = (keep: boolean) => { const n = S.nextSession(s, keep); ref.current = n; setS(n); setTab("session"); setSheet(false); window.scrollTo(0, 0); };
   const go = (t: Tab) => { setTab(t); setSheet(false); window.scrollTo(0, 0); };
+  const startRace = () => { setSheet(false); if (!s.runners.length) return; if (prefs.sound.countdownSec > 0) setCountdown(prefs.sound.countdownSec); else { if (prefs.sound.beeps) beep(1200, 600); startNow(); go("session"); } };
+  const announce = (kind: "finishes" | "laps", text: string) => { if (prefs.sound.beeps) beep(1000, 90, 0.25); if (prefs.sound.voice && prefs.sound[kind]) say(text); };
   const joinPanel = (bare?: boolean) => <JoinPanel s={s} act={act} cfg={cfg} bare={bare} />;
 
   return (
@@ -109,7 +132,7 @@ export default function App() {
         <button className={`ipac-status ipac-status-${ph}`} aria-haspopup="dialog" aria-label={`Session status: ${PHASE_LABEL[ph]}. Open options`} onClick={() => setSheet(true)}>
           <span className="ipac-dot" aria-hidden="true" />
           <b>{PHASE_LABEL[ph]}</b>
-          <span>{ph === "running" ? `${S.fmtTime(now - s.startedAt!)} · ${S.standings(s).length}/${s.runners.length} home` : `${s.runners.length} runner${s.runners.length === 1 ? "" : "s"}${prog ? " · open to join" : ""}`}</span>
+          <span>{ph === "running" ? (s.mode === "reps" && s.reps ? `${W.resting(s) ? "Rest" : `Rep ${W.repIndex(s) + 1}`} of ${s.reps.count} · ${S.fmtTime(now - s.startedAt!)}` : `${S.fmtTime(now - s.startedAt!)} · ${S.standings(s).length}/${s.runners.length} home`) : `${s.runners.length} runner${s.runners.length === 1 ? "" : "s"}${prog ? " · open to join" : ""}`}</span>
           <span className="ipac-chev" aria-hidden="true">Options ▾</span>
         </button>
       </header>
@@ -117,7 +140,7 @@ export default function App() {
       <main className="ipac-main">
         {err && <p role="alert" className="ipac-err">{err}</p>}
         <div hidden={tab !== "today"}><Today cfg={cfg} deepLink={deepLink} /></div>
-        <div hidden={tab !== "session"}><Session s={s} act={act} now={now} pending={pending} serverOn={!!(cfg.serverUrl && cfg.token)} toast={showToast} onEnd={onEnd} onNew={onNew} distances={prefs.distances} joinSlot={joinPanel()} members={club.members} onSaveMember={onSaveMember} /></div>
+        <div hidden={tab !== "session"}><Session s={s} act={act} now={now} pending={pending} serverOn={!!(cfg.serverUrl && cfg.token)} toast={showToast} onEnd={onEnd} onNew={onNew} distances={prefs.distances} joinSlot={joinPanel()} members={club.members} onSaveMember={onSaveMember} onStart={startRace} announce={announce} safetyPaceSec={prefs.sound.safetyPaceSec} logo={logo} /></div>
         <div hidden={tab !== "runners"}><Runners club={club} setClub={setClub} history={history} today={localDate()} /></div>
         <div hidden={tab !== "map"}>
           <div className="ipac-seg" role="group" aria-label="Map views">
@@ -145,7 +168,7 @@ export default function App() {
             {ph === "setup" && (<>
               <p className="ipac-hint">{s.runners.length ? `${s.runners.length} runner${s.runners.length > 1 ? "s are" : " is"} ready.` : "Add runners, or open the run for joiners, then start."}</p>
               {joinPanel(true)}
-              <button className="ipac-btn ipac-btn-hero" disabled={!s.runners.length} onClick={() => { act((x) => S.start(x, Date.now())); go("session"); }}>{s.runners.length ? "Start race" : "Add a runner to start"}</button>
+              <button className="ipac-btn ipac-btn-hero" disabled={!s.runners.length} onClick={startRace}>{s.runners.length ? "Start race" : "Add a runner to start"}</button>
             </>)}
             {ph === "running" && (<>
               <p className="ipac-hint">The clock is running: {S.fmtTime(now - s.startedAt!)}. {S.stillRunning(s).length} still out.</p>
@@ -161,6 +184,14 @@ export default function App() {
         </div>
       )}
 
+      {countdown !== null && (
+        <div className="ipac-scrim ipac-scrim-center">
+          <div className="ipac-countdown" role="dialog" aria-modal="true" aria-label="Start countdown">
+            <p>Starting in</p><div className="ipac-countnum" aria-live="assertive">{countdown}</div>
+            <button className="ipac-btn ipac-btn-outline" autoFocus aria-label="Close countdown" onClick={() => setCountdown(null)}>Cancel start</button>
+          </div>
+        </div>
+      )}
       <nav className="ipac-nav" aria-label="Sections">
         {NAV.map(([t, l]) => <button key={t} aria-current={tab === t ? "page" : undefined} onClick={() => go(t)}>{Icons[t]}<span>{l}</span></button>)}
       </nav>

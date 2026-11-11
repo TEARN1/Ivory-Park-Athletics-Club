@@ -1,4 +1,4 @@
-export interface Runner { id: string; name: string; bib: string; buddyId?: string; joinId?: string; memberId?: string }
+export interface Runner { id: string; name: string; bib: string; buddyId?: string; joinId?: string; memberId?: string; groupId?: string }
 export interface Session {
   id: string; date: string; distanceKm: number;
   runners: Runner[];
@@ -9,6 +9,11 @@ export interface Session {
   endedAt?: number;                   // coach pressed End session
   program?: { code: string };         // open for joiners on the club server
   mode?: "race" | "laps" | "reps";    // race = one finish each (default)
+  laps?: { count: number; km: number };                 // laps: tap each runner every lap
+  reps?: { count: number; km: number; restSec: number }; // intervals: everyone starts each rep together
+  marks?: Record<string, (number | null)[]>;            // laps: elapsed at each lap; reps: time for each rep
+  repStarts?: number[]; restUntil?: number;
+  groups?: { id: string; name: string; paceSec: number }[]; // pace groups with a target pace
 }
 export interface Row { runner: Runner; elapsedMs: number; rank: number; paceSecPerKm: number; gapMs: number }
 
@@ -99,7 +104,7 @@ export const resumeSession = (s: Session): Session => ({ ...s, endedAt: undefine
 /** Next week's session: same squad (optional), clean clock and results. */
 export function nextSession(s: Session, keepRunners: boolean): Session {
   const n = newSession(s.distanceKm);
-  return keepRunners ? { ...n, runners: s.runners.map((r) => ({ ...r })), room: s.room } : n;
+  return keepRunners ? { ...n, runners: s.runners.map((r) => ({ ...r })), room: s.room, mode: s.mode, laps: s.laps, reps: s.reps, groups: s.groups } : n;
 }
 export function nextBib(s: Session): string {
   const nums = s.runners.map((r) => parseInt(r.bib, 10)).filter(Number.isFinite);

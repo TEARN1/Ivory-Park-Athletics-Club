@@ -251,3 +251,28 @@ input[type=checkbox]{width:26px;height:26px;margin-right:8px;vertical-align:midd
 .ipac-line{stroke:var(--color-ctl);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .ipac-dotpt{fill:var(--color-ctl);stroke:var(--color-surface);stroke-width:2}
 .ipac-dotbest{fill:var(--color-accent);stroke:var(--color-surface);stroke-width:2}
+
+/* batch 2: session types, safety, countdown, workout table */
+.ipac-gap{margin-top:12px}
+.ipac-seg-wrap{grid-template-columns:repeat(auto-fit,minmax(84px,1fr))}
+.ipac-groupsel{margin-top:6px;min-height:44px;font-size:.9rem}
+.ipac-lapcount{font-weight:700!important;color:var(--color-ctl)!important}
+.ipac-safety{background:var(--color-err);color:#fff;border-radius:16px;padding:14px 16px}
+.ipac-safety h2{color:#fff;margin-bottom:8px}
+.ipac-safety ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.ipac-safety li{display:grid;gap:2px;background:rgba(0,0,0,.18);border-radius:12px;padding:10px 12px}
+.ipac-safety a{color:#fff;font-weight:800;margin-left:6px;text-decoration:underline}
+.ipac-phone{user-select:all;font-variant-numeric:tabular-nums;font-weight:700}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ipac-safety,:root:not([data-theme="light"]) .ipac-safety h2,:root:not([data-theme="light"]) .ipac-safety a{color:#2a0007}}
+:root[data-theme="dark"] .ipac-safety,:root[data-theme="dark"] .ipac-safety h2,:root[data-theme="dark"] .ipac-safety a{color:#2a0007}
+.ipac-scrim-center{align-items:center}
+.ipac-countdown{background:var(--color-deep);color:#fff;border-radius:24px;padding:28px 24px;text-align:center;display:grid;gap:8px;min-width:260px}
+.ipac-countdown p{margin:0;text-transform:uppercase;letter-spacing:.1em;font-weight:700;opacity:.85}
+.ipac-countnum{font-family:var(--font-display);font-weight:800;font-size:9rem;line-height:1;color:#fff}
+.ipac-tablewrap{overflow-x:auto;margin:0 -4px}
+.ipac-wtable{border-collapse:collapse;font-variant-numeric:tabular-nums;width:100%;font-size:.95rem}
+.ipac-wtable th,.ipac-wtable td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--color-line);white-space:nowrap}
+.ipac-wtable th[scope=row],.ipac-wtable thead th:first-child{text-align:left}
+.ipac-wtable thead th{color:var(--color-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+.ipac-best{color:var(--color-accent);font-weight:800}
+.ipac-cta-in>button,.ipac-cta-in>.ipac-confirm{width:100%}
