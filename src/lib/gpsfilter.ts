@@ -7,8 +7,8 @@ import { haversineM, type LatLon, type TrackPoint } from "./geo";
  * 3. optionally measure along the planned route instead of along the wobbly trace;
  * 4. apply a per-phone correction learned on a measured distance (a track lap, a measured km).
  */
-export const MAX_ACCURACY_M = 25;
-export const accuracyLabel = (acc?: number) => (acc === undefined ? "unknown" : acc <= 5 ? "good" : acc <= 15 ? "fair" : "poor");
+export const MAX_ACCURACY_M = 50;
+export const accuracyLabel = (acc?: number) => (acc === undefined ? "unknown" : acc <= 8 ? "good" : acc <= 20 ? "fair" : "poor");
 
 /** Simple GPS Kalman filter. `speedMs` is how fast the runner might change position (process noise). */
 export function smoothTrack(raw: TrackPoint[], speedMs = 4): TrackPoint[] {
@@ -48,9 +48,9 @@ export function snapToRoute(p: LatLon, route: LatLon[]): { along: number; offset
  * is within `maxOffsetM` of the line, so GPS wobble and short cut-backs do not add distance.
  * (A loop that passes the same spot twice should use the lap tools instead.)
  */
-export function routeProgressM(track: LatLon[], route: LatLon[], maxOffsetM = 30): number {
+export function routeProgressM(track: LatLon[], route: LatLon[], maxOffsetM = 50): number {
   let best = 0;
-  for (const p of track) { const s = snapToRoute(p, route); if (s.offset <= maxOffsetM && s.along > best && s.along - best < 400) best = s.along; }
+  for (const p of track) { const s = snapToRoute(p, route); if (s.offset <= maxOffsetM && s.along > best && s.along - best < 600) best = s.along; }
   return best;
 }
 

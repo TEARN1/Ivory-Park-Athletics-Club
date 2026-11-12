@@ -6,7 +6,7 @@ export interface Contact { name: string; phone: string }
 export interface Note { id: string; at: number; text: string }
 export interface PlanItem { id: string; day: string; text: string }
 export interface Member {
-  id: string; name: string; bib?: string; gender?: Gender; birthYear?: number;
+  id: string; name: string; bib?: string; licenseNumber?: string; gender?: Gender; birthYear?: number;
   emergency?: Contact; guardian?: Contact; consentAt?: number;   // parent or guardian consent, needed under 18
   active: boolean; joinedAt: number; targetPaceSec?: number; notes: Note[]; plan: PlanItem[];
   updatedAt?: number;   // used to merge backups from two phones: the newer edit wins
@@ -129,11 +129,37 @@ export function clubRecords(history: Session[], members: Member[]): RecordRow[] 
 export interface ClubEvent { id: string; date: string; time: string; title: string; distanceKm?: number; notes?: string }
 export interface News { id: string; at: number; title: string; body: string; photo?: string }
 export interface Sponsor { id: string; name: string; url?: string }
-export interface ClubData { members: Member[]; events: ClubEvent[]; news: News[]; sponsors: Sponsor[] }
-export const emptyClub = (): ClubData => ({ members: [], events: [], news: [], sponsors: [] });
+export interface CustomRecord {
+  id: string;
+  distanceKm: number;
+  group: "All" | Gender;
+  name: string;
+  ms: number;
+  date: string; // e.g. "2000" or "2000-06-15"
+  notes?: string;
+}
+export interface ClubData { members: Member[]; events: ClubEvent[]; news: News[]; sponsors: Sponsor[]; records?: CustomRecord[] }
+export const emptyClub = (): ClubData => ({ members: [], events: [], news: [], sponsors: [], records: [] });
 export const fmtPaceInput = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}` : "");
 export function parsePace(text: string): number | undefined {
   const t = text.trim(); if (!t) return undefined;
   const m = t.match(/^(\d{1,2}):([0-5]\d)$/); if (!m) throw new Error("Write pace as minutes:seconds, like 5:30");
   const s = +m[1] * 60 + +m[2]; if (s < 120 || s > 1200) throw new Error("Pace should be between 2:00 and 20:00 per km"); return s;
+}
+
+/** Parses time like "14:28" or "1:04:15" into milliseconds. */
+export function parseTimeToMs(text: string): number {
+  const t = text.trim();
+  if (!t) throw new Error("Enter a record time (e.g. 14:28 or 1:04:15)");
+  const parts = t.split(":").map(Number);
+  if (parts.some(isNaN)) throw new Error("Invalid time format. Use MM:SS or HH:MM:SS");
+  if (parts.length === 2) {
+    const [min, sec] = parts;
+    return (min * 60 + sec) * 1000;
+  }
+  if (parts.length === 3) {
+    const [hr, min, sec] = parts;
+    return (hr * 3600 + min * 60 + sec) * 1000;
+  }
+  throw new Error("Use MM:SS (e.g. 14:28) or HH:MM:SS (e.g. 1:04:15)");
 }

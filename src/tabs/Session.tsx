@@ -41,11 +41,9 @@ function Setup({ s, act, pending, serverOn, distances, joinSlot, members, onSave
 
       <section className="ipac-card">
         <h2>Who is running? <span className="ipac-count">{n}</span></h2>
-        <div className="ipac-quick">
-          <label>Numbers only
-            <input type="number" inputMode="numeric" min={1} max={200} value={qty} aria-label="How many runners" onChange={(e) => setQty(+e.target.value)} /></label>
-          <button className="ipac-btn ipac-btn-outline" onClick={() => act((x) => S.addNumbered(x, qty))}>Add {qty || 0} numbered runners</button>
-        </div>
+        <p className="ipac-hint" style={{ margin: "4px 0 10px" }}>
+          Open training check-in: Athletes tap Join Training on their phones or check in below with their name and license number.
+        </p>
         {regulars.length > 0 && <button className="ipac-btn ipac-btn-outline ipac-btn-wide ipac-regulars" onClick={() => act((x) => regulars.reduce((acc, m) => checkIn(acc, m, S.nextBib(acc)), x))}>Check in {regulars.length} club runner{regulars.length > 1 ? "s" : ""}</button>}
         {blocked.length > 0 && <p className="ipac-hint">Not checked in until a parent or guardian's consent is recorded: {blocked.map((m) => m.name).join(", ")}.</p>}
         <form className="ipac-add" onSubmit={(e) => {

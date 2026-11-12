@@ -46,7 +46,21 @@ function TodayRun({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; se
       <Confirm label="Leave this run" ask="Leave this run?" onYes={async () => { await saveJoined(null); setJoined(null); setMe(null); }} />
     </section>
   );
-  if (!server) return <section className="ipac-card"><h2>Today</h2><p className="ipac-empty">To join a run, ask your coach for the join link or QR code and open it on this phone.</p></section>;
+  if (!server) return (
+    <section className="ipac-card">
+      <h2>Today at Ivory Park AC</h2>
+      <p className="ipac-hint">To join a live training run or race, ask your coach for today's join QR code or link and scan it with this phone.</p>
+      <div className="ipac-training-schedule" style={{ marginTop: "14px" }}>
+        <h3 style={{ fontSize: "1.05rem", margin: "0 0 8px" }}>Weekly Training Schedule</h3>
+        <ul className="ipac-list" style={{ fontSize: "0.88rem" }}>
+          <li><b>Tuesday &amp; Thursday:</b> 17:30 · Track Intervals &amp; Speedwork</li>
+          <li><b>Saturday:</b> 06:30 · Official 5km Time Trial (Freedom Drive)</li>
+          <li><b>Sunday:</b> 06:00 · Community Long Run (10km / 15km / 21km)</li>
+        </ul>
+        <p className="ipac-hint" style={{ marginTop: "8px" }}>Meeting Point: Ivory Park Athletics Hub / Freedom Drive</p>
+      </div>
+    </section>
+  );
   return (
     <section className="ipac-card">
       <h2>Today's runs</h2>

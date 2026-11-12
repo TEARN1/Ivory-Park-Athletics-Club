@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import logo from "./assets/logo.jpg";
-import { assignBibs, closeProgram, fetchJoiners, parseJoinParams } from "./lib/join";
+import { assignBibs, closeProgram, fetchJoiners, parseJoinParams, qrSvg } from "./lib/join";
 import { useLive, wsUrl, type LiveJoin, type Notice } from "./lib/live";
 import { addPositions, type Trail } from "./lib/livemap";
 import type { Route } from "./lib/routes";
@@ -22,10 +22,18 @@ import Routes from "./tabs/Routes";
 import Session from "./tabs/Session";
 import Today from "./tabs/Today";
 import Demo from "./tabs/Demo";
+import TeamDispatch from "./tabs/TeamDispatch";
 import { Confirm, Icons } from "./ui";
 
-type Tab = "today" | "session" | "runners" | "map" | "club";
-const NAV: [Tab, string][] = [["today", "Today"], ["session", "Session"], ["runners", "Runners"], ["map", "Map"], ["club", "Club"]];
+type Tab = "today" | "session" | "runners" | "map" | "dispatch" | "club";
+const NAV: [Tab, string][] = [
+  ["today", "Today"],
+  ["session", "Session"],
+  ["runners", "Runners"],
+  ["map", "Map"],
+  ["dispatch", "Team Hub"],
+  ["club", "Club"],
+];
 const PHASE_LABEL = { setup: "Setting up", running: "Race on", done: "Finished" };
 const STAGES: [S.Phase, string][] = [["setup", "Set up"], ["running", "Race on"], ["done", "Results"]];
 const deepLink = parseJoinParams(location.search);
@@ -44,7 +52,14 @@ export default function App() {
   const [publish, setPublish] = useState<PublishState>({}), loaded = useRef({ club: false, history: false }), histRef = useRef(history); histRef.current = history;
   const synced = useRef<Record<string, number>>({}), seen = useRef<string[]>([]), resetAt = useRef(Date.now());
   const [toast, setToast] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
+  const [showInstall, setShowInstall] = useState(false), [deferredPrompt, setDeferredPrompt] = useState<any>(null), [copiedAppUrl, setCopiedAppUrl] = useState(false);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setDeferredPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
 
   useEffect(() => {
     loadSession().then((x) => { const v = x ?? S.newSession(); ref.current = v; setS(v); });
@@ -170,7 +185,10 @@ export default function App() {
       <header className="ipac-head"><div className="ipac-head-in">
         <img className="ipac-logo" src={logo} alt="Ivory Park Athletics Club logo" />
         <div className="ipac-title"><h1>Ivory Park Athletics Club</h1><p>{s.date} · {s.distanceKm} km</p></div>
-        <button className="ipac-themebtn" aria-label={isNight ? "Switch to day theme" : "Switch to night theme"} onClick={() => setPrefs({ ...prefs, mode: isNight ? "light" : "dark" })}>{isNight ? Icons.sun : Icons.moon}</button>
+        <div className="ipac-head-actions">
+          <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
+          <button className="ipac-themebtn" aria-label={isNight ? "Switch to day theme" : "Switch to night theme"} onClick={() => setPrefs({ ...prefs, mode: isNight ? "light" : "dark" })}>{isNight ? Icons.sun : Icons.moon}</button>
+        </div>
       </div>
         <button className={`ipac-status ipac-status-${ph}`} aria-haspopup="dialog" aria-label={`Session status: ${PHASE_LABEL[ph]}. Open options`} onClick={() => setSheet(true)}>
           <span className="ipac-dot" aria-hidden="true" />
@@ -194,6 +212,9 @@ export default function App() {
           <div hidden={mapView !== "live"}><Live s={s} act={act} cfg={cfg} running={ph === "running"} live={live} join={liveJoin} setJoin={setLiveJoin} trail={trail} members={club.members} routes={routes} /></div>
           <div hidden={mapView !== "routes"}><Routes distances={prefs.distances} router={cfg.router} /></div>
           {mapView === "demo" && <div><Demo /></div>}
+        </div>
+        <div hidden={tab !== "dispatch"}>
+          <TeamDispatch onOpenPickupRoute={() => { setTab("map"); setMapView("routes"); }} />
         </div>
         <div hidden={tab !== "club"}><Club cfg={cfg} setCfg={setCfg} notices={notices} prefs={prefs} setPrefs={setPrefs} club={club} setClub={setClub} publish={publish} publishNow={publishNow} /></div>
       </main>
@@ -234,6 +255,76 @@ export default function App() {
           <div className="ipac-countdown" role="dialog" aria-modal="true" aria-label="Start countdown">
             <p>Starting in</p><div className="ipac-countnum" aria-live="assertive">{countdown}</div>
             <button className="ipac-btn ipac-btn-outline" autoFocus aria-label="Close countdown" onClick={() => setCountdown(null)}>Cancel start</button>
+          </div>
+        </div>
+      )}
+
+      {showInstall && (
+        <div className="ipac-scrim" onClick={(e) => e.target === e.currentTarget && setShowInstall(false)}>
+          <div className="ipac-sheet ipac-install-sheet" role="dialog" aria-modal="true" aria-label="Get Ivory Park Athletics Club App">
+            <div className="ipac-sheet-head">
+              <h2>Get Ivory Park Athletics App</h2>
+              <button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close modal" onClick={() => setShowInstall(false)}>Close</button>
+            </div>
+            <p className="ipac-hint" style={{ marginTop: 0 }}>
+              Scan the QR code with your phone camera to download and install Ivory Park Athletics Club directly onto your home screen.
+            </p>
+            <div className="ipac-qr" role="img" aria-label="QR code to install app" dangerouslySetInnerHTML={{ __html: qrSvg(window.location.origin || window.location.href) }} />
+            {deferredPrompt && (
+              <button
+                className="ipac-btn ipac-btn-hero ipac-btn-wide"
+                style={{ marginTop: "14px", minHeight: "44px" }}
+                onClick={() => {
+                  deferredPrompt.prompt();
+                  deferredPrompt.userChoice.then((choice: any) => { if (choice.outcome === "accepted") setDeferredPrompt(null); });
+                }}
+              >
+                Install App to Device
+              </button>
+            )}
+            <div className="ipac-install-guide">
+              <div className="ipac-guide-col">
+                <b>Android / Chrome</b>
+                <p>Scan QR code &gt; Tap browser menu ⋮ &gt; Tap <b>Install app</b> or <b>Add to Home Screen</b>.</p>
+              </div>
+              <div className="ipac-guide-col">
+                <b>iPhone / Safari</b>
+                <p>Scan QR code &gt; Tap Share button ⎋ &gt; Scroll down &gt; Tap <b>Add to Home Screen</b>.</p>
+              </div>
+            </div>
+            <div className="ipac-row2" style={{ marginTop: "10px" }}>
+              <button
+                className="ipac-btn ipac-btn-outline"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.origin || window.location.href);
+                    setCopiedAppUrl(true);
+                    setTimeout(() => setCopiedAppUrl(false), 2500);
+                  } catch {}
+                }}
+              >
+                {copiedAppUrl ? "Link Copied" : "Copy App Link"}
+              </button>
+              {typeof navigator.share === "function" && (
+                <button
+                  className="ipac-btn ipac-btn-primary"
+                  onClick={() =>
+                    navigator
+                      .share({
+                        title: "Ivory Park Athletics Club App",
+                        text: "Download Ivory Park Athletics Club app for live tracking, routes, and race timing:",
+                        url: window.location.origin || window.location.href,
+                      })
+                      .catch(() => {})
+                  }
+                >
+                  Share via WhatsApp
+                </button>
+              )}
+            </div>
+            <p className="ipac-hint" style={{ textAlign: "center", marginTop: "12px", fontSize: "0.8rem" }}>
+              Works 100% offline on road runs once installed — zero mobile data required.
+            </p>
           </div>
         </div>
       )}

@@ -2,36 +2,49 @@ import { useMemo, useState } from "react";
 import * as C from "../lib/club";
 import * as S from "../lib/session";
 import { Confirm } from "../ui";
+import AthleticLab from "./AthleticLab";
 
 type Props = { club: C.ClubData; setClub: (c: C.ClubData) => void; history: S.Session[]; today: string };
 const year = (today: string) => +today.slice(0, 4);
 
 export default function Runners(p: Props) {
-  const [view, setView] = useState<"members" | "league" | "records">("members"), [open, setOpen] = useState<string | null>(null);
+  const [view, setView] = useState<"members" | "league" | "records" | "lab">("members"), [open, setOpen] = useState<string | null>(null);
   const member = p.club.members.find((m) => m.id === open);
   if (member) return <Profile {...p} m={member} back={() => setOpen(null)} />;
   return (
     <>
       <div className="ipac-seg" role="group" aria-label="Runner views">
-        {(["members", "league", "records"] as const).map((v) => <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{{ members: "Runners", league: "League", records: "Records" }[v]}</button>)}
+        {(["members", "league", "records", "lab"] as const).map((v) => (
+          <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>
+            {{ members: "Runners", league: "League", records: "Records", lab: "Athletic Lab" }[v]}
+          </button>
+        ))}
       </div>
       {view === "members" && <Members {...p} openMember={setOpen} />}
       {view === "league" && <League {...p} />}
       {view === "records" && <Records {...p} />}
+      {view === "lab" && <AthleticLab />}
     </>
   );
 }
 
 function Members({ club, setClub, history, today, openMember }: Props & { openMember: (id: string) => void }) {
-  const [q, setQ] = useState(""), [f, setF] = useState({ name: "", gender: "", birthYear: "", bib: "" }), [err, setErr] = useState("");
+  const [q, setQ] = useState(""), [f, setF] = useState({ name: "", gender: "", birthYear: "", bib: "", licenseNumber: "" }), [err, setErr] = useState("");
   const yr = year(today), k = q.trim().toLowerCase();
-  const list = club.members.filter((m) => !k || m.name.toLowerCase().includes(k) || m.bib === k).sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
+  const list = club.members.filter((m) => !k || m.name.toLowerCase().includes(k) || m.bib === k || (m.licenseNumber && m.licenseNumber.includes(k))).sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (C.findMemberByName(club.members, f.name)) throw new Error(`${f.name.trim()} is already in the list`);
-      const m = C.newMember(f.name, { gender: (f.gender || undefined) as C.Gender | undefined, birthYear: f.birthYear ? +f.birthYear : undefined, bib: f.bib.trim() || undefined });
-      setClub({ ...club, members: [...club.members, m] }); setF({ name: "", gender: "", birthYear: "", bib: "" }); setErr("");
+      const m = C.newMember(f.name, {
+        gender: (f.gender || undefined) as C.Gender | undefined,
+        birthYear: f.birthYear ? +f.birthYear : undefined,
+        bib: f.bib.trim() || undefined,
+        licenseNumber: f.licenseNumber.trim() || undefined,
+      });
+      setClub({ ...club, members: [...club.members, m] });
+      setF({ name: "", gender: "", birthYear: "", bib: "", licenseNumber: "" });
+      setErr("");
     } catch (x) { setErr((x as Error).message); }
   };
   return (
@@ -45,13 +58,14 @@ function Members({ club, setClub, history, today, openMember }: Props & { openMe
             <div className="ipac-grid3">
               <label>Gender<select value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })}><option value="">Not given</option><option value="F">Female</option><option value="M">Male</option><option value="X">Other</option></select></label>
               <label>Birth year<input inputMode="numeric" value={f.birthYear} onChange={(e) => setF({ ...f, birthYear: e.target.value.replace(/\D/g, "").slice(0, 4) })} placeholder="2008" /></label>
-              <label>Usual bib<input inputMode="numeric" value={f.bib} onChange={(e) => setF({ ...f, bib: e.target.value })} /></label>
+              <label>Race Bib #<input inputMode="numeric" value={f.bib} onChange={(e) => setF({ ...f, bib: e.target.value })} placeholder="e.g. 101" /></label>
             </div>
+            <label>ASA License Number<input value={f.licenseNumber} onChange={(e) => setF({ ...f, licenseNumber: e.target.value })} placeholder="e.g. CGA-2026-8842" /></label>
             {err && <p role="alert" className="ipac-err">{err}</p>}
             <button className="ipac-btn ipac-btn-primary" disabled={!f.name.trim()}>Add runner</button>
           </form>
         </details>
-        {club.members.length > 5 && <input aria-label="Search runners" placeholder="Search by name or bib" value={q} onChange={(e) => setQ(e.target.value)} />}
+        {club.members.length > 5 && <input aria-label="Search runners" placeholder="Search by name, bib, or license #" value={q} onChange={(e) => setQ(e.target.value)} />}
         {!club.members.length ? <p className="ipac-empty">Add the runners who come regularly. Their times, personal bests and badges build up from each session.</p> : (
           <ul className="ipac-roster">{list.map((m) => {
             const age = C.ageThisYear(m, yr), att = C.attendance(history, m.id).length;
@@ -59,11 +73,14 @@ function Members({ club, setClub, history, today, openMember }: Props & { openMe
               <li key={m.id}>
                 <button className="ipac-rowbtn" onClick={() => openMember(m.id)} aria-label={`Open ${m.name}`}>
                   <span className="ipac-bib">{m.bib || "–"}</span>
-                  <span className="ipac-who"><b>{m.name}</b><small>{[C.categoryOf(age)?.label, `${att} session${att === 1 ? "" : "s"}`, !m.active && "inactive"].filter(Boolean).join(" · ")}</small>
+                  <span className="ipac-who">
+                    <b>{m.name}</b>
+                    <small>{[m.licenseNumber && `Lic: ${m.licenseNumber}`, C.categoryOf(age)?.label, `${att} session${att === 1 ? "" : "s"}`, !m.active && "inactive"].filter(Boolean).join(" · ")}</small>
                     <span className="ipac-flags">
                       {C.needsConsent(m, yr) && <em className="ipac-flag ipac-flag-warn">Consent needed</em>}
                       {!m.emergency?.phone && <em className="ipac-flag">No emergency contact</em>}
-                    </span></span>
+                    </span>
+                  </span>
                 </button>
               </li>);
           })}</ul>)}
@@ -77,7 +94,14 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
   const save = (patch: Partial<C.Member>) => setClub({ ...club, members: club.members.map((x) => (x.id === m.id ? { ...x, ...patch, updatedAt: Date.now() } : x)) });
   const res = useMemo(() => C.memberResults(history, m.id), [history, m.id]);
   const pbs = C.personalBests(res), att = C.attendance(history, m.id), streak = C.weekStreak(att, today), bdg = C.badges(history, m.id, today);
-  const [d, setD] = useState({ name: m.name, gender: m.gender ?? "", birthYear: m.birthYear ? String(m.birthYear) : "", bib: m.bib ?? "", pace: C.fmtPaceInput(m.targetPaceSec) });
+  const [d, setD] = useState({
+    name: m.name,
+    gender: m.gender ?? "",
+    birthYear: m.birthYear ? String(m.birthYear) : "",
+    bib: m.bib ?? "",
+    licenseNumber: m.licenseNumber ?? "",
+    pace: C.fmtPaceInput(m.targetPaceSec),
+  });
   const [ec, setEc] = useState(m.emergency ?? { name: "", phone: "" }), [gd, setGd] = useState(m.guardian ?? { name: "", phone: "" });
   const [note, setNote] = useState(""), [plan, setPlan] = useState({ day: "", text: "" }), [err, setErr] = useState(""), [ok, setOk] = useState("");
   const done = (msg: string) => { setErr(""); setOk(msg); setTimeout(() => setOk(""), 2000); };
@@ -85,7 +109,15 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
     e.preventDefault();
     try {
       const probe = C.newMember(d.name, { birthYear: d.birthYear ? +d.birthYear : undefined });
-      save({ name: probe.name, gender: (d.gender || undefined) as C.Gender | undefined, birthYear: probe.birthYear, bib: d.bib.trim() || undefined, targetPaceSec: C.parsePace(d.pace) }); done("Details saved");
+      save({
+        name: probe.name,
+        gender: (d.gender || undefined) as C.Gender | undefined,
+        birthYear: probe.birthYear,
+        bib: d.bib.trim() || undefined,
+        licenseNumber: d.licenseNumber.trim() || undefined,
+        targetPaceSec: C.parsePace(d.pace),
+      });
+      done("Details saved");
     } catch (x) { setErr((x as Error).message); }
   };
   const distances = [...new Set(res.map((r) => r.distanceKm))].sort((a, b) => a - b);
@@ -95,7 +127,10 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
       <button className="ipac-btn ipac-btn-quiet ipac-back" onClick={back}>‹ All runners</button>
       <section className="ipac-card ipac-profilehead">
         <span className="ipac-bib ipac-bib-lg">{m.bib || "–"}</span>
-        <div><h2>{m.name}</h2><p className="ipac-hint">{[cat?.label, age !== undefined && `about ${age}`, m.gender && { F: "Female", M: "Male", X: "Other" }[m.gender]].filter(Boolean).join(" · ") || "Add a birth year to see the age group"}</p></div>
+        <div>
+          <h2>{m.name}</h2>
+          <p className="ipac-hint">{[m.licenseNumber && `ASA License: ${m.licenseNumber}`, cat?.label, age !== undefined && `about ${age}`, m.gender && { F: "Female", M: "Male", X: "Other" }[m.gender]].filter(Boolean).join(" · ") || "Add a birth year to see the age group"}</p>
+        </div>
       </section>
       {C.needsConsent(m, yr) && <p className="ipac-err" role="alert">Under 18: record a parent or guardian's consent below before this runner joins sessions.</p>}
 
@@ -123,14 +158,15 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
       </section>
 
       <section className="ipac-card">
-        <h2>Details</h2>
+        <h2>Details & ASA License</h2>
         <form className="ipac-form" onSubmit={saveDetails}>
           <label>Full name<input value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} /></label>
           <div className="ipac-grid3">
             <label>Gender<select value={d.gender} onChange={(e) => setD({ ...d, gender: e.target.value })}><option value="">Not given</option><option value="F">Female</option><option value="M">Male</option><option value="X">Other</option></select></label>
             <label>Birth year<input inputMode="numeric" value={d.birthYear} onChange={(e) => setD({ ...d, birthYear: e.target.value.replace(/\D/g, "").slice(0, 4) })} /></label>
-            <label>Usual bib<input inputMode="numeric" value={d.bib} onChange={(e) => setD({ ...d, bib: e.target.value })} /></label>
+            <label>Race Bib #<input inputMode="numeric" value={d.bib} onChange={(e) => setD({ ...d, bib: e.target.value })} placeholder="e.g. 101" /></label>
           </div>
+          <label>Annual ASA License Number (changes year to year)<input value={d.licenseNumber} onChange={(e) => setD({ ...d, licenseNumber: e.target.value })} placeholder="e.g. CGA-2026-8842" /></label>
           <label>Target pace per km<input inputMode="numeric" placeholder="5:30" value={d.pace} onChange={(e) => setD({ ...d, pace: e.target.value })} /></label>
           <button className="ipac-btn ipac-btn-primary">Save details</button>
         </form>
@@ -166,7 +202,7 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
       <section className="ipac-card">
         <h2>Coach notes</h2>
         <form className="ipac-form" onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; save({ notes: [{ id: crypto.randomUUID(), at: Date.now(), text: note.trim().slice(0, 500) }, ...m.notes] }); setNote(""); }}>
-          <textarea aria-label="New coach note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Strong finish today; work on arm swing." />
+          <textarea aria-label="New coach note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Strong finish today; work on arm swing." />
           <button className="ipac-btn ipac-btn-outline" disabled={!note.trim()}>Add note</button>
         </form>
         {m.notes.length > 0 && <ul className="ipac-roster">{m.notes.map((n) => <li key={n.id}><span className="ipac-who"><small>{new Date(n.at).toLocaleDateString()}</small><span>{n.text}</span></span><Confirm label="Delete" ask="Delete?" aria="Delete note" onYes={() => save({ notes: m.notes.filter((x) => x.id !== n.id) })} /></li>)}</ul>}
@@ -178,13 +214,12 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
   );
 }
 
-/** One series (this runner at one distance): 2px line, 8px markers, a tooltip per point, the best time labelled. */
 function Progress({ results, km }: { results: C.Result[]; km: number }) {
   const [hover, setHover] = useState<number | null>(null);
   if (results.length < 2) return <p className="ipac-hint">One more {km} km run and a progress line appears here.</p>;
   const W = 320, H = 150, L = 46, R = 12, T = 14, B = 26;
   const ms = results.map((r) => r.ms), lo = Math.min(...ms), hi = Math.max(...ms), pad = Math.max(5000, (hi - lo) * 0.15);
-  const y0 = lo - pad, y1 = hi + pad, x = (i: number) => L + (i * (W - L - R)) / (results.length - 1), y = (v: number) => T + ((v - y0) / (y1 - y0)) * (H - T - B); // faster = higher up
+  const y0 = lo - pad, y1 = hi + pad, x = (i: number) => L + (i * (W - L - R)) / (results.length - 1), y = (v: number) => T + ((v - y0) / (y1 - y0)) * (H - T - B);
   const best = ms.indexOf(lo), ticks = [lo, hi];
   return (
     <figure className="ipac-chart">
@@ -218,16 +253,121 @@ function League({ club, history, today }: Props) {
   );
 }
 
-function Records({ club, history }: Props) {
-  const rows = C.clubRecords(history, club.members), kms = [...new Set(rows.map((r) => r.distanceKm))];
+function Records({ club, setClub, history }: Props) {
+  const sessionRows = C.clubRecords(history, club.members);
+  const customRows: C.CustomRecord[] = club.records ?? [];
+  const [rf, setRf] = useState({ distanceKm: "5", group: "All" as "All" | C.Gender, name: "", time: "", date: "2000", notes: "" });
+  const [err, setErr] = useState("");
   const G = { All: "Overall", F: "Women", M: "Men", X: "Other" } as const;
+
+  const addManualRecord = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    try {
+      if (!rf.name.trim()) throw new Error("Enter athlete name");
+      if (!rf.time.trim()) throw new Error("Enter record time (e.g. 14:28 or 1:04:15)");
+      const ms = C.parseTimeToMs(rf.time);
+      const newRec: C.CustomRecord = {
+        id: crypto.randomUUID(),
+        distanceKm: +rf.distanceKm || 5,
+        group: rf.group,
+        name: rf.name.trim(),
+        ms,
+        date: rf.date.trim() || "2000",
+        notes: rf.notes.trim() || undefined,
+      };
+      setClub({ ...club, records: [...customRows, newRec] });
+      setRf({ distanceKm: "5", group: "All", name: "", time: "", date: "2000", notes: "" });
+    } catch (x) {
+      setErr((x as Error).message);
+    }
+  };
+
+  const removeManualRecord = (id: string) => {
+    setClub({ ...club, records: customRows.filter((r) => r.id !== id) });
+  };
+
+  // Combine distances from both sources
+  const allDistances = [...new Set([...sessionRows.map((r) => r.distanceKm), ...customRows.map((r) => r.distanceKm)])].sort((a, b) => a - b);
+
   return (
     <section className="ipac-card">
-      <h2>Club records</h2>
-      {!kms.length ? <p className="ipac-empty">Records appear once club members finish races.</p> : kms.map((k) => (
-        <div key={k} className="ipac-recgroup"><p className="ipac-label">{k} km</p>
-          <ul className="ipac-roster">{rows.filter((r) => r.distanceKm === k).map((r) => (
-            <li key={r.group}><span className="ipac-who"><b>{G[r.group]}: {S.fmtTime(r.ms)}</b><small>{r.name} · {r.date}</small></span></li>))}</ul></div>))}
+      <h2>Club Records (2000 to Present)</h2>
+      <p className="ipac-hint">Historical all-time club records and verified session bests. Coaches can add past records dating back to 2000.</p>
+
+      {/* Manual / Historical Record Entry Form */}
+      <details className="ipac-more" style={{ marginBottom: "16px" }}>
+        <summary>Add / Edit Historical Club Record</summary>
+        <form className="ipac-form" onSubmit={addManualRecord} style={{ marginTop: "10px" }}>
+          <div className="ipac-grid3">
+            <label>Distance (km)
+              <select value={rf.distanceKm} onChange={(e) => setRf({ ...rf, distanceKm: e.target.value })}>
+                <option value="5">5 km</option>
+                <option value="10">10 km</option>
+                <option value="15">15 km</option>
+                <option value="21.1">21.1 km (Half Marathon)</option>
+                <option value="42.2">42.2 km (Marathon)</option>
+                <option value="0.8">800 m</option>
+                <option value="1.5">1500 m</option>
+              </select>
+            </label>
+            <label>Category
+              <select value={rf.group} onChange={(e) => setRf({ ...rf, group: e.target.value as any })}>
+                <option value="All">Overall</option>
+                <option value="M">Men</option>
+                <option value="F">Women</option>
+              </select>
+            </label>
+            <label>Year or Date<input value={rf.date} placeholder="2000 or 2000-06-15" onChange={(e) => setRf({ ...rf, date: e.target.value })} /></label>
+          </div>
+          <div className="ipac-grid2">
+            <label>Athlete Name<input value={rf.name} placeholder="Athlete full name" onChange={(e) => setRf({ ...rf, name: e.target.value })} /></label>
+            <label>Record Time (MM:SS or HH:MM:SS)<input value={rf.time} placeholder="e.g. 14:28 or 1:04:15" onChange={(e) => setRf({ ...rf, time: e.target.value })} /></label>
+          </div>
+          <label>Event or Notes (optional)<input value={rf.notes} placeholder="e.g. Central Gauteng Championships" onChange={(e) => setRf({ ...rf, notes: e.target.value })} /></label>
+          {err && <p role="alert" className="ipac-err">{err}</p>}
+          <button className="ipac-btn ipac-btn-primary" type="submit">Save Club Record</button>
+        </form>
+      </details>
+
+      {!allDistances.length ? (
+        <p className="ipac-empty">No records added yet. Add past records above or run club sessions.</p>
+      ) : (
+        allDistances.map((k) => {
+          const kSession = sessionRows.filter((r) => r.distanceKm === k);
+          const kManual = customRows.filter((r) => r.distanceKm === k);
+          return (
+            <div key={k} className="ipac-recgroup" style={{ marginBottom: "14px" }}>
+              <p className="ipac-label">{k} km</p>
+              <ul className="ipac-roster">
+                {kManual.map((r) => (
+                  <li key={r.id}>
+                    <span className="ipac-who">
+                      <b>{G[r.group]}: {S.fmtTime(r.ms)}</b>
+                      <small>{r.name} · {r.date}{r.notes ? ` · ${r.notes}` : ""} (Historical Record)</small>
+                    </span>
+                    <button
+                      className="ipac-btn ipac-btn-quiet"
+                      aria-label={`Remove record for ${r.name}`}
+                      onClick={() => removeManualRecord(r.id)}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+                {kSession.map((r) => (
+                  <li key={r.group}>
+                    <span className="ipac-who">
+                      <b>{G[r.group]}: {S.fmtTime(r.ms)}</b>
+                      <small>{r.name} · {r.date} (Session Record)</small>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })
+      )}
     </section>
   );
 }

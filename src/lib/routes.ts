@@ -59,3 +59,34 @@ export async function followRoads(hub: LatLon, targetKm: number, variant: number
   }
   return best!;
 }
+
+/** Route along real roads between any start and end points. */
+export async function routeBetween(
+  start: LatLon,
+  end: LatLon,
+  router: string = DEFAULT_ROUTER,
+  fetchJson: FetchJson = (u) => fetch(u).then((x) => x.json())
+): Promise<Route> {
+  const coords = `${start.lon.toFixed(6)},${start.lat.toFixed(6)};${end.lon.toFixed(6)},${end.lat.toFixed(6)}`;
+  let j: any;
+  try {
+    j = await fetchJson(`${router.replace(/\/$/, "")}/route/v1/foot/${coords}?overview=full&geometries=geojson`);
+  } catch {
+    throw new Error("Cannot reach the routing service. Check your connection.");
+  }
+  const r = j?.code === "Ok" ? j.routes?.[0] : undefined;
+  if (!r?.geometry?.coordinates?.length) {
+    throw new Error("The routing service found no walkable roads between these points.");
+  }
+  const points: LatLon[] = r.geometry.coordinates.map(([lon, lat]: [number, number]) => ({ lat, lon }));
+  return {
+    id: `ptp-${Date.now()}`,
+    name: `Road Route (${(r.distance / 1000).toFixed(2)} km)`,
+    hub: start,
+    points,
+    lengthM: r.distance,
+    targetKm: Number((r.distance / 1000).toFixed(2)),
+    variant: 0,
+    roads: true,
+  };
+}

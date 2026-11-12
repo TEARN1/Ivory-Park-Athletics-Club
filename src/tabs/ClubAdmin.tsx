@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import logo from "../assets/logo.jpg";
 import { makeBackup, mergeData, parseBackup, type BackupData } from "../lib/backup";
 import * as C from "../lib/club";
-import { localDate } from "../lib/join";
+import { localDate, qrSvg } from "../lib/join";
+import { eventFlyerImage, shareOrSave } from "../lib/shareImage";
 import { kvSet, loadClub, loadHistory, loadPrefs, loadRoutes, loadSession, type Config } from "../lib/store";
 import { Confirm, download } from "../ui";
 
@@ -13,6 +15,8 @@ export default function ClubAdmin({ club, setClub, cfg, publish, publishNow }: P
   const today = localDate(), coach = !!(cfg.serverUrl && cfg.token), base = cfg.serverUrl.replace(/\/$/, "");
   const [ev, setEv] = useState({ date: today, time: "06:30", title: "", km: "", notes: "" }), [news, setNews] = useState({ title: "", body: "", photo: "" }), [sp, setSp] = useState({ name: "", url: "" });
   const [err, setErr] = useState(""), [counts, setCounts] = useState<Record<string, number>>({}), [names, setNames] = useState<Record<string, string[]>>({});
+  const [broadcastEv, setBroadcastEv] = useState<C.ClubEvent | null>(null), [flyerLoading, setFlyerLoading] = useState(false);
+  const [flyerUrl, setFlyerUrl] = useState<string | null>(null), [copiedPlatform, setCopiedPlatform] = useState<string>("");
   useEffect(() => { if (cfg.serverUrl) fetch(base + "/public.json").then((r) => r.json()).then((j) => setCounts(j.counts ?? {})).catch(() => {}); }, [cfg.serverUrl, publish.at]); // eslint-disable-line react-hooks/exhaustive-deps
   const who = async (id: string) => { try { const r = await fetch(`${base}/events/${id}/rsvps`, { headers: { authorization: `Bearer ${cfg.token}` } }); const j = await r.json(); setNames({ ...names, [id]: (j as { name: string; coming: boolean }[]).filter((x) => x.coming).map((x) => x.name) }); } catch { setErr("Cannot reach the club server."); } };
   const upcoming = club.events.filter((e) => e.date >= today).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -23,6 +27,7 @@ export default function ClubAdmin({ club, setClub, cfg, publish, publishNow }: P
         {upcoming.length > 0 ? <ul className="ipac-roster">{upcoming.map((e) => (
           <li key={e.id}><span className="ipac-who"><b>{e.title}</b><small>{e.date} {e.time}{e.distanceKm ? ` · ${e.distanceKm} km` : ""} · {counts[e.id] ?? 0} coming</small>
             {names[e.id] && <small>{names[e.id].join(", ") || "Nobody yet"}</small>}</span>
+            <button className="ipac-btn ipac-btn-outline" aria-label={`Broadcast ${e.title} to community`} onClick={() => { setBroadcastEv(e); setFlyerUrl(null); }}>Broadcast &amp; Flyer</button>
             {coach && <button className="ipac-btn ipac-btn-quiet" aria-label={`Who is coming to ${e.title}`} onClick={() => who(e.id)}>Who</button>}
             <Confirm label="Remove" ask="Remove?" aria={`Remove ${e.title}`} onYes={() => setClub({ ...club, events: club.events.filter((x) => x.id !== e.id) })} /></li>))}</ul>
           : <p className="ipac-empty">No upcoming events. Add time trials and long runs so runners can say they're coming.</p>}
@@ -70,6 +75,170 @@ export default function ClubAdmin({ club, setClub, cfg, publish, publishNow }: P
           <p className="ipac-hint">The free server forgets everything when it restarts. Publishing again (or opening this app) puts it back.</p>
         </>)}
       </section>
+
+      {broadcastEv && (
+        <div className="ipac-scrim" onClick={(e) => e.target === e.currentTarget && setBroadcastEv(null)}>
+          <div className="ipac-sheet ipac-broadcast-sheet" role="dialog" aria-modal="true" aria-label={`Broadcast ${broadcastEv.title}`}>
+            <div className="ipac-sheet-head">
+              <h2>Community Broadcast &amp; Flyer</h2>
+              <button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close" onClick={() => setBroadcastEv(null)}>Close</button>
+            </div>
+            <p className="ipac-hint" style={{ marginTop: 0 }}>
+              Alert sports lovers and community runners across <b>The Resident</b>, <b>The Grooves</b>, <b>The Excellency</b>, and WhatsApp.
+            </p>
+
+            <div className="ipac-flyer-box">
+              <h3>Official Event Poster</h3>
+              <p className="ipac-hint">Generate high-resolution 1080x1350 PNG flyer with club branding, event details, and scan-to-join QR code.</p>
+              {flyerUrl && (
+                <div style={{ textAlign: "center", margin: "10px 0" }}>
+                  <img src={flyerUrl} alt="Event flyer preview" className="ipac-flyer-preview" />
+                </div>
+              )}
+              <div className="ipac-row2">
+                <button
+                  className="ipac-btn ipac-btn-primary"
+                  disabled={flyerLoading}
+                  onClick={async () => {
+                    setFlyerLoading(true);
+                    try {
+                      const appUrl = window.location.origin || window.location.href;
+                      const qr = qrSvg(appUrl);
+                      const blob = await eventFlyerImage(broadcastEv, logo, qr);
+                      const url = URL.createObjectURL(blob);
+                      setFlyerUrl(url);
+                      await shareOrSave(blob, `ipac-${broadcastEv.date}-${broadcastEv.title.replace(/\s+/g, "_")}.png`);
+                    } catch (e) {
+                      setErr((e as Error).message);
+                    } finally {
+                      setFlyerLoading(false);
+                    }
+                  }}
+                >
+                  {flyerLoading ? "Generating Flyer…" : flyerUrl ? "Download Flyer PNG Again" : "Generate & Download Flyer PNG"}
+                </button>
+                {typeof navigator.share === "function" && flyerUrl && (
+                  <button
+                    className="ipac-btn ipac-btn-outline"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(flyerUrl);
+                        const blob = await res.blob();
+                        await shareOrSave(blob, `ipac-event-${broadcastEv.date}.png`);
+                      } catch {}
+                    }}
+                  >
+                    Share Image to Apps
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <h3 style={{ marginTop: "16px" }}>1-Tap Community Notices</h3>
+            <div className="ipac-syndication-list">
+              <div className="ipac-syndication-card">
+                <div className="ipac-synd-head">
+                  <b>The Resident Notice Board</b>
+                  <span className="ipac-synd-tag">Community Hub</span>
+                </div>
+                <p className="ipac-synd-text">
+                  Ivory Park Athletics Club: {broadcastEv.title} on {broadcastEv.date} at {broadcastEv.time}{broadcastEv.distanceKm ? ` (${broadcastEv.distanceKm} km)` : ""}. Meet at {broadcastEv.notes || "Ivory Park Athletics Hub"}. Open to all residents, youth, and runners. Live GPS tracking on club web app: {window.location.origin || "https://ivorypark.athletics"}
+                </p>
+                <button
+                  className="ipac-btn ipac-btn-quiet"
+                  onClick={async () => {
+                    const text = `Ivory Park Athletics Club: ${broadcastEv.title} on ${broadcastEv.date} at ${broadcastEv.time}${broadcastEv.distanceKm ? ` (${broadcastEv.distanceKm} km)` : ""}. Meet at ${broadcastEv.notes || "Ivory Park Athletics Hub"}. Open to all residents, youth, and runners. Live GPS tracking on club web app: ${window.location.origin || "https://ivorypark.athletics"}`;
+                    try {
+                      await navigator.clipboard.writeText(text);
+                      setCopiedPlatform("The Resident notice copied to clipboard.");
+                      setTimeout(() => setCopiedPlatform(""), 3000);
+                    } catch {}
+                  }}
+                >
+                  Copy Notice for The Resident
+                </button>
+              </div>
+
+              <div className="ipac-syndication-card">
+                <div className="ipac-synd-head">
+                  <b>The Grooves Sports &amp; Social Feed</b>
+                  <span className="ipac-synd-tag">Sports Community</span>
+                </div>
+                <p className="ipac-synd-text">
+                  Calling all Grooves runners &amp; athletes! Join Ivory Park AC this {broadcastEv.date} at {broadcastEv.time} for {broadcastEv.title}{broadcastEv.distanceKm ? ` (${broadcastEv.distanceKm} km)` : ""}. Pace groups 4:30/km, 5:30/km, and 6:30/km. Live GPS route tracking &amp; live leaderboard: {window.location.origin || "https://ivorypark.athletics"}
+                </p>
+                <button
+                  className="ipac-btn ipac-btn-quiet"
+                  onClick={async () => {
+                    const text = `Calling all Grooves runners & athletes! Join Ivory Park AC this ${broadcastEv.date} at ${broadcastEv.time} for ${broadcastEv.title}${broadcastEv.distanceKm ? ` (${broadcastEv.distanceKm} km)` : ""}. Pace groups 4:30/km, 5:30/km, and 6:30/km. Live GPS route tracking & live leaderboard: ${window.location.origin || "https://ivorypark.athletics"}`;
+                    try {
+                      await navigator.clipboard.writeText(text);
+                      setCopiedPlatform("The Grooves notice copied to clipboard.");
+                      setTimeout(() => setCopiedPlatform(""), 3000);
+                    } catch {}
+                  }}
+                >
+                  Copy Notice for The Grooves
+                </button>
+              </div>
+
+              <div className="ipac-syndication-card">
+                <div className="ipac-synd-head">
+                  <b>The Excellency Community Board</b>
+                  <span className="ipac-synd-tag">Community Venue</span>
+                </div>
+                <p className="ipac-synd-text">
+                  Ivory Park Athletics Club Group Run: {broadcastEv.title}. Date: {broadcastEv.date} at {broadcastEv.time}. Community athletes, fitness lovers, and youth welcome. Check routes and join live: {window.location.origin || "https://ivorypark.athletics"}
+                </p>
+                <button
+                  className="ipac-btn ipac-btn-quiet"
+                  onClick={async () => {
+                    const text = `Ivory Park Athletics Club Group Run: ${broadcastEv.title}. Date: ${broadcastEv.date} at ${broadcastEv.time}. Community athletes, fitness lovers, and youth welcome. Check routes and join live: ${window.location.origin || "https://ivorypark.athletics"}`;
+                    try {
+                      await navigator.clipboard.writeText(text);
+                      setCopiedPlatform("The Excellency notice copied to clipboard.");
+                      setTimeout(() => setCopiedPlatform(""), 3000);
+                    } catch {}
+                  }}
+                >
+                  Copy Notice for The Excellency
+                </button>
+              </div>
+
+              <div className="ipac-syndication-card">
+                <div className="ipac-synd-head">
+                  <b>WhatsApp Running Group &amp; Status</b>
+                  <span className="ipac-synd-tag">Instant Message</span>
+                </div>
+                <button
+                  className="ipac-btn ipac-btn-primary"
+                  onClick={async () => {
+                    const text = `IVORY PARK ATHLETICS CLUB COMMUNITY RUN\nEvent: ${broadcastEv.title}\nDate: ${broadcastEv.date} · ${broadcastEv.time}\nDistance: ${broadcastEv.distanceKm ? broadcastEv.distanceKm + " km" : "Club Run"}\nLocation: ${broadcastEv.notes || "Ivory Park Stadium Hub"}\n\nJoin live & track on road: ${window.location.origin || "https://ivorypark.athletics"}\nSyndicated on The Resident, The Grooves, and The Excellency.`;
+                    if (typeof navigator.share === "function") {
+                      await navigator.share({ title: `Ivory Park AC - ${broadcastEv.title}`, text }).catch(() => {});
+                    } else {
+                      try {
+                        await navigator.clipboard.writeText(text);
+                        setCopiedPlatform("WhatsApp message copied to clipboard.");
+                        setTimeout(() => setCopiedPlatform(""), 3000);
+                      } catch {}
+                    }
+                  }}
+                >
+                  Share WhatsApp Community Invite
+                </button>
+              </div>
+            </div>
+
+            {copiedPlatform && (
+              <p role="status" style={{ color: "var(--color-hot)", fontWeight: 700, textAlign: "center", marginTop: "12px" }}>
+                [Copied] {copiedPlatform}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <BackupCard />
       {err && <p role="alert" className="ipac-err">{err}</p>}
     </>
