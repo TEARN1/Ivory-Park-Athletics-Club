@@ -8,7 +8,86 @@ export interface TourStep {
   suggestedTab?: "today" | "session" | "runners" | "map" | "dispatch" | "club";
 }
 
-export const TOUR_STEPS: TourStep[] = [
+export type TourMode = "most_used" | "overview";
+
+/** High-impact, most-used daily action buttons on the app */
+export const MOST_USED_TOUR_STEPS: TourStep[] = [
+  {
+    id: "btn-workout-type",
+    selector: '.ipac-seg[aria-label="Session type"]',
+    title: "Workout Mode Buttons (Race, Laps, Intervals)",
+    badge: "Most-Used Button",
+    description: "These 3 toggle buttons switch the timing engine: 'Race' for continuous road timing, 'Laps' for track circuits, or 'Intervals' for speed repetitions.",
+    actionHint: "Tap 'Intervals' to configure rep meters and rest intervals with sound cues.",
+    suggestedTab: "session",
+  },
+  {
+    id: "btn-distance-chips",
+    selector: '.ipac-chips[aria-label="Distance"]',
+    title: "Distance Preset Dials (1k, 3k, 5k, 10k, 21.1k)",
+    badge: "Most-Used Button",
+    description: "One tap selects your session target distance. You can also type any custom distance in the 'Other' input box.",
+    actionHint: "Sets target splits for the virtual pacer rabbit and PB rankings.",
+    suggestedTab: "session",
+  },
+  {
+    id: "btn-start-race",
+    selector: ".ipac-cta button.ipac-btn-hero, .ipac-cta",
+    title: "Primary Start Race Button",
+    badge: "Core Action Button",
+    description: "The primary button you press on the start line. Starts a 5-second voice countdown with loud beeps, then begins the master clock on 'Go'.",
+    actionHint: "During the run, tap runner bibs to record sub-second sprint finishes.",
+    suggestedTab: "session",
+  },
+  {
+    id: "btn-start-tracking",
+    selector: ".ipac-track-btn, .ipac-tracker-actions",
+    title: "Start GPS Tracking Button",
+    badge: "Most-Used Button",
+    description: "Press this button the moment you step outside to record your live route vector, kilometer pace, and moving speed.",
+    actionHint: "Works completely offline. High-precision GPS keeps tracking without mobile data.",
+    suggestedTab: "map",
+  },
+  {
+    id: "btn-map-layers",
+    selector: ".ipac-map-layer-selector",
+    title: "Basemap Layer Switcher (Satellite & Topo)",
+    badge: "Navigation Button",
+    description: "Switch between high-resolution Satellite imagery, Topographic elevation contours, and Dark night mode with one tap.",
+    actionHint: "Use Topo mode to preview hills and elevation climbs across Ivory Park.",
+    suggestedTab: "map",
+  },
+  {
+    id: "btn-dispatch-alarm",
+    selector: ".ipac-card .ipac-form button.ipac-btn-primary",
+    title: "Dispatch Offline Wake-Up Alarm Button",
+    badge: "Coach Hub Action",
+    description: "Coaches press this button to arm morning wake-ups. Generates a 1-tap WhatsApp link so the alarm rings on athletes' phones offline.",
+    actionHint: "Athletes tap 'I Am Awake' to record their attendance timestamp.",
+    suggestedTab: "dispatch",
+  },
+  {
+    id: "btn-call-athletes",
+    selector: ".ipac-tk-table tbody tr:first-child button.ipac-btn-primary, .ipac-tk-table",
+    title: "1-on-1 Voice & Video Call Buttons",
+    badge: "Direct Communication",
+    description: "Every athlete in the roster has individual 'Voice Call' and 'Video Call' buttons for direct private check-ins before or after sessions.",
+    actionHint: "Use 'Run Diagnostic Test' to verify your microphone and echo loopback.",
+    suggestedTab: "dispatch",
+  },
+  {
+    id: "btn-install-pwa",
+    selector: '.ipac-head-actions button[title*="Get App"], .ipac-head-actions button:first-child',
+    title: "Install App to Home Screen (Offline PWA)",
+    badge: "Essential Setup",
+    description: "Tap the download icon in the header to save this app to your phone. It runs directly from your home screen with zero mobile data required.",
+    actionHint: "Works on both Android (Chrome) and iPhone (Safari).",
+    suggestedTab: "session",
+  },
+];
+
+/** General introductory overview tour */
+export const OVERVIEW_TOUR_STEPS: TourStep[] = [
   {
     id: "welcome",
     selector: ".ipac-head",
@@ -63,6 +142,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
 ];
 
+export const TOUR_STEPS = MOST_USED_TOUR_STEPS;
 export const STORAGE_KEY_TOUR = "ipac_tour_completed";
 
 export function isTourCompleted(): boolean {

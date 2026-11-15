@@ -22,15 +22,35 @@ export default function Club({ cfg, setCfg, notices, prefs, setPrefs, club, setC
     <Appearance prefs={prefs} setPrefs={setPrefs} />
     <SoundSettings prefs={prefs} setPrefs={setPrefs} />
     <section className="ipac-card">
-      <details open={!cfg.serverUrl}>
-      <summary>Club server settings</summary>
-      <div className="ipac-form">
-        <input aria-label="Server address" placeholder="https://your-club-server" value={draft.serverUrl} onChange={(e) => setDraft({ ...draft, serverUrl: e.target.value })} />
-        <input aria-label="Coach token" type="password" placeholder="Coach token (coaches only)" value={draft.token} onChange={(e) => setDraft({ ...draft, token: e.target.value })} />
-        <input aria-label="Routing service" placeholder="Routing service (optional)" value={draft.router ?? ""} onChange={(e) => setDraft({ ...draft, router: e.target.value.trim() || undefined })} />
+      <div className="ipac-api-status-banner" style={{
+        background: "rgba(57, 211, 83, 0.12)",
+        border: "1px solid rgba(57, 211, 83, 0.35)",
+        borderRadius: "14px",
+        padding: "12px 14px",
+        marginBottom: "16px"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+          <strong style={{ color: "var(--neon-green, #39d353)", fontSize: "0.92rem" }}>
+            Offline Standalone Mode: Zero API Key Required
+          </strong>
+          <span className="ipac-badge" style={{ background: "rgba(57, 211, 83, 0.2)", color: "#39d353", fontSize: "0.75rem", padding: "2px 8px" }}>
+            Active
+          </span>
+        </div>
+        <p style={{ margin: "6px 0 0", fontSize: "0.82rem", opacity: 0.88, lineHeight: 1.45 }}>
+          All map layers (OpenStreetMap, CARTO Dark Matter, OpenTopoMap, Esri Satellite), live GPS tracking, interval clocks, and PWA installs run 100% locally with zero external API keys or subscription accounts.
+        </p>
+      </div>
+
+      <details>
+      <summary style={{ cursor: "pointer", fontWeight: 600 }}>Optional Self-Hosted Sync Server (No API Key Required)</summary>
+      <div className="ipac-form" style={{ marginTop: "12px" }}>
+        <input aria-label="Server address" placeholder="Optional Server URL (e.g. https://your-club-server)" value={draft.serverUrl} onChange={(e) => setDraft({ ...draft, serverUrl: e.target.value })} />
+        <input aria-label="Coach token" type="password" placeholder="Optional Coach Passcode (Internal club access, not an API key)" value={draft.token} onChange={(e) => setDraft({ ...draft, token: e.target.value })} />
+        <input aria-label="Routing service" placeholder="Optional Router URL (Defaults to free OpenStreetMap)" value={draft.router ?? ""} onChange={(e) => setDraft({ ...draft, router: e.target.value.trim() || undefined })} />
         <button className="ipac-btn ipac-btn-primary" onClick={() => { saveConfig(draft); setCfg(draft); setMsg("Saved on this device."); }}>Save</button>
       </div>
-      <p className="ipac-hint">The coach token is kept on this device only. Do not enter it on a shared phone.</p>
+      <p className="ipac-hint">This server setup is entirely optional for multi-device sync. No Google Maps, Mapbox, or third-party API key is needed.</p>
       </details>
       {msg && <p role="status" className="ipac-hint">{msg}</p>}
       <h2 style={{marginTop:16}}>Club notices</h2>

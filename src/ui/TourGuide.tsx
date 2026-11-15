@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { say } from "../lib/sound";
-import { setTourCompleted, TOUR_STEPS, type TourStep } from "../lib/tour";
+import {
+  MOST_USED_TOUR_STEPS,
+  OVERVIEW_TOUR_STEPS,
+  setTourCompleted,
+  type TourMode,
+  type TourStep,
+} from "../lib/tour";
 
 interface TourGuideProps {
   onClose: () => void;
@@ -8,11 +14,14 @@ interface TourGuideProps {
 }
 
 export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
+  const [tourMode, setTourMode] = useState<TourMode>("most_used");
   const [stepIndex, setStepIndex] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
   const [voiceSpeaking, setVoiceSpeaking] = useState(false);
-  const curStep: TourStep = TOUR_STEPS[stepIndex] || TOUR_STEPS[0];
-  const totalSteps = TOUR_STEPS.length;
+
+  const steps: TourStep[] = tourMode === "most_used" ? MOST_USED_TOUR_STEPS : OVERVIEW_TOUR_STEPS;
+  const curStep: TourStep = steps[stepIndex] || steps[0];
+  const totalSteps = steps.length;
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   // Navigate to corresponding tab if step suggests it
@@ -32,7 +41,6 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
       const el = document.querySelector(curStep.selector);
       if (el) {
         const r = el.getBoundingClientRect();
-        // Only set rect if element is visible and has dimension
         if (r.width > 0 && r.height > 0) {
           setSpotlightRect(r);
           return;
@@ -42,7 +50,7 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
     };
 
     updateRect();
-    const timer = setTimeout(updateRect, 100);
+    const timer = setTimeout(updateRect, 120);
     window.addEventListener("resize", updateRect);
     window.addEventListener("scroll", updateRect);
 
@@ -51,7 +59,7 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
       window.removeEventListener("resize", updateRect);
       window.removeEventListener("scroll", updateRect);
     };
-  }, [stepIndex, curStep.selector]);
+  }, [stepIndex, curStep.selector, tourMode]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -66,11 +74,11 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [stepIndex]);
+  }, [stepIndex, totalSteps]);
 
   const speakStep = () => {
     setVoiceSpeaking(true);
-    say(`${curStep.title}. ${curStep.description}. ${curStep.actionHint}`);
+    say(`${curStep.title}. ${curStep.description}. Action: ${curStep.actionHint}`);
     setTimeout(() => setVoiceSpeaking(false), 3000);
   };
 
@@ -103,10 +111,10 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
     const spaceBelow = window.innerHeight - spotlightRect.bottom;
     const spaceAbove = spotlightRect.top;
 
-    if (spaceBelow > 260) {
-      cardTop = `${Math.min(window.innerHeight - 280, spotlightRect.bottom + 14)}px`;
+    if (spaceBelow > 280) {
+      cardTop = `${Math.min(window.innerHeight - 300, spotlightRect.bottom + 14)}px`;
       cardBottom = "auto";
-    } else if (spaceAbove > 260) {
+    } else if (spaceAbove > 280) {
       cardBottom = `${window.innerHeight - spotlightRect.top + 14}px`;
       cardTop = "auto";
     }
@@ -138,17 +146,43 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
           transform: cardTransform,
         }}
       >
+        {/* Mode Selector Toggle */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+          <button
+            type="button"
+            className={`ipac-btn ${tourMode === "most_used" ? "ipac-btn-primary" : "ipac-btn-quiet"}`}
+            style={{ fontSize: "0.74rem", padding: "2px 8px", minHeight: "26px", flex: 1 }}
+            onClick={() => {
+              setTourMode("most_used");
+              setStepIndex(0);
+            }}
+          >
+            Most-Used Buttons ({MOST_USED_TOUR_STEPS.length})
+          </button>
+          <button
+            type="button"
+            className={`ipac-btn ${tourMode === "overview" ? "ipac-btn-primary" : "ipac-btn-quiet"}`}
+            style={{ fontSize: "0.74rem", padding: "2px 8px", minHeight: "26px", flex: 1 }}
+            onClick={() => {
+              setTourMode("overview");
+              setStepIndex(0);
+            }}
+          >
+            Full App Tour ({OVERVIEW_TOUR_STEPS.length})
+          </button>
+        </div>
+
         {/* Header row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
           <span className="ipac-tour-badge">{curStep.badge}</span>
           <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--color-muted)" }}>
-            Step {stepIndex + 1} of {totalSteps}
+            Button {stepIndex + 1} of {totalSteps}
           </span>
         </div>
 
         {/* Step Progress Dots */}
         <div className="ipac-tour-dots" aria-hidden="true">
-          {TOUR_STEPS.map((s, idx) => (
+          {steps.map((s, idx) => (
             <span
               key={s.id}
               className={`ipac-tour-dot ${idx === stepIndex ? "active" : idx < stepIndex ? "done" : ""}`}
@@ -165,7 +199,7 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
         </p>
 
         <div className="ipac-tour-hint">
-          <b>Action:</b> {curStep.actionHint}
+          <b>How to use:</b> {curStep.actionHint}
         </div>
 
         {/* Action Controls */}
@@ -186,7 +220,7 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
               style={{ fontSize: "0.78rem", padding: "4px 8px", minHeight: "32px" }}
               onClick={finishTour}
             >
-              Skip Tour
+              Skip
             </button>
           </div>
 
@@ -207,7 +241,7 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
               style={{ fontSize: "0.82rem", padding: "4px 14px", minHeight: "32px", fontWeight: 700 }}
               onClick={goNext}
             >
-              {stepIndex === totalSteps - 1 ? "Finish Tour" : "Next"}
+              {stepIndex === totalSteps - 1 ? "Finish Tour" : "Next Button"}
             </button>
           </div>
         </div>

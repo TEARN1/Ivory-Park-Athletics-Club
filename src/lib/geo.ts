@@ -69,3 +69,27 @@ export function splits(raw: TrackPoint[]): Split[] {
   return out;
 }
 export const trackDistanceM = (raw: TrackPoint[]) => pathLengthM(cleanTrack(raw));
+
+/**
+ * Reverse geocode GPS coordinates to human-readable address using OpenStreetMap Nominatim.
+ * Free, open, zero API key required (integrated from TheResident and The Grooves).
+ */
+export async function reverseGeocodeOsm(lat: number, lon: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+      { headers: { "Accept-Language": "en" } }
+    );
+    if (!res.ok) return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    const data = await res.json();
+    const addr = data.address || {};
+    const suburb = addr.suburb || addr.neighbourhood || addr.village || addr.quarter || addr.city_district || "";
+    const city = addr.city || addr.town || addr.municipality || addr.state || "";
+    const country = addr.country || "";
+    const parts = [suburb, city, country].filter(Boolean);
+    return parts.length ? parts.join(", ") : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  } catch {
+    return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  }
+}
+

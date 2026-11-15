@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { destination, haversineM, splits, cleanTrack, pathLengthM, type TrackPoint } from "./geo";
+import { describe, expect, it, vi } from "vitest";
+import { destination, haversineM, splits, cleanTrack, pathLengthM, reverseGeocodeOsm, type TrackPoint } from "./geo";
 import { initialRelay, relayReduce } from "./relay";
 import { DEFAULT_HUB, generateLoops, reroute, usesBearing } from "./routes";
 import { sessionCsv } from "./csv";
@@ -20,6 +20,31 @@ describe("geo", () => {
   it("drops teleporting GPS jumps", () => {
     const pts = steady(300, 0.5); pts.splice(10, 0, { lat: -25, lon: 28, t: pts[9].t + 1000 });
     expect(cleanTrack(pts).some((p) => p.lat === -25)).toBe(false);
+  });
+  it("reverse geocodes coordinates via OpenStreetMap Nominatim", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        address: { suburb: "Ivory Park", city: "Midrand", country: "South Africa" },
+      }),
+    } as any);
+    try {
+      const addr = await reverseGeocodeOsm(-25.9967, 28.2);
+      expect(addr).toBe("Ivory Park, Midrand, South Africa");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+  it("falls back gracefully when reverse geocode fails", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
+    try {
+      const addr = await reverseGeocodeOsm(-25.9967, 28.2);
+      expect(addr).toBe("-25.9967, 28.2000");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 describe("relay", () => {

@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { isTourCompleted, setTourCompleted, TOUR_STEPS } from "./tour";
+import {
+  isTourCompleted,
+  MOST_USED_TOUR_STEPS,
+  OVERVIEW_TOUR_STEPS,
+  setTourCompleted,
+} from "./tour";
 
 const mockStorage = new Map<string, string>();
 if (typeof globalThis.localStorage === "undefined") {
@@ -16,22 +21,34 @@ describe("tour library", () => {
     localStorage.clear();
   });
 
-  it("provides comprehensive tour steps covering all core club features", () => {
-    expect(TOUR_STEPS.length).toBeGreaterThanOrEqual(5);
+  it("provides comprehensive Most-Used Buttons tour steps", () => {
+    expect(MOST_USED_TOUR_STEPS.length).toBe(8);
 
-    const stepIds = TOUR_STEPS.map((s) => s.id);
-    expect(stepIds).toContain("welcome");
-    expect(stepIds).toContain("offline-install");
-    expect(stepIds).toContain("session-status");
-    expect(stepIds).toContain("team-dispatch");
-    expect(stepIds).toContain("live-map");
+    const stepIds = MOST_USED_TOUR_STEPS.map((s) => s.id);
+    expect(stepIds).toContain("btn-workout-type");
+    expect(stepIds).toContain("btn-distance-chips");
+    expect(stepIds).toContain("btn-start-race");
+    expect(stepIds).toContain("btn-start-tracking");
+    expect(stepIds).toContain("btn-map-layers");
+    expect(stepIds).toContain("btn-dispatch-alarm");
+    expect(stepIds).toContain("btn-call-athletes");
+    expect(stepIds).toContain("btn-install-pwa");
 
     // Strictly ensure zero emojis in step text
-    TOUR_STEPS.forEach((step) => {
+    MOST_USED_TOUR_STEPS.forEach((step) => {
       expect(/[\uD800-\uDFFF]/.test(step.title)).toBe(false);
       expect(/[\uD800-\uDFFF]/.test(step.description)).toBe(false);
       expect(/[\uD800-\uDFFF]/.test(step.badge)).toBe(false);
       expect(/[\uD800-\uDFFF]/.test(step.actionHint)).toBe(false);
+    });
+  });
+
+  it("provides general overview tour steps", () => {
+    expect(OVERVIEW_TOUR_STEPS.length).toBeGreaterThanOrEqual(6);
+
+    OVERVIEW_TOUR_STEPS.forEach((step) => {
+      expect(/[\uD800-\uDFFF]/.test(step.title)).toBe(false);
+      expect(/[\uD800-\uDFFF]/.test(step.description)).toBe(false);
     });
   });
 

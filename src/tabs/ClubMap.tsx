@@ -62,7 +62,18 @@ const getLayerStyle = (layer: MapLayerStyle, dark = isDark()) => {
       };
     case "streets":
     default:
-      return `${OFM}/${dark ? "dark" : "bright"}`;
+      return {
+        version: 8 as const,
+        sources: {
+          osm: {
+            type: "raster" as const,
+            tileSize: 256,
+            attribution: "© OpenStreetMap contributors",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+          },
+        },
+        layers: [{ id: "osm", type: "raster" as const, source: "osm" }],
+      };
   }
 };
 
@@ -114,8 +125,11 @@ export default function ClubMap({
   const lineRef = useRef(line);
   lineRef.current = line;
 
-  // Lock body scroll completely when fullscreen is active
+  // Manage fullscreen body class and body scroll
   useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.classList.toggle("has-fullscreen-map", !!fullscreen);
+    }
     if (fullscreen) {
       const prevBodyOverflow = document.body.style.overflow;
       const prevHtmlOverflow = document.documentElement.style.overflow;
@@ -124,21 +138,45 @@ export default function ClubMap({
       document.documentElement.style.overflow = "hidden";
       document.body.style.touchAction = "none";
       return () => {
+        if (typeof document !== "undefined") {
+          document.body.classList.remove("has-fullscreen-map");
+        }
         document.body.style.overflow = prevBodyOverflow;
         document.documentElement.style.overflow = prevHtmlOverflow;
         document.body.style.touchAction = prevTouch;
       };
+    } else {
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("has-fullscreen-map");
+      }
     }
   }, [fullscreen]);
 
-  // Resize MapLibre when switching to/from fullscreen
+  // Resize MapLibre across multiple frames when switching to/from fullscreen
   useEffect(() => {
     const m = map.current;
     if (m) {
-      const t = setTimeout(() => { m.resize(); }, 120);
-      return () => clearTimeout(t);
+      const timers = [
+        setTimeout(() => m.resize(), 40),
+        setTimeout(() => m.resize(), 120),
+        setTimeout(() => m.resize(), 250),
+        setTimeout(() => m.resize(), 500),
+      ];
+      return () => timers.forEach(clearTimeout);
     }
   }, [fullscreen]);
+
+  // Support Esc key to exit fullscreen
+  useEffect(() => {
+    if (!fullscreen || !onToggleFullscreen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onToggleFullscreen();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [fullscreen, onToggleFullscreen]);
 
   // Initialize MapLibre
   useEffect(() => {
@@ -151,7 +189,7 @@ export default function ClubMap({
       const first = center ?? markers[0] ?? line?.[0];
       const m = new ml.Map({
         container: box.current,
-        style: `${OFM}/${isDark() ? "dark" : "bright"}`,
+        style: getLayerStyle(layer) as any,
         center: first ? [first.lon, first.lat] : [28.2, -25.9967],
         zoom: zoom ?? 16,
         maxZoom: 20,
@@ -340,6 +378,11 @@ export default function ClubMap({
     <div className={`ipac-mapwrap ${fullscreen ? "fullscreen" : ""}`}>
       <div ref={box} className="ipac-mlmap" role="region" aria-label={label} />
       
+      {/* Zero-API-Key Map Source Badge */}
+      <div className="ipac-map-engine-pill">
+        Zero API Key · Free OpenStreetMap
+      </div>
+
       {/* Basemap Style Switcher */}
       <div className="ipac-map-layer-selector" role="group" aria-label="Map Basemap Style">
         {(["streets", "dark", "topo", "satellite"] as const).map((l) => (
@@ -350,7 +393,7 @@ export default function ClubMap({
             aria-pressed={layer === l}
             onClick={() => setLayer(l)}
           >
-            {l === "streets" ? "Street" : l === "dark" ? "Dark" : l === "topo" ? "Topo" : "Satellite"}
+            {l === "streets" ? "OSM Street" : l === "dark" ? "Dark Matter" : l === "topo" ? "Topo" : "Satellite"}
           </button>
         ))}
       </div>
