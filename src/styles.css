@@ -2437,3 +2437,103 @@ input[type=checkbox] {
   border-color: rgba(16, 185, 129, 0.4);
   background: rgba(16, 185, 129, 0.08);
 }
+
+/* Interactive Guided Onboarding Tour & Coach Marks */
+.ipac-tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+.ipac-tour-spotlight {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(10, 14, 38, 0.82), 0 0 20px rgba(232, 24, 32, 0.7);
+  border: 2px solid var(--p-hot);
+  pointer-events: none;
+  transition: all 0.25s ease-out;
+  animation: ipac-spotlight-pulse 2s infinite ease-in-out;
+}
+
+@keyframes ipac-spotlight-pulse {
+  0% { border-color: var(--p-hot); box-shadow: 0 0 0 9999px rgba(10, 14, 38, 0.82), 0 0 16px rgba(232, 24, 32, 0.5); }
+  50% { border-color: #ffda6a; box-shadow: 0 0 0 9999px rgba(10, 14, 38, 0.82), 0 0 28px rgba(255, 218, 106, 0.7); }
+  100% { border-color: var(--p-hot); box-shadow: 0 0 0 9999px rgba(10, 14, 38, 0.82), 0 0 16px rgba(232, 24, 32, 0.5); }
+}
+
+.ipac-tour-card {
+  position: fixed;
+  width: calc(100vw - 32px);
+  max-width: 420px;
+  background: var(--color-surface-solid);
+  border: 1.5px solid var(--p-hot);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  pointer-events: auto;
+  transition: top 0.25s ease-out, bottom 0.25s ease-out;
+}
+
+.ipac-tour-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(232, 24, 32, 0.12);
+  color: var(--p-hot);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ipac-tour-dots {
+  display: flex;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.ipac-tour-dot {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.12);
+  transition: background 0.2s ease;
+}
+
+[data-theme="dark"] .ipac-tour-dot {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.ipac-tour-dot.active {
+  background: var(--p-hot);
+}
+
+.ipac-tour-dot.done {
+  background: var(--p-navy);
+}
+
+.ipac-tour-hint {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(42, 48, 144, 0.08);
+  border-left: 3px solid var(--p-navy);
+  font-size: 0.82rem;
+  margin-bottom: 12px;
+}
+
+[data-theme="dark"] .ipac-tour-hint {
+  background: rgba(163, 169, 255, 0.1);
+  border-left-color: var(--p-ctl-d);
+}
+
+.ipac-tour-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-line);
+}

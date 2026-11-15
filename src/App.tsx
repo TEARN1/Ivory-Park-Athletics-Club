@@ -24,6 +24,8 @@ import Session from "./tabs/Session";
 import Today from "./tabs/Today";
 import Demo from "./tabs/Demo";
 import TeamDispatch from "./tabs/TeamDispatch";
+import TourGuide from "./ui/TourGuide";
+import { isTourCompleted } from "./lib/tour";
 import { Confirm, Icons } from "./ui";
 
 type Tab = "today" | "session" | "runners" | "map" | "dispatch" | "club";
@@ -54,6 +56,7 @@ export default function App() {
   const synced = useRef<Record<string, number>>({}), seen = useRef<string[]>([]), resetAt = useRef(Date.now());
   const [toast, setToast] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
   const [showInstall, setShowInstall] = useState(false), [deferredPrompt, setDeferredPrompt] = useState<any>(null), [copiedAppUrl, setCopiedAppUrl] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [activeAlarm, setActiveAlarm] = useState<CoachAlarm | null>(null);
   const alarmStopFn = useRef<(() => void) | null>(null);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
@@ -258,6 +261,7 @@ export default function App() {
         <img className="ipac-logo" src={logo} alt="Ivory Park Athletics Club logo" />
         <div className="ipac-title"><h1>Ivory Park Athletics Club</h1><p>{s.date} · {s.distanceKm} km</p></div>
         <div className="ipac-head-actions">
+          <button className="ipac-themebtn" aria-label="Take app tour / Help" title="Interactive App Tour" onClick={() => setShowTour(true)}>{Icons.help}</button>
           <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
           <button className="ipac-themebtn" aria-label={isNight ? "Switch to day theme" : "Switch to night theme"} onClick={() => setPrefs({ ...prefs, mode: isNight ? "light" : "dark" })}>{isNight ? Icons.sun : Icons.moon}</button>
         </div>
@@ -443,6 +447,13 @@ export default function App() {
       <nav className="ipac-nav" aria-label="Sections">
         {NAV.map(([t, l]) => <button key={t} aria-current={tab === t ? "page" : undefined} onClick={() => go(t)}>{Icons[t]}<span>{l}</span></button>)}
       </nav>
+
+      {showTour && (
+        <TourGuide
+          onClose={() => setShowTour(false)}
+          onNavigateTab={(t) => go(t)}
+        />
+      )}
     </div>
   );
 }
