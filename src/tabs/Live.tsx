@@ -163,6 +163,7 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
   const onTrack = where === "track" && place ? trackDistance(run.points, place, lane) : null;
   const distM = onTrack ? onTrack.distanceM : markedDistance(markers, roadM, gpsAt);
   const sp = onTrack ? [] : splits(run.points);
+  const mapLine = route?.points ?? (fixes.current.length > 1 ? fixes.current : undefined);
 
   const elapsedMs = s.startedAt ? Date.now() - s.startedAt : run.movingMs;
   const speedMs = run.movingMs > 0 ? run.distanceM / (run.movingMs / 1000) : 0;
@@ -311,9 +312,7 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
     }
 
     return list;
-  }, [simField, simulatedRunners, live.state?.positions, myKey]);
-
-  const mapLine = route?.points ?? (fixes.current.length > 1 ? fixes.current : undefined);
+  }, [simField, simulatedRunners, live.state?.positions, myKey, mapLine, elapsedMs, targetPaceSec, targetPaceStr]);
 
   // Tracking control actions
   const startTracking = () => {
