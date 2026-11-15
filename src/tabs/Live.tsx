@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type * as C from "../lib/club";
-import { haversineM, splits, type LatLon, type TrackPoint } from "../lib/geo";
+import { haversineM, pointAlongPath, splits, type LatLon, type TrackPoint } from "../lib/geo";
 import type { LiveJoin, useLive } from "../lib/live";
 import { liveFlags, type Trail } from "../lib/livemap";
 import { MAX_ACCURACY_M, accuracyLabel, calibrationFactor, routeProgressM } from "../lib/gpsfilter";
@@ -26,7 +26,7 @@ import {
 } from "../lib/racePacing";
 
 /** Relay key shared across devices (local runner ids differ per device). */
-export const relayKey = (r: S.Runner) => r.bib || r.name;
+const relayKey = (r: S.Runner) => r.bib || r.name;
 type Live = ReturnType<typeof useLive>;
 
 interface Props {
@@ -266,6 +266,21 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
         label: "YOU",
         kind: "me",
       });
+    }
+
+    // Virtual Rabbit Pacer Pin moving at target pace along route
+    if (mapLine && mapLine.length > 1 && elapsedMs > 0 && targetPaceSec > 0) {
+      const pacerDistM = (elapsedMs / 1000) * (1000 / targetPaceSec);
+      const pacerPt = pointAlongPath(mapLine, pacerDistM);
+      if (pacerPt) {
+        list.push({
+          id: "pacer-rabbit",
+          lat: pacerPt.lat,
+          lon: pacerPt.lon,
+          label: `PACER (${targetPaceStr})`,
+          kind: "pacer",
+        });
+      }
     }
 
     if (simField && myFix) {

@@ -8,8 +8,10 @@ import { haversineM, type LatLon } from "../lib/geo";
 export interface MapMarker extends LatLon {
   id: string;
   label: string;
-  kind: "dot" | "lead" | "alert" | "hub" | "me" | "start" | "finish" | "rank";
+  kind: "dot" | "lead" | "alert" | "hub" | "me" | "start" | "finish" | "rank" | "km" | "pacer";
 }
+
+export type MapLayerStyle = "streets" | "dark" | "topo" | "satellite";
 
 const OFM = "https://tiles.openfreemap.org/styles";
 const isDark = () => {
@@ -17,18 +19,52 @@ const isDark = () => {
   return t ? t === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 };
 
-const rasterStyle = (dark: boolean) => ({
-  version: 8 as const,
-  sources: {
-    carto: {
-      type: "raster" as const,
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors © CARTO",
-      tiles: ["a", "b", "c", "d"].map((s) => `https://${s}.basemaps.cartocdn.com/rastertiles/${dark ? "dark_all" : "voyager"}/{z}/{x}/{y}@2x.png`),
-    },
-  },
-  layers: [{ id: "carto", type: "raster" as const, source: "carto" }],
-});
+const getLayerStyle = (layer: MapLayerStyle, dark = isDark()) => {
+  switch (layer) {
+    case "dark":
+      return {
+        version: 8 as const,
+        sources: {
+          carto: {
+            type: "raster" as const,
+            tileSize: 256,
+            attribution: "© OpenStreetMap contributors © CARTO",
+            tiles: ["a", "b", "c", "d"].map((s) => `https://${s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png`),
+          },
+        },
+        layers: [{ id: "carto", type: "raster" as const, source: "carto" }],
+      };
+    case "topo":
+      return {
+        version: 8 as const,
+        sources: {
+          topo: {
+            type: "raster" as const,
+            tileSize: 256,
+            attribution: "© OpenTopoMap contributors",
+            tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
+          },
+        },
+        layers: [{ id: "topo", type: "raster" as const, source: "topo" }],
+      };
+    case "satellite":
+      return {
+        version: 8 as const,
+        sources: {
+          esri: {
+            type: "raster" as const,
+            tileSize: 256,
+            attribution: "Tiles © Esri",
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}"],
+          },
+        },
+        layers: [{ id: "esri", type: "raster" as const, source: "esri" }],
+      };
+    case "streets":
+    default:
+      return `${OFM}/${dark ? "dark" : "bright"}`;
+  }
+};
 
 function webglOk() {
   try {
@@ -72,6 +108,9 @@ export default function ClubMap({
   const [state, setState] = useState<"loading" | "ready" | "fallback">(() =>
     (typeof navigator !== "undefined" && navigator.onLine === false) || !webglOk() ? "fallback" : "loading"
   );
+  const [layer, setLayer] = useState<MapLayerStyle>("streets");
+  const [showMilestones, setShowMilestones] = useState(true);
+  const [follow, setFollow] = useState(true);
   const lineRef = useRef(line);
   lineRef.current = line;
 
@@ -124,12 +163,12 @@ export default function ClubMap({
 
       let styled = false;
       const t = window.setTimeout(() => {
-        if (!styled) m.setStyle(rasterStyle(isDark()));
+        if (!styled) m.setStyle(getLayerStyle(layer));
       }, 6000);
 
       m.on("error", (e: any) => {
         if (!styled && /style/i.test(String(e?.error?.message ?? ""))) {
-          m.setStyle(rasterStyle(isDark()));
+          m.setStyle(getLayerStyle(layer));
         }
       });
 
@@ -154,13 +193,21 @@ export default function ClubMap({
     };
   }, [state === "fallback"]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pan to center smoothly
+  // Handle dynamic map layer switching
   useEffect(() => {
     const m = map.current;
-    if (m && center) {
-      m.panTo([center.lon, center.lat], { duration: 600 });
+    if (m && state === "ready") {
+      m.setStyle(getLayerStyle(layer));
     }
-  }, [center?.lat, center?.lon]);
+  }, [layer, state]);
+
+  // Pan to center smoothly when follow is enabled
+  useEffect(() => {
+    const m = map.current;
+    if (m && center && follow) {
+      m.panTo([center.lon, center.lat], { duration: 500 });
+    }
+  }, [center?.lat, center?.lon, follow]);
 
   // Update Markers & Animated Route
   useEffect(() => {
@@ -200,6 +247,27 @@ export default function ClubMap({
             label: "FINISH",
             kind: "finish",
           });
+        }
+      }
+    }
+
+    // Synthesize 1-km milestone split badges along route
+    if (showMilestones && line && line.length > 2) {
+      let accumM = 0;
+      let nextKmM = 1000;
+      for (let k = 1; k < line.length; k++) {
+        const seg = haversineM(line[k - 1], line[k]);
+        accumM += seg;
+        while (accumM >= nextKmM) {
+          const kmNum = Math.floor(nextKmM / 1000);
+          routeMarkers.push({
+            id: `km-${kmNum}`,
+            lat: line[k].lat,
+            lon: line[k].lon,
+            label: `${kmNum}K`,
+            kind: "km",
+          });
+          nextKmM += 1000;
         }
       }
     }
@@ -271,9 +339,53 @@ export default function ClubMap({
   return (
     <div className={`ipac-mapwrap ${fullscreen ? "fullscreen" : ""}`}>
       <div ref={box} className="ipac-mlmap" role="region" aria-label={label} />
+      
+      {/* Basemap Style Switcher */}
+      <div className="ipac-map-layer-selector" role="group" aria-label="Map Basemap Style">
+        {(["streets", "dark", "topo", "satellite"] as const).map((l) => (
+          <button
+            key={l}
+            type="button"
+            className="ipac-map-layer-btn"
+            aria-pressed={layer === l}
+            onClick={() => setLayer(l)}
+          >
+            {l === "streets" ? "Street" : l === "dark" ? "Dark" : l === "topo" ? "Topo" : "Satellite"}
+          </button>
+        ))}
+      </div>
+
       {floatingContent}
-      {onToggleFullscreen && (
-        <div className="ipac-floating-actions">
+
+      <div className="ipac-floating-actions">
+        {line && line.length > 2 && (
+          <button
+            type="button"
+            className="ipac-map-ctrl-btn"
+            aria-pressed={showMilestones}
+            onClick={() => setShowMilestones((v) => !v)}
+            title="Toggle 1-km milestone split badges"
+          >
+            {showMilestones ? "1K Milestones: On" : "1K Milestones: Off"}
+          </button>
+        )}
+        {center && (
+          <button
+            type="button"
+            className="ipac-map-ctrl-btn"
+            aria-pressed={follow}
+            onClick={() => {
+              setFollow((v) => !v);
+              if (!follow && map.current && center) {
+                map.current.panTo([center.lon, center.lat], { duration: 300 });
+              }
+            }}
+            title="Auto-center camera on runner GPS"
+          >
+            {follow ? "Follow: On" : "Follow: Off"}
+          </button>
+        )}
+        {onToggleFullscreen && (
           <button
             type="button"
             className="ipac-map-ctrl-btn"
@@ -282,8 +394,9 @@ export default function ClubMap({
           >
             {fullscreen ? "Exit Fullscreen" : "Fullscreen"}
           </button>
-        </div>
-      )}
+        )}
+      </div>
+
       {state === "loading" && <p className="ipac-hint ipac-maploading">Loading street map…</p>}
     </div>
   );

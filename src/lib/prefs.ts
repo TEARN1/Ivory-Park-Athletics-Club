@@ -1,5 +1,16 @@
 export type Mode = "auto" | "light" | "dark";
-export type Palette = "club" | "pitch" | "dusk";
+export type Palette =
+  | "club"
+  | "gold"
+  | "electric"
+  | "sunrise"
+  | "ocean"
+  | "crimson"
+  | "pitch"
+  | "dusk"
+  | "stealth"
+  | "sunlight";
+
 export interface SoundPrefs {
   countdownSec: number;   // 0 = start at once
   beeps: boolean; voice: boolean;
@@ -12,10 +23,18 @@ export interface SoundPrefs {
 export const COUNTDOWNS = [0, 3, 5, 10], TIME_CALLS = [0, 1, 2, 5, 10], QUIET_AFTER = [0, 10, 20, 30, 60], SAFETY_PACES = [600, 720, 900, 1200];
 export const defaultSound = (): SoundPrefs => ({ countdownSec: 5, beeps: true, voice: true, finishes: true, laps: true, timeCallMin: 5, quietAfterMin: 0, safetyPaceSec: 720 });
 export interface Prefs { mode: Mode; palette: Palette; distances: number[]; sound: SoundPrefs }
+
 export const PALETTES: { id: Palette; name: string; a: string; b: string }[] = [
-  { id: "club", name: "Club (logo colours)", a: "#2a3090", b: "#e81820" },
-  { id: "pitch", name: "Pitch", a: "#0f5132", b: "#c2410c" },
-  { id: "dusk", name: "Dusk", a: "#4c1d95", b: "#be185d" },
+  { id: "club", name: "Club (Royal Navy & Scarlet)", a: "#2a3090", b: "#e81820" },
+  { id: "gold", name: "Springbok Gold & Green", a: "#0f5132", b: "#eab308" },
+  { id: "electric", name: "Electric Neon (Night Run)", a: "#0284c7", b: "#06b6d4" },
+  { id: "sunrise", name: "Highveld Sunrise", a: "#c2410c", b: "#f59e0b" },
+  { id: "ocean", name: "Ocean Breeze", a: "#0369a1", b: "#0d9488" },
+  { id: "crimson", name: "Marathon Crimson", a: "#991b1b", b: "#ef4444" },
+  { id: "pitch", name: "Pitch Turf", a: "#14532d", b: "#c2410c" },
+  { id: "dusk", name: "Dusk Violet", a: "#4c1d95", b: "#be185d" },
+  { id: "stealth", name: "Midnight Stealth Onyx", a: "#18181b", b: "#9333ea" },
+  { id: "sunlight", name: "Sunlight High-Contrast", a: "#000000", b: "#f59e0b" },
 ];
 export const DEFAULT_DISTANCES = [1, 3, 5, 10, 21.1];
 export const defaultPrefs = (): Prefs => ({ mode: "auto", palette: "club", distances: DEFAULT_DISTANCES, sound: defaultSound() });

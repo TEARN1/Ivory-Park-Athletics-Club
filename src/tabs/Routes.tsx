@@ -14,7 +14,7 @@ import {
 
 const COMPASS = [["North", 0], ["North-east", 45], ["East", 90], ["South-east", 135], ["South", 180], ["South-west", 225], ["West", 270], ["North-west", 315]] as const;
 
-export const LONG_RUN_PRESETS: { label: string; coords: LatLon; distHint: string }[] = [
+const LONG_RUN_PRESETS: { label: string; coords: LatLon; distHint: string }[] = [
   { label: "Mall of Africa / Midrand Long Run", coords: { lat: -26.0152, lon: 28.1065 }, distHint: "14.2 km straight out" },
   { label: "Tembisa / Andrew Mapheto Corridor", coords: { lat: -25.9930, lon: 28.2285 }, distHint: "9.8 km straight out" },
   { label: "Clayville / Olifantsfontein North", coords: { lat: -25.9550, lon: 28.2250 }, distHint: "13.5 km straight out" },

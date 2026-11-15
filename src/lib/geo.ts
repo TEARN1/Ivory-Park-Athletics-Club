@@ -20,6 +20,24 @@ export function destination(a: LatLon, bearing: number, meters: number): LatLon 
 }
 export const pathLengthM = (pts: LatLon[]) => pts.reduce((s, p, i) => (i ? s + haversineM(pts[i - 1], p) : 0), 0);
 
+export function pointAlongPath(pts: LatLon[], targetDistanceM: number): LatLon | null {
+  if (!pts || !pts.length) return null;
+  if (targetDistanceM <= 0) return pts[0];
+  let accum = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const seg = haversineM(pts[i - 1], pts[i]);
+    if (accum + seg >= targetDistanceM && seg > 0) {
+      const f = (targetDistanceM - accum) / seg;
+      return {
+        lat: pts[i - 1].lat + f * (pts[i].lat - pts[i - 1].lat),
+        lon: pts[i - 1].lon + f * (pts[i].lon - pts[i - 1].lon),
+      };
+    }
+    accum += seg;
+  }
+  return pts[pts.length - 1];
+}
+
 /** Drop GPS jitter: ignore points whose implied speed exceeds 12 m/s (a sprinter's top speed) or that move <2 m. */
 export function cleanTrack(pts: TrackPoint[]): TrackPoint[] {
   const out: TrackPoint[] = [];
