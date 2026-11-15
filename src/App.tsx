@@ -6,7 +6,8 @@ import { addPositions, type Trail } from "./lib/livemap";
 import type { Route } from "./lib/routes";
 import { applyShared, localChanges } from "./lib/timing";
 import { applyPrefs, defaultPrefs, timeCallDue, type Prefs } from "./lib/prefs";
-import { beep, say } from "./lib/sound";
+import { beep, say, startAlarmLoop, vibrate } from "./lib/sound";
+import { checkAlarmDue, formatLocalDateStr, loadCoachAlarm, parseAlarmFromUrl, saveAthleteCheckIn, saveCoachAlarm, type CoachAlarm } from "./lib/alarms";
 import * as W from "./lib/workout";
 import * as S from "./lib/session";
 import * as C from "./lib/club";
@@ -53,6 +54,8 @@ export default function App() {
   const synced = useRef<Record<string, number>>({}), seen = useRef<string[]>([]), resetAt = useRef(Date.now());
   const [toast, setToast] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
   const [showInstall, setShowInstall] = useState(false), [deferredPrompt, setDeferredPrompt] = useState<any>(null), [copiedAppUrl, setCopiedAppUrl] = useState(false);
+  const [activeAlarm, setActiveAlarm] = useState<CoachAlarm | null>(null);
+  const alarmStopFn = useRef<(() => void) | null>(null);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -89,6 +92,75 @@ export default function App() {
   const showToast = useCallback((msg: string, undo?: () => void) => {
     clearTimeout(tid.current); setToast({ id: Date.now(), msg, undo }); tid.current = setTimeout(() => setToast(null), 6000);
   }, []);
+
+  const triggerWakeUp = useCallback((a: CoachAlarm) => {
+    setActiveAlarm(a);
+    if (alarmStopFn.current) alarmStopFn.current();
+    alarmStopFn.current = startAlarmLoop(a.soundTone);
+    vibrate([400, 200, 400, 200, 800]);
+    say(`Wake up Team Ivory Park! ${a.programTitle}. Meetup at ${a.meetupPoint}.`);
+  }, []);
+
+  const dismissWakeUp = useCallback(() => {
+    if (alarmStopFn.current) {
+      alarmStopFn.current();
+      alarmStopFn.current = null;
+    }
+    if (activeAlarm) {
+      saveAthleteCheckIn({
+        athleteId: "athlete-local",
+        athleteName: "You (Athlete)",
+        bib: "ME",
+        checkInAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        status: "awake",
+      });
+    }
+    setActiveAlarm(null);
+    say("Wake-up confirmed. Have a great run!");
+    showToast("Wake-up confirmed. Check-in recorded offline.");
+  }, [activeAlarm, showToast]);
+
+  const snoozeWakeUp = useCallback(() => {
+    if (alarmStopFn.current) {
+      alarmStopFn.current();
+      alarmStopFn.current = null;
+    }
+    const d = new Date(Date.now() + 5 * 60 * 1000);
+    const snoozedTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    if (activeAlarm) {
+      const updated = { ...activeAlarm, time: snoozedTime, lastFiredDate: undefined };
+      saveCoachAlarm(updated);
+    }
+    setActiveAlarm(null);
+    showToast(`Alarm snoozed for 5 minutes (next: ${snoozedTime})`);
+  }, [activeAlarm, showToast]);
+
+  // Offline alarm setup from shared URL parameters
+  useEffect(() => {
+    const fromUrl = parseAlarmFromUrl(location.search);
+    if (fromUrl) {
+      const cur = loadCoachAlarm();
+      const merged = { ...cur, ...fromUrl };
+      saveCoachAlarm(merged);
+      showToast(`Offline wake-up alarm set for ${merged.time}: ${merged.programTitle}`);
+    }
+  }, [showToast]);
+
+  // Periodic offline alarm monitor (runs offline)
+  useEffect(() => {
+    const tick = () => {
+      const cur = loadCoachAlarm();
+      if (!cur || !cur.enabled) return;
+      const nowDate = new Date();
+      if (checkAlarmDue(cur, nowDate)) {
+        triggerWakeUp(cur);
+        saveCoachAlarm({ ...cur, lastFiredDate: formatLocalDateStr(nowDate) });
+      }
+    };
+    tick();
+    const t = setInterval(tick, 10000);
+    return () => clearInterval(t);
+  }, [triggerWakeUp]);
 
   // Coach: pull in people who joined through the link or QR, and give each the next free bib.
   useEffect(() => {
@@ -214,7 +286,10 @@ export default function App() {
           {mapView === "demo" && <div><Demo /></div>}
         </div>
         <div hidden={tab !== "dispatch"}>
-          <TeamDispatch onOpenPickupRoute={() => { setTab("map"); setMapView("routes"); }} />
+          <TeamDispatch
+            onOpenPickupRoute={() => { setTab("map"); setMapView("routes"); }}
+            onTriggerAlarmScreen={triggerWakeUp}
+          />
         </div>
         <div hidden={tab !== "club"}><Club cfg={cfg} setCfg={setCfg} notices={notices} prefs={prefs} setPrefs={setPrefs} club={club} setClub={setClub} publish={publish} publishNow={publishNow} /></div>
       </main>
@@ -328,6 +403,43 @@ export default function App() {
           </div>
         </div>
       )}
+      {activeAlarm && (
+        <div className="ipac-alarm-firing-scrim" role="dialog" aria-modal="true" aria-label="Morning wake-up alarm">
+          <div className="ipac-alarm-firing-card">
+            <div style={{ textTransform: "uppercase", letterSpacing: "2px", fontSize: "0.85rem", color: "#ff8088", fontWeight: 800 }}>
+              Ivory Park Athletics Club - Morning Wake-Up
+            </div>
+            <div className="ipac-alarm-time-huge">{activeAlarm.time}</div>
+            <h2 style={{ margin: "4px 0 10px", fontSize: "1.4rem", color: "#ffffff" }}>
+              {activeAlarm.programTitle}
+            </h2>
+            <div style={{ background: "rgba(255, 255, 255, 0.08)", padding: "12px", borderRadius: "10px", marginBottom: "16px", textAlign: "left", fontSize: "0.9rem" }}>
+              <p style={{ margin: "0 0 6px" }}><b>Meetup Point:</b> {activeAlarm.meetupPoint}</p>
+              {activeAlarm.departureTime && <p style={{ margin: "0 0 6px" }}><b>Transport Departs:</b> {activeAlarm.departureTime}</p>}
+              {activeAlarm.instructions && <p style={{ margin: 0, color: "#cbd5e1" }}><b>Coach Note:</b> {activeAlarm.instructions}</p>}
+            </div>
+            <div style={{ display: "grid", gap: "10px" }}>
+              <button
+                type="button"
+                className="ipac-btn ipac-btn-hero ipac-btn-wide"
+                style={{ minHeight: "52px", fontSize: "1.1rem", fontWeight: 800 }}
+                onClick={dismissWakeUp}
+              >
+                I Am Awake / Confirm Check-In
+              </button>
+              <button
+                type="button"
+                className="ipac-btn ipac-btn-outline"
+                style={{ minHeight: "42px", color: "#ffffff", borderColor: "rgba(255, 255, 255, 0.4)" }}
+                onClick={snoozeWakeUp}
+              >
+                Snooze 5 Minutes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="ipac-nav" aria-label="Sections">
         {NAV.map(([t, l]) => <button key={t} aria-current={tab === t ? "page" : undefined} onClick={() => go(t)}>{Icons[t]}<span>{l}</span></button>)}
       </nav>
