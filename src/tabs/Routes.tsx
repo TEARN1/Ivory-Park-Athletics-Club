@@ -5,11 +5,16 @@ import ClubMap, { type MapMarker } from "./ClubMap";
 import type { LatLon } from "../lib/geo";
 import {
   ATHLETE_PICKUP_ROSTER,
+  DEFAULT_VEHICLES,
   RACE_VENUES,
   formatTransportWhatsApp,
+  googleMapsDriverRoute,
+  optimizeMultiVehicleSchedule,
   optimizePickupRoute,
   type AthletePickupLocation,
   type OptimizedPickupSchedule,
+  type TransportVehicle,
+  type VehiclePickupPlan,
 } from "../lib/transport";
 
 const COMPASS = [["North", 0], ["North-east", 45], ["East", 90], ["South-east", 135], ["South", 180], ["South-west", 225], ["West", 270], ["North-west", 315]] as const;
@@ -63,9 +68,13 @@ export default function Routes({ distances, router }: { distances: number[]; rou
   const [selectedAthletes, setSelectedAthletes] = useState<AthletePickupLocation[]>(
     ATHLETE_PICKUP_ROSTER.filter((a) => a.pickupReady)
   );
-  const [departureTime, setDepartureTime] = useState("05:00");
+  const [departureTime, setDepartureTime] = useState("04:30");
+  const [activeVehicles, setActiveVehicles] = useState<TransportVehicle[]>(DEFAULT_VEHICLES);
+  const [multiPlans, setMultiPlans] = useState<VehiclePickupPlan[] | null>(null);
+  const [activeVehiclePlanIdx, setActiveVehiclePlanIdx] = useState(0);
   const [pickupPlan, setPickupPlan] = useState<OptimizedPickupSchedule | null>(null);
   const [transportMsg, setTransportMsg] = useState("");
+  const [gpsLockStatus, setGpsLockStatus] = useState("");
 
   useEffect(() => { loadRoutes().then(setSaved); }, []);
 
@@ -151,22 +160,63 @@ export default function Routes({ distances, router }: { distances: number[]; rou
     }
   };
 
-  // Calculate Shortest Pick-up Route
+  // Calculate Multi-Vehicle Shortest Pick-up Route
   const calculatePickupSchedule = () => {
     setRoadBusy(true);
     setMsg("");
     try {
-      const plan = optimizePickupRoute(selectedAthletes, RACE_VENUES[selectedVenueIdx], departureTime, {
-        label: "Ivory Park Depot / Freedom Drive",
-        coords: hub,
-      });
-      setPickupPlan(plan);
-      setTransportMsg(`Shortest pick-up route optimized: ${plan.stops.length} athlete stops, ${plan.totalDistanceKm} km total.`);
+      const venue = RACE_VENUES[selectedVenueIdx];
+      const plans = optimizeMultiVehicleSchedule(activeVehicles, selectedAthletes, venue, departureTime);
+      setMultiPlans(plans);
+      if (plans.length > 0) {
+        setPickupPlan(plans[activeVehiclePlanIdx]?.schedule || plans[0].schedule);
+      }
+      const totalStops = plans.reduce((acc, p) => acc + p.schedule.stops.length, 0);
+      setTransportMsg(`Shortest pick-up routes calculated across ${plans.length} transports (${totalStops} athlete stops total).`);
     } catch (e) {
       setMsg((e as Error).message);
     } finally {
       setRoadBusy(false);
     }
+  };
+
+  // High-Accuracy Hardware GPS Fix for Athlete Gate Pickup (eliminates 300-400m cell-tower offset)
+  const lockLiveGps = () => {
+    if (!("geolocation" in navigator)) {
+      setGpsLockStatus("Geolocation not available on this device.");
+      return;
+    }
+    setGpsLockStatus("Acquiring hardware GPS lock (forcing zero cached radius)…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        const acc = Math.round(pos.coords.accuracy);
+        setGpsLockStatus(`Hardware GPS locked: ${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)} (±${acc}m accuracy)`);
+        setSelectedAthletes((prev) => {
+          const myBib = "00";
+          const exists = prev.find((a) => a.id === "pickup-my-gate");
+          if (exists) {
+            return prev.map((a) => (a.id === "pickup-my-gate" ? { ...a, coords, addressLabel: `My Gate (GPS ±${acc}m)` } : a));
+          }
+          return [
+            ...prev,
+            {
+              id: "pickup-my-gate",
+              name: "My Live Location",
+              bib: myBib,
+              addressLabel: `My Gate (GPS ±${acc}m)`,
+              coords,
+              contactPhone: "+27 82 000 0000",
+              pickupReady: true,
+            },
+          ];
+        });
+      },
+      (err) => {
+        setGpsLockStatus(`GPS lock error: ${err.message}.`);
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
   };
 
   const persist = (r: Route[]) => { setSaved(r); saveRoutes(r); };
@@ -334,28 +384,66 @@ export default function Routes({ distances, router }: { distances: number[]; rou
             </label>
           </div>
 
-          <label style={{ fontWeight: 700, margin: "6px 0 2px" }}>
+          {/* Active Fleet / Transport Vehicles */}
+          <div style={{ marginTop: "8px", padding: "10px", background: "rgba(42, 48, 144, 0.08)", borderRadius: "8px", border: "1px solid var(--color-glass-border)" }}>
+            <span style={{ fontWeight: 700, fontSize: "0.88rem", display: "block", marginBottom: "6px" }}>
+              Active Club Transports ({activeVehicles.length} deployed):
+            </span>
+            <div style={{ display: "grid", gap: "6px" }}>
+              {DEFAULT_VEHICLES.map((v) => {
+                const isActive = activeVehicles.some((x) => x.id === v.id);
+                return (
+                  <label key={v.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={(e) => {
+                        if (e.target.checked) setActiveVehicles([...activeVehicles, v]);
+                        else if (activeVehicles.length > 1) setActiveVehicles(activeVehicles.filter((x) => x.id !== v.id));
+                      }}
+                    />
+                    <span><b>{v.name}</b> · Driver: {v.driverName} · Capacity: {v.capacity} seats</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* High-Accuracy Hardware GPS Fix Button */}
+          <div style={{ marginTop: "10px", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="ipac-btn ipac-btn-small"
+              onClick={lockLiveGps}
+              title="Lock hardware GPS coordinates for athlete gate pickup"
+            >
+              Lock My Exact Gate Location (GPS)
+            </button>
+            {gpsLockStatus && (
+              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--p-ctl-d, #0f5132)" }}>
+                {gpsLockStatus}
+              </span>
+            )}
+          </div>
+
+          <label style={{ fontWeight: 700, margin: "10px 0 2px" }}>
             Athletes Needing Transport ({selectedAthletes.length} selected):
           </label>
           <div style={{ display: "grid", gap: "6px", maxHeight: "190px", overflowY: "auto", padding: "4px" }}>
-            {ATHLETE_PICKUP_ROSTER.map((ath) => {
-              const isSelected = selectedAthletes.some((a) => a.id === ath.id);
-              return (
-                <label key={ath.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", padding: "6px 10px", borderRadius: "8px", background: "rgba(255, 255, 255, 0.45)", border: "1px solid var(--color-glass-border)" }}>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedAthletes([...selectedAthletes, ath]);
-                      else setSelectedAthletes(selectedAthletes.filter((a) => a.id !== ath.id));
-                    }}
-                  />
-                  <span>
-                    <b>{ath.name}</b> (#{ath.bib}) · <small style={{ color: "var(--color-muted)" }}>{ath.addressLabel}</small>
-                  </span>
-                </label>
-              );
-            })}
+            {selectedAthletes.map((ath) => (
+              <label key={ath.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", padding: "6px 10px", borderRadius: "8px", background: "rgba(255, 255, 255, 0.45)", border: "1px solid var(--color-glass-border)" }}>
+                <input
+                  type="checkbox"
+                  checked={true}
+                  onChange={(e) => {
+                    if (!e.target.checked) setSelectedAthletes(selectedAthletes.filter((a) => a.id !== ath.id));
+                  }}
+                />
+                <span>
+                  <b>{ath.name}</b> (#{ath.bib}) · <small style={{ color: "var(--color-muted)" }}>{ath.addressLabel}</small>
+                </span>
+              </label>
+            ))}
           </div>
 
           <button
@@ -364,7 +452,7 @@ export default function Routes({ distances, router }: { distances: number[]; rou
             disabled={roadBusy || selectedAthletes.length === 0}
             onClick={calculatePickupSchedule}
           >
-            {roadBusy ? "Optimizing Shortest Path…" : `Optimize Shortest Pick-up Route (${selectedAthletes.length} Athletes)`}
+            {roadBusy ? "Optimizing Fleet Routes…" : `Optimize Pick-up Routes (${activeVehicles.length} Transports · ${selectedAthletes.length} Athletes)`}
           </button>
         </div>
       ) : (
@@ -485,9 +573,32 @@ export default function Routes({ distances, router }: { distances: number[]; rou
 
           {routeType === "pickup" && pickupPlan && (
             <div style={{ marginTop: "14px" }}>
+              {/* Multi-Vehicle Tabs if multiple vehicles are configured */}
+              {multiPlans && multiPlans.length > 1 && (
+                <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
+                  {multiPlans.map((p, idx) => (
+                    <button
+                      key={p.vehicle.id}
+                      type="button"
+                      className="ipac-chip"
+                      aria-pressed={activeVehiclePlanIdx === idx}
+                      onClick={() => {
+                        setActiveVehiclePlanIdx(idx);
+                        setPickupPlan(p.schedule);
+                      }}
+                      style={{ fontSize: "0.85rem", padding: "6px 12px" }}
+                    >
+                      <b>{p.vehicle.name}</b> ({p.seatUtilization.used}/{p.seatUtilization.total} Seats)
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
-                  Shortest Pick-up Itinerary ({pickupPlan.stops.length} Stops · {pickupPlan.totalDistanceKm} km)
+                  {multiPlans && multiPlans[activeVehiclePlanIdx]
+                    ? `${multiPlans[activeVehiclePlanIdx].vehicle.name} · ${pickupPlan.stops.length} Stops (${pickupPlan.totalDistanceKm} km)`
+                    : `Shortest Pick-up Itinerary (${pickupPlan.stops.length} Stops · ${pickupPlan.totalDistanceKm} km)`}
                 </h3>
                 <span className="ipac-rank-badge" style={{ fontSize: "0.85rem", padding: "2px 10px" }}>
                   Arrive {pickupPlan.destination.arrivalEta}
@@ -533,7 +644,16 @@ export default function Routes({ distances, router }: { distances: number[]; rou
                 </table>
               </div>
 
-              <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <a
+                  href={googleMapsDriverRoute(pickupPlan)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ipac-btn ipac-btn-hero"
+                  style={{ fontSize: "0.85rem", minHeight: "38px", display: "inline-flex", alignItems: "center" }}
+                >
+                  Open in Google Maps (Driver Navigation)
+                </a>
                 <button
                   type="button"
                   className="ipac-btn ipac-btn-primary"
@@ -545,7 +665,7 @@ export default function Routes({ distances, router }: { distances: number[]; rou
                     setTimeout(() => setTransportMsg(""), 3500);
                   }}
                 >
-                  Share Pick-up Schedule to WhatsApp
+                  Copy WhatsApp Schedule
                 </button>
                 {transportMsg && (
                   <span style={{ color: "var(--color-hot)", fontWeight: 700, fontSize: "0.85rem", alignSelf: "center" }}>

@@ -43,7 +43,7 @@ export const PALETTES: { id: Palette; name: string; a: string; b: string }[] = [
   { id: "stealth", name: "Midnight Stealth Onyx", a: "#18181b", b: "#9333ea" },
   { id: "sunlight", name: "Sunlight High-Contrast", a: "#000000", b: "#f59e0b" },
 ];
-export const DEFAULT_DISTANCES = [1, 3, 5, 10, 21.1];
+export const DEFAULT_DISTANCES = [1, 2, 5, 10, 15, 20, 21.1];
 export const defaultPrefs = (): Prefs => ({ mode: "auto", palette: "club", distances: DEFAULT_DISTANCES, sound: defaultSound(), headerSize: "compact" });
 
 /** "2.4, 5, 8" -> [2.4, 5, 8]. Throws a message the coach can act on. */

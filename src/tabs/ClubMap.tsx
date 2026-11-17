@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { haversineM, type LatLon } from "../lib/geo";
 
 /**
@@ -53,8 +53,9 @@ const getLayerStyle = (layer: MapLayerStyle, dark = isDark()) => {
           topo: {
             type: "raster" as const,
             tileSize: 256,
+            maxzoom: 17,
             attribution: "© OpenTopoMap contributors",
-            tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
+            tiles: ["a", "b", "c"].map((s) => `https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`),
           },
         },
         layers: [{ id: "topo", type: "raster" as const, source: "topo" }],
@@ -66,20 +67,30 @@ const getLayerStyle = (layer: MapLayerStyle, dark = isDark()) => {
           esri: {
             type: "raster" as const,
             tileSize: 256,
+            maxzoom: 19,
             attribution: "Imagery © Esri, Roads © OpenStreetMap",
-            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}"],
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+              "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
           },
           roads: {
             type: "raster" as const,
             tileSize: 256,
+            maxzoom: 19,
             attribution: "Roads © Esri",
-            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{x}/{y}"],
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+            ],
           },
           places: {
             type: "raster" as const,
             tileSize: 256,
+            maxzoom: 19,
             attribution: "Places © Esri",
-            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{x}/{y}"],
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            ],
           },
         },
         layers: [
@@ -143,6 +154,7 @@ export default function ClubMap({
   const animFrame = useRef<number | null>(null);
   const animIndex = useRef(0);
   const tracerPin = useRef<any>(null);
+  const userPin = useRef<any>(null);
 
   const [state, setState] = useState<"loading" | "ready" | "fallback">(() =>
     (typeof navigator !== "undefined" && navigator.onLine === false) || !webglOk() ? "fallback" : "loading"
@@ -150,8 +162,54 @@ export default function ClubMap({
   const [layer, setLayer] = useState<MapLayerStyle>("streets");
   const [showMilestones, setShowMilestones] = useState(true);
   const [follow, setFollow] = useState(true);
+  const [userLoc, setUserLoc] = useState<{ lat: number; lon: number; accuracy: number } | null>(null);
+  const [locPerm, setLocPerm] = useState<"granted" | "prompt" | "denied">("prompt");
+  const [screenshotMsg, setScreenshotMsg] = useState("");
   const lineRef = useRef(line);
   lineRef.current = line;
+
+  // Immediate High-Accuracy Geolocation Acquisition on entry
+  const requestLocation = useCallback(() => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy: Math.round(pos.coords.accuracy),
+        };
+        setUserLoc(coords);
+        setLocPerm("granted");
+        if (map.current) {
+          map.current.flyTo({ center: [coords.lon, coords.lat], zoom: 16, duration: 800 });
+        }
+      },
+      (err) => {
+        if (err.code === 1) setLocPerm("denied");
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    requestLocation();
+    const wid = navigator.geolocation.watchPosition(
+      (pos) => {
+        setUserLoc({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy: Math.round(pos.coords.accuracy),
+        });
+        setLocPerm("granted");
+      },
+      (err) => {
+        if (err.code === 1) setLocPerm("denied");
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 2000 }
+    );
+    return () => navigator.geolocation.clearWatch(wid);
+  }, [requestLocation]);
 
   // Manage fullscreen body class and body scroll
   useEffect(() => {
@@ -226,6 +284,7 @@ export default function ClubMap({
         dragPan: true,
         touchZoomRotate: true,
         doubleClickZoom: true,
+        preserveDrawingBuffer: true,
         pixelRatio: Math.min(2, window.devicePixelRatio || 1),
       });
       map.current = m;
@@ -259,8 +318,102 @@ export default function ClubMap({
       map.current = null;
       pins.current.clear();
       tracerPin.current = null;
+      userPin.current = null;
     };
   }, [state === "fallback"]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Render live user location marker with radar pulse
+  useEffect(() => {
+    const m = map.current;
+    const ml = lib.current;
+    if (!m || !ml || !userLoc) return;
+
+    if (!userPin.current) {
+      const el = document.createElement("div");
+      el.className = "ipac-gps-user-marker";
+      el.innerHTML = '<div class="ipac-gps-pulse"></div><div class="ipac-gps-dot"></div>';
+      userPin.current = new ml.Marker({ element: el })
+        .setLngLat([userLoc.lon, userLoc.lat])
+        .addTo(m);
+    } else {
+      userPin.current.setLngLat([userLoc.lon, userLoc.lat]);
+    }
+  }, [userLoc, state]);
+
+  // High-Resolution Map Screenshot Capture
+  const takeScreenshot = useCallback(async () => {
+    const m = map.current;
+    if (!m) return;
+    setScreenshotMsg("Capturing map snapshot…");
+    try {
+      const mapCanvas = m.getCanvas();
+      const exportCanvas = document.createElement("canvas");
+      const ctx = exportCanvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context unavailable");
+
+      const headerH = 64;
+      exportCanvas.width = mapCanvas.width;
+      exportCanvas.height = mapCanvas.height + headerH;
+
+      ctx.fillStyle = "#2A3090";
+      ctx.fillRect(0, 0, exportCanvas.width, headerH);
+
+      ctx.fillStyle = "#EAB308";
+      ctx.fillRect(0, headerH - 3, exportCanvas.width, 3);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 18px sans-serif";
+      ctx.fillText("IVORY PARK ATHLETICS CLUB", 18, 28);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.font = "12px sans-serif";
+      const infoText = `${label || "Route Map"} · ${new Date().toLocaleDateString("en-ZA")} · Layer: ${layer.toUpperCase()}`;
+      ctx.fillText(infoText, 18, 48);
+
+      ctx.drawImage(mapCanvas, 0, headerH);
+
+      exportCanvas.toBlob(async (blob) => {
+        if (!blob) {
+          setScreenshotMsg("Could not render image");
+          return;
+        }
+        const fileName = `ipac-map-${layer}-${Date.now()}.png`;
+        const file = new File([blob], fileName, { type: "image/png" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: "Ivory Park AC Map",
+              text: `Route map for ${label} from Ivory Park Athletics Club.`,
+            });
+            setScreenshotMsg("Map shared successfully!");
+          } catch {
+            // fallback to download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+            setScreenshotMsg("Map screenshot saved!");
+          }
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+          setScreenshotMsg("Map screenshot saved!");
+        }
+        setTimeout(() => setScreenshotMsg(""), 3500);
+      }, "image/png");
+    } catch (e) {
+      setScreenshotMsg((e as Error).message || "Screenshot error");
+      setTimeout(() => setScreenshotMsg(""), 3500);
+    }
+  }, [label, layer]);
 
   // Handle dynamic map layer switching
   useEffect(() => {
@@ -409,10 +562,25 @@ export default function ClubMap({
     <div className={`ipac-mapwrap ${fullscreen ? "fullscreen" : ""}`}>
       <div ref={box} className="ipac-mlmap" role="region" aria-label={label} />
       
-      {/* Zero-API-Key Map Source Badge */}
+      {/* Zero-API-Key Map Source Badge & GPS Accuracy Pill */}
       <div className="ipac-map-engine-pill">
-        Zero API Key · Free OpenStreetMap
+        Zero API Key · Free OpenStreetMap {userLoc ? `· Live GPS (±${userLoc.accuracy}m)` : ""}
       </div>
+
+      {/* Geolocation Request Notice if not yet granted */}
+      {locPerm !== "granted" && (
+        <div className="ipac-map-loc-banner" role="status" onClick={requestLocation}>
+          <span>Tap to enable high-accuracy athlete GPS navigation</span>
+          <button type="button" className="ipac-btn ipac-btn-small" style={{ marginLeft: "8px" }}>Enable GPS</button>
+        </div>
+      )}
+
+      {/* Screenshot status toast */}
+      {screenshotMsg && (
+        <div className="ipac-map-loc-pill" style={{ top: "42px", background: "rgba(42, 48, 144, 0.95)", color: "#fff" }} role="status">
+          {screenshotMsg}
+        </div>
+      )}
 
       {/* Basemap Style Switcher */}
       <div className="ipac-map-layer-selector" role="group" aria-label="Map Basemap Style">
@@ -450,6 +618,30 @@ export default function ClubMap({
         >
           -
         </button>
+        <button
+          type="button"
+          className="ipac-map-ctrl-btn"
+          onClick={() => {
+            if (userLoc && map.current) {
+              map.current.flyTo({ center: [userLoc.lon, userLoc.lat], zoom: 17, duration: 600 });
+            } else {
+              requestLocation();
+            }
+          }}
+          title="Recenter camera on your current GPS position"
+          aria-label="My Location"
+        >
+          {userLoc ? "My Location" : "Find Me"}
+        </button>
+        <button
+          type="button"
+          className="ipac-map-ctrl-btn"
+          onClick={takeScreenshot}
+          title="Export high-resolution map snapshot"
+          aria-label="Map Screenshot"
+        >
+          Screenshot
+        </button>
         {line && line.length > 2 && (
           <button
             type="button"
@@ -458,7 +650,7 @@ export default function ClubMap({
             onClick={() => setShowMilestones((v) => !v)}
             title="Toggle 1-km milestone split badges"
           >
-            {showMilestones ? "1K Milestones: On" : "1K Milestones: Off"}
+            {showMilestones ? "1K: On" : "1K: Off"}
           </button>
         )}
         {center && (

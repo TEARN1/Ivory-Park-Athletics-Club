@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   ATHLETE_PICKUP_ROSTER,
+  DEFAULT_VEHICLES,
   RACE_VENUES,
   formatTransportWhatsApp,
+  googleMapsDriverRoute,
+  optimizeMultiVehicleSchedule,
   optimizePickupRoute,
 } from "./transport";
 
@@ -32,5 +35,27 @@ describe("transport optimizer", () => {
     expect(waText).toContain("Stop 1");
     // Ensure no emojis exist
     expect(/[\uD800-\uDFFF]/.test(waText)).toBe(false);
+  });
+
+  it("distributes athletes across multiple transport vehicles according to seat capacity", () => {
+    const allAthletes = ATHLETE_PICKUP_ROSTER.slice(0, 6);
+    const plans = optimizeMultiVehicleSchedule(DEFAULT_VEHICLES, allAthletes, RACE_VENUES[1], "04:30");
+
+    expect(plans.length).toBe(2);
+    expect(plans[0].vehicle.capacity).toBe(14);
+    expect(plans[1].vehicle.capacity).toBe(4);
+    const totalAssigned = plans.reduce((acc, p) => acc + p.athletes.length, 0);
+    expect(totalAssigned).toBe(6);
+    expect(plans[0].schedule.stops.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("generates valid Google Maps driver navigation URL with origin and waypoints", () => {
+    const selected = ATHLETE_PICKUP_ROSTER.slice(0, 2);
+    const plan = optimizePickupRoute(selected, RACE_VENUES[1], "04:30");
+    const mapsUrl = googleMapsDriverRoute(plan);
+
+    expect(mapsUrl).toContain("https://www.google.com/maps/dir/");
+    expect(mapsUrl).toContain("travelmode=driving");
+    expect(mapsUrl).toContain(String(selected[0].coords.lat));
   });
 });

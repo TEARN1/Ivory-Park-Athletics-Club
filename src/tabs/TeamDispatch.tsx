@@ -398,6 +398,7 @@ export default function TeamDispatch({
                       distanceKm: sel.distKm,
                       meetupPoint: sel.meetup,
                       departureTime: sel.dep,
+                      time: sel.title.includes("Saturday") ? "04:30" : alarm.time,
                     });
                   }
                 }}

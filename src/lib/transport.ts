@@ -297,3 +297,125 @@ export function formatTransportWhatsApp(plan: OptimizedPickupSchedule): string {
   lines.push(`*Please be outside your gate 5 minutes before your ETA.* Let's go Team Ivory Park!`);
   return lines.join("\n");
 }
+
+/* ---------- Multi-Vehicle Fleet & Capacity Optimization ---------- */
+
+export interface TransportVehicle {
+  id: string;
+  name: string;
+  driverName: string;
+  driverPhone: string;
+  capacity: number;
+  startDepot: { label: string; coords: LatLon };
+  preferredAthleteIds?: string[];
+}
+
+export const DEFAULT_VEHICLES: TransportVehicle[] = [
+  {
+    id: "van-1",
+    name: "Transport 1 - Coach Van (14-Seater)",
+    driverName: "Coach Naledi",
+    driverPhone: "+27 82 450 1192",
+    capacity: 14,
+    startDepot: IVORY_PARK_DEPOT,
+  },
+  {
+    id: "car-2",
+    name: "Transport 2 - Freedom Drive Carpool (4-Seater)",
+    driverName: "Bra Thabo",
+    driverPhone: "+27 73 981 4452",
+    capacity: 4,
+    startDepot: { label: "Ext 2 Community Hall", coords: { lat: -26.0021, lon: 28.1945 } },
+  },
+];
+
+export interface VehiclePickupPlan {
+  vehicle: TransportVehicle;
+  schedule: OptimizedPickupSchedule;
+  athletes: AthletePickupLocation[];
+  seatUtilization: { used: number; total: number };
+}
+
+/**
+ * Optimizes pickup plans across 1, 2, or multiple transport vehicles.
+ * Clusters athletes based on geographic proximity to depots/drivers and seat capacity.
+ */
+export function optimizeMultiVehicleSchedule(
+  vehicles: TransportVehicle[],
+  athletes: AthletePickupLocation[],
+  venue: RaceVenue,
+  departureTime = "04:30"
+): VehiclePickupPlan[] {
+  if (vehicles.length === 0) return [];
+  if (vehicles.length === 1) {
+    const v = vehicles[0];
+    const sched = optimizePickupRoute(athletes.slice(0, v.capacity), venue, departureTime, v.startDepot);
+    return [{
+      vehicle: v,
+      schedule: sched,
+      athletes: athletes.slice(0, v.capacity),
+      seatUtilization: { used: Math.min(athletes.length, v.capacity), total: v.capacity },
+    }];
+  }
+
+  // Multi-vehicle clustering
+  const vehicleBuckets = new Map<string, AthletePickupLocation[]>();
+  vehicles.forEach((v) => vehicleBuckets.set(v.id, []));
+
+  // 1. Assign preferred athletes first
+  const remaining: AthletePickupLocation[] = [];
+  athletes.forEach((ath) => {
+    const explicitVehicle = vehicles.find((v) => v.preferredAthleteIds?.includes(ath.id));
+    if (explicitVehicle) {
+      const bucket = vehicleBuckets.get(explicitVehicle.id)!;
+      if (bucket.length < explicitVehicle.capacity) {
+        bucket.push(ath);
+        return;
+      }
+    }
+    remaining.push(ath);
+  });
+
+  // 2. Assign remaining athletes to nearest vehicle depot with free seats
+  remaining.forEach((ath) => {
+    let bestVehicle: TransportVehicle | null = null;
+    let minDistance = Infinity;
+
+    vehicles.forEach((v) => {
+      const bucket = vehicleBuckets.get(v.id)!;
+      if (bucket.length < v.capacity) {
+        const d = haversineM(v.startDepot.coords, ath.coords);
+        if (d < minDistance) {
+          minDistance = d;
+          bestVehicle = v;
+        }
+      }
+    });
+
+    if (bestVehicle) {
+      vehicleBuckets.get((bestVehicle as TransportVehicle).id)!.push(ath);
+    }
+  });
+
+  // 3. Generate route schedules for each vehicle
+  return vehicles.map((v) => {
+    const assignedAthletes = vehicleBuckets.get(v.id) || [];
+    const sched = optimizePickupRoute(assignedAthletes, venue, departureTime, v.startDepot);
+    return {
+      vehicle: v,
+      schedule: sched,
+      athletes: assignedAthletes,
+      seatUtilization: { used: assignedAthletes.length, total: v.capacity },
+    };
+  });
+}
+
+/** Generates Google Maps turn-by-turn driving link for the transport driver */
+export function googleMapsDriverRoute(schedule: OptimizedPickupSchedule): string {
+  const origin = `${schedule.startDepot.coords.lat},${schedule.startDepot.coords.lon}`;
+  const destination = `${schedule.destination.coords.lat},${schedule.destination.coords.lon}`;
+  const waypoints = schedule.stops
+    .map((s) => `${s.coords.lat},${s.coords.lon}`)
+    .join("|");
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+}

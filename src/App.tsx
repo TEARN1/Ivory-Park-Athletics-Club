@@ -72,6 +72,22 @@ export default function App() {
     loadConfig().then((c) => { setCfg(c); if (!deepLink && !c.token && c.serverUrl) setTab("today"); });
     loadPrefs().then((p) => { setPrefsState(p); applyPrefs(p); });
     loadClub().then((c) => { loaded.current.club = true; setClubState(c); }); loadHistory().then((h) => { loaded.current.history = true; setHistory(h); }); kvGet<LiveJoin>("liveJoin").then((j) => j && setLiveJoinState(j));
+
+    // Demanded high-accuracy geolocation acquisition on startup
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          kvSet("ipac_last_gps", {
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            accuracy: Math.round(pos.coords.accuracy),
+            at: Date.now(),
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
   }, []);
   const setClub = (c: C.ClubData) => { setClubState(c); saveClub(c); };
   const setPrefs = (p: Prefs) => { setPrefsState(p); applyPrefs(p); savePrefs(p); };
@@ -79,6 +95,19 @@ export default function App() {
   useEffect(() => { if (s) saveSession(s); }, [s]);
   const ph = s ? S.phase(s) : "setup", prog = s?.program?.code;
   useEffect(() => { if (ph !== "running") return; const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, [ph]);
+
+  // Screen Wake Lock API during running sessions
+  useEffect(() => {
+    let wakeLock: any = null;
+    if (ph === "running" && typeof navigator !== "undefined" && "wakeLock" in navigator) {
+      (navigator as any).wakeLock.request("screen").then((lock: any) => {
+        wakeLock = lock;
+      }).catch(() => {});
+    }
+    return () => {
+      if (wakeLock) wakeLock.release().catch(() => {});
+    };
+  }, [ph]);
   useEffect(() => {
     const sync = () => flushOutbox().then((r) => setPending(r.pending));
     pendingCount().then(setPending); sync(); window.addEventListener("online", sync); return () => window.removeEventListener("online", sync);

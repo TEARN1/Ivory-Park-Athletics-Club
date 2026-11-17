@@ -236,11 +236,15 @@ h2 {
 .ipac-logo {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ffffff 0%, #e2e6fa 100%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: var(--metal-bevel), 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 2px;
+  object-fit: contain;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: var(--metal-bevel), 0 4px 10px rgba(0, 0, 0, 0.18);
   flex: none;
+  display: block;
 }
 .ipac-title {
   min-width: 0;
@@ -295,9 +299,11 @@ h2 {
     padding: 6px 10px;
   }
   .ipac-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    padding: 1.5px;
+    border-radius: 6px;
+    object-fit: contain;
   }
   .ipac-title h1 {
     font-size: 0.96rem;
@@ -328,6 +334,9 @@ h2 {
   .ipac-logo {
     width: 32px;
     height: 32px;
+    padding: 1px;
+    border-radius: 5px;
+    object-fit: contain;
   }
   .ipac-title h1 {
     font-size: 0.88rem;
@@ -2757,4 +2766,60 @@ body.has-fullscreen-map .ipac-main {
   gap: 8px;
   padding-top: 6px;
   border-top: 1px solid var(--color-line);
+}
+
+/* Live GPS Athlete Marker with Radar Pulse */
+.ipac-gps-user-marker {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.ipac-gps-dot {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 14px;
+  height: 14px;
+  background: #0284c7;
+  border: 2.5px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(2, 132, 199, 0.8), 0 2px 5px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+.ipac-gps-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(2, 132, 199, 0.35);
+  animation: ipac-radar 2s infinite ease-out;
+  z-index: 1;
+}
+@keyframes ipac-radar {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+.ipac-map-loc-banner {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  background: rgba(42, 48, 144, 0.92);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(234, 179, 8, 0.6);
+  backdrop-filter: blur(8px);
 }
