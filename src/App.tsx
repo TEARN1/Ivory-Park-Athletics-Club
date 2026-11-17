@@ -255,6 +255,10 @@ export default function App() {
   const announce = (kind: "finishes" | "laps", text: string) => { if (prefs.sound.beeps) beep(1000, 90, 0.25); if (prefs.sound.voice && prefs.sound[kind]) say(text); };
   const joinPanel = (bare?: boolean) => <JoinPanel s={s} act={act} cfg={cfg} bare={bare} />;
 
+  const athleteTestLink = typeof window !== "undefined" && (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1"))
+    ? "https://tearn1.github.io/Ivory-Park-Athletics-Club/"
+    : (typeof window !== "undefined" ? (window.location.origin + window.location.pathname).replace(/\/$/, "") + "/" : "https://tearn1.github.io/Ivory-Park-Athletics-Club/");
+
   return (
     <div className="ipac-shell">
       <header className="ipac-head"><div className="ipac-head-in">
@@ -346,9 +350,29 @@ export default function App() {
               <button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close modal" onClick={() => setShowInstall(false)}>Close</button>
             </div>
             <p className="ipac-hint" style={{ marginTop: 0 }}>
-              Scan the QR code with your phone camera to download and install Ivory Park Athletics Club directly onto your home screen.
+              Scan the QR code with your phone camera or share the link to test and install Ivory Park Athletics Club directly onto athlete devices.
             </p>
-            <div className="ipac-qr" role="img" aria-label="QR code to install app" dangerouslySetInnerHTML={{ __html: qrSvg(window.location.origin || window.location.href) }} />
+            <div className="ipac-test-link-banner" style={{
+              background: "rgba(57, 211, 83, 0.12)",
+              border: "1px solid rgba(57, 211, 83, 0.35)",
+              borderRadius: "12px",
+              padding: "10px 14px",
+              margin: "10px 0 14px",
+              textAlign: "center"
+            }}>
+              <span style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "1px", color: "var(--neon-green, #39d353)", fontWeight: 700, display: "block" }}>
+                Athlete Testing Link (Live HTTPS)
+              </span>
+              <a
+                href={athleteTestLink}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: "0.85rem", fontWeight: 700, color: "#ffffff", wordBreak: "break-all", display: "inline-block", marginTop: "4px" }}
+              >
+                {athleteTestLink}
+              </a>
+            </div>
+            <div className="ipac-qr" role="img" aria-label="QR code to install app" dangerouslySetInnerHTML={{ __html: qrSvg(athleteTestLink) }} />
             {deferredPrompt && (
               <button
                 className="ipac-btn ipac-btn-hero ipac-btn-wide"
@@ -376,7 +400,7 @@ export default function App() {
                 className="ipac-btn ipac-btn-outline"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(window.location.origin || window.location.href);
+                    await navigator.clipboard.writeText(athleteTestLink);
                     setCopiedAppUrl(true);
                     setTimeout(() => setCopiedAppUrl(false), 2500);
                   } catch {}
@@ -391,8 +415,8 @@ export default function App() {
                     navigator
                       .share({
                         title: "Ivory Park Athletics Club App",
-                        text: "Download Ivory Park Athletics Club app for live tracking, routes, and race timing:",
-                        url: window.location.origin || window.location.href,
+                        text: "Test Ivory Park Athletics Club app for live tracking, routes, and race timing:",
+                        url: athleteTestLink,
                       })
                       .catch(() => {})
                   }

@@ -297,7 +297,11 @@ export default function TeamDispatch({
   const needsPickupCount = members.filter((m) => m.checkInState === "needs_pickup").length;
   const awakeCount = members.filter((m) => m.checkInState === "awake" || m.checkInState === "en_route").length;
 
-  const appOrigin = typeof window !== "undefined" ? window.location.origin : "https://ivorypark.athletics";
+  const appOrigin = typeof window !== "undefined"
+    ? (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+        ? "https://tearn1.github.io/Ivory-Park-Athletics-Club"
+        : (window.location.origin + window.location.pathname).replace(/\/$/, ""))
+    : "https://tearn1.github.io/Ivory-Park-Athletics-Club";
   const shareText = formatAlarmWhatsApp(alarm, appOrigin);
 
   return (
