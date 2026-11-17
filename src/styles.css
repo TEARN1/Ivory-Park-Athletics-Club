@@ -231,32 +231,119 @@ h2 {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px var(--gutter-r) 10px var(--gutter);
+  padding: 8px var(--gutter-r) 8px var(--gutter);
 }
 .ipac-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #ffffff 0%, #e2e6fa 100%);
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow: var(--metal-bevel), 0 4px 10px rgba(0, 0, 0, 0.2);
   flex: none;
 }
-.ipac-title { min-width: 0; flex: 1; }
+.ipac-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
 .ipac-title h1 {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 1.55rem;
-  line-height: 1;
-  letter-spacing: .03em;
+  font-size: 1.15rem;
+  line-height: 1.1;
+  letter-spacing: .02em;
   text-transform: uppercase;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ipac-title p {
-  margin: 4px 0 0;
-  font-size: .85rem;
+  margin: 2px 0 0;
+  font-size: .78rem;
   opacity: .9;
   letter-spacing: .02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* User-Configurable Header Font Scaling */
+:root[data-header-size="compact"] .ipac-title h1 {
+  font-size: 1.0rem;
+}
+:root[data-header-size="compact"] .ipac-title p {
+  font-size: 0.72rem;
+}
+:root[data-header-size="standard"] .ipac-title h1 {
+  font-size: 1.15rem;
+}
+:root[data-header-size="standard"] .ipac-title p {
+  font-size: 0.80rem;
+}
+:root[data-header-size="large"] .ipac-title h1 {
+  font-size: 1.35rem;
+}
+:root[data-header-size="large"] .ipac-title p {
+  font-size: 0.88rem;
+}
+
+@media (max-width: 500px) {
+  .ipac-head-in {
+    gap: 8px;
+    padding: 6px 10px;
+  }
+  .ipac-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .ipac-title h1 {
+    font-size: 0.96rem;
+  }
+  .ipac-title p {
+    font-size: 0.70rem;
+  }
+  .ipac-head-actions {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .ipac-themebtn {
+    width: 34px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+  }
+  .ipac-themebtn svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .ipac-head-in {
+    gap: 6px;
+    padding: 5px 8px;
+  }
+  .ipac-logo {
+    width: 32px;
+    height: 32px;
+  }
+  .ipac-title h1 {
+    font-size: 0.88rem;
+  }
+  .ipac-title p {
+    font-size: 0.66rem;
+  }
+  .ipac-themebtn {
+    width: 30px !important;
+    min-height: 30px !important;
+    height: 30px !important;
+  }
+  .ipac-themebtn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
 }
 
 /* Metal Red & Glass Status Pills */

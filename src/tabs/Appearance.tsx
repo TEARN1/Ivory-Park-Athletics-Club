@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COUNTDOWNS, DEFAULT_DISTANCES, PALETTES, QUIET_AFTER, SAFETY_PACES, TIME_CALLS, parseDistances, type Mode, type Prefs, type SoundPrefs } from "../lib/prefs";
+import { COUNTDOWNS, DEFAULT_DISTANCES, HEADER_SIZES, PALETTES, QUIET_AFTER, SAFETY_PACES, TIME_CALLS, parseDistances, type HeaderSize, type Mode, type Prefs, type SoundPrefs } from "../lib/prefs";
 import { beep, say } from "../lib/sound";
 
 const MODES: [Mode, string][] = [["auto", "Auto"], ["light", "Day"], ["dark", "Night"]];
@@ -12,6 +12,18 @@ export default function Appearance({ prefs, setPrefs }: { prefs: Prefs; setPrefs
       <p className="ipac-label">Day or night</p>
       <div className="ipac-seg" role="group" aria-label="Day or night">
         {MODES.map(([m, l]) => <button key={m} aria-pressed={prefs.mode === m} onClick={() => setPrefs({ ...prefs, mode: m })}>{l}</button>)}
+      </div>
+      <p className="ipac-label">Header and font sizing</p>
+      <div className="ipac-seg" role="group" aria-label="Header and font sizing">
+        {HEADER_SIZES.map((h) => (
+          <button
+            key={h.id}
+            aria-pressed={(prefs.headerSize ?? "compact") === h.id}
+            onClick={() => setPrefs({ ...prefs, headerSize: h.id })}
+          >
+            {h.label}
+          </button>
+        ))}
       </div>
       <p className="ipac-label">Colours</p>
       <div className="ipac-swatches" role="group" aria-label="Colours">

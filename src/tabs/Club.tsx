@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import type { Notice } from "../lib/live";
 import type { Prefs } from "../lib/prefs";
 import { saveConfig, type Config } from "../lib/store";
+import { loadSupabaseConfig, saveSupabaseConfig, testSupabaseConnection } from "../lib/supabase";
 import Appearance, { SoundSettings } from "./Appearance";
 import ClubAdmin, { type PublishState } from "./ClubAdmin";
 import type { ClubData } from "../lib/club";
 
 export default function Club({ cfg, setCfg, notices, prefs, setPrefs, club, setClub, publish, publishNow }: { cfg: Config; setCfg: (c: Config) => void; notices: Notice[]; prefs: Prefs; setPrefs: (p: Prefs) => void; club: ClubData; setClub: (c: ClubData) => void; publish: PublishState; publishNow: () => void }) {
   const [draft, setDraft] = useState(cfg), [msg, setMsg] = useState(""), [text, setText] = useState("");
+  const [sbCfg, setSbCfg] = useState(loadSupabaseConfig), [sbMsg, setSbMsg] = useState("");
   useEffect(() => { setDraft(cfg); }, [cfg]); // settings load after the first render
   const [g, setG] = useState({ name: "", contact: "", consent: false }), [guests, setGuests] = useState<any[]>([]);
   const base = cfg.serverUrl.replace(/\/$/, ""), hdr = { "content-type": "application/json", authorization: `Bearer ${cfg.token}` };
@@ -73,6 +75,65 @@ export default function Club({ cfg, setCfg, notices, prefs, setPrefs, club, setC
       ) : <p className="ipac-hint">Add the club server address to use the guest list.</p>}
       {guests.length > 0 && <ul className="ipac-list">{guests.map((x) => <li key={x.id}>{x.name} · {x.contact || "no contact"}<button aria-label={`Remove ${x.name}`} onClick={async () => { if (await call(`/guests/${x.id}`, { method: "DELETE", headers: hdr })) loadGuests(); }}>Remove</button></li>)}</ul>}
       <p className="ipac-hint">Notices appear in the app. SMS and phone push messages are not set up.</p>
+    </section>
+
+    <section className="ipac-card" style={{ marginTop: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Shared Supabase Database Connection</h2>
+          <p className="ipac-hint" style={{ margin: "2px 0 0" }}>
+            Connected to the unified Supabase ecosystem shared with The Resident and The Grooves.
+          </p>
+        </div>
+        <span className="ipac-badge" style={{ background: "rgba(57, 211, 83, 0.2)", color: "#39d353", fontSize: "0.75rem", padding: "3px 10px", borderRadius: "99px" }}>
+          Isolated Namespace: ipac_*
+        </span>
+      </div>
+
+      <div style={{ marginTop: "12px", background: "rgba(255, 255, 255, 0.04)", border: "1px solid var(--border)", borderRadius: "12px", padding: "12px" }}>
+        <p style={{ margin: "0 0 10px", fontSize: "0.85rem", opacity: 0.9 }}>
+          All Ivory Park Athletics Club tables (<code>ipac_profiles</code>, <code>ipac_sessions</code>, <code>ipac_attendance</code>, <code>ipac_routes</code>, <code>ipac_alarms</code>, <code>ipac_notices</code>) run in the same Supabase database while remaining completely segregated from The Resident (<code>resident_*</code>) and The Grooves.
+        </p>
+
+        <div className="ipac-form">
+          <input
+            aria-label="Supabase Project URL"
+            placeholder="Supabase Project URL (e.g. https://xyzcompany.supabase.co)"
+            value={sbCfg.url}
+            onChange={(e) => setSbCfg({ ...sbCfg, url: e.target.value.trim() })}
+          />
+          <input
+            aria-label="Supabase Anon Key"
+            type="password"
+            placeholder="Supabase Public Anon Key"
+            value={sbCfg.anonKey}
+            onChange={(e) => setSbCfg({ ...sbCfg, anonKey: e.target.value.trim() })}
+          />
+          <div className="ipac-row2">
+            <button
+              className="ipac-btn ipac-btn-outline"
+              onClick={async () => {
+                setSbMsg("Testing connection...");
+                saveSupabaseConfig(sbCfg);
+                const res = await testSupabaseConnection(sbCfg.url, sbCfg.anonKey);
+                setSbMsg(res.message);
+              }}
+            >
+              Test Supabase Connection
+            </button>
+            <button
+              className="ipac-btn ipac-btn-primary"
+              onClick={() => {
+                saveSupabaseConfig(sbCfg);
+                setSbMsg("Supabase credentials saved locally. Tables segregated under ipac_*.");
+              }}
+            >
+              Save Credentials
+            </button>
+          </div>
+        </div>
+        {sbMsg && <p role="status" className="ipac-hint" style={{ marginTop: "8px", color: sbMsg.includes("Connected") ? "var(--neon-green, #39d353)" : undefined }}>{sbMsg}</p>}
+      </div>
     </section>
     <ClubAdmin club={club} setClub={setClub} cfg={cfg} publish={publish} publishNow={publishNow} />
     </>

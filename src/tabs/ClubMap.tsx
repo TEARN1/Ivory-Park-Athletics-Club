@@ -25,14 +25,26 @@ const getLayerStyle = (layer: MapLayerStyle, dark = isDark()) => {
       return {
         version: 8 as const,
         sources: {
-          carto: {
+          osm: {
             type: "raster" as const,
             tileSize: 256,
-            attribution: "© OpenStreetMap contributors © CARTO",
-            tiles: ["a", "b", "c", "d"].map((s) => `https://${s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png`),
+            attribution: "© OpenStreetMap contributors",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
           },
         },
-        layers: [{ id: "carto", type: "raster" as const, source: "carto" }],
+        layers: [
+          {
+            id: "osm",
+            type: "raster" as const,
+            source: "osm",
+            paint: {
+              "raster-saturation": -0.85,
+              "raster-contrast": 0.25,
+              "raster-brightness-max": 0.45,
+              "raster-brightness-min": 0.05,
+            },
+          },
+        ],
       };
     case "topo":
       return {
@@ -54,11 +66,27 @@ const getLayerStyle = (layer: MapLayerStyle, dark = isDark()) => {
           esri: {
             type: "raster" as const,
             tileSize: 256,
-            attribution: "Tiles © Esri",
+            attribution: "Imagery © Esri, Roads © OpenStreetMap",
             tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}"],
           },
+          roads: {
+            type: "raster" as const,
+            tileSize: 256,
+            attribution: "Roads © Esri",
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{x}/{y}"],
+          },
+          places: {
+            type: "raster" as const,
+            tileSize: 256,
+            attribution: "Places © Esri",
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{x}/{y}"],
+          },
         },
-        layers: [{ id: "esri", type: "raster" as const, source: "esri" }],
+        layers: [
+          { id: "esri", type: "raster" as const, source: "esri" },
+          { id: "roads", type: "raster" as const, source: "roads" },
+          { id: "places", type: "raster" as const, source: "places" },
+        ],
       };
     case "streets":
     default:
@@ -194,7 +222,10 @@ export default function ClubMap({
         zoom: zoom ?? 16,
         maxZoom: 20,
         attributionControl: { compact: true },
-        cooperativeGestures: true,
+        cooperativeGestures: false,
+        dragPan: true,
+        touchZoomRotate: true,
+        doubleClickZoom: true,
         pixelRatio: Math.min(2, window.devicePixelRatio || 1),
       });
       map.current = m;
@@ -393,7 +424,7 @@ export default function ClubMap({
             aria-pressed={layer === l}
             onClick={() => setLayer(l)}
           >
-            {l === "streets" ? "OSM Street" : l === "dark" ? "Dark Matter" : l === "topo" ? "Topo" : "Satellite"}
+            {l === "streets" ? "OSM Street" : l === "dark" ? "Night" : l === "topo" ? "Topo" : "Satellite Hybrid"}
           </button>
         ))}
       </div>
@@ -401,6 +432,24 @@ export default function ClubMap({
       {floatingContent}
 
       <div className="ipac-floating-actions">
+        <button
+          type="button"
+          className="ipac-map-ctrl-btn ipac-zoom-btn"
+          onClick={() => map.current?.zoomIn({ duration: 250 })}
+          aria-label="Zoom in single touch"
+          title="Zoom In"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className="ipac-map-ctrl-btn ipac-zoom-btn"
+          onClick={() => map.current?.zoomOut({ duration: 250 })}
+          aria-label="Zoom out single touch"
+          title="Zoom Out"
+        >
+          -
+        </button>
         {line && line.length > 2 && (
           <button
             type="button"
