@@ -2214,6 +2214,49 @@ body.has-fullscreen-map .ipac-main {
 .ipac-install-sheet {
   max-width: 480px;
 }
+.ipac-sheet-head h2 {
+  margin: 0;
+  color: var(--text, #1e293b);
+}
+:root[data-theme="dark"] .ipac-sheet-head h2 {
+  color: #ffffff;
+}
+.ipac-test-link-banner {
+  background: rgba(42, 48, 144, 0.08);
+  border: 1px solid rgba(42, 48, 144, 0.22);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 10px 0 14px;
+  text-align: center;
+}
+:root[data-theme="dark"] .ipac-test-link-banner {
+  background: rgba(57, 211, 83, 0.12);
+  border-color: rgba(57, 211, 83, 0.35);
+}
+.ipac-test-link-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-navy, #2a3090);
+  font-weight: 700;
+  display: block;
+}
+:root[data-theme="dark"] .ipac-test-link-label {
+  color: var(--neon-green, #39d353);
+}
+.ipac-test-link-url {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-navy, #2a3090);
+  word-break: break-all;
+  display: inline-block;
+  margin-top: 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+:root[data-theme="dark"] .ipac-test-link-url {
+  color: #ffffff;
+}
 .ipac-install-guide {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2242,6 +2285,9 @@ body.has-fullscreen-map .ipac-main {
   font-size: 0.95rem;
   color: var(--color-navy);
   margin-bottom: 4px;
+}
+:root[data-theme="dark"] .ipac-guide-col b {
+  color: var(--primary-light, #a3a9ff);
 }
 :root[data-theme="dark"] .ipac-guide-col b {
   color: #a5b4fc;

@@ -352,22 +352,15 @@ export default function App() {
             <p className="ipac-hint" style={{ marginTop: 0 }}>
               Scan the QR code with your phone camera or share the link to test and install Ivory Park Athletics Club directly onto athlete devices.
             </p>
-            <div className="ipac-test-link-banner" style={{
-              background: "rgba(57, 211, 83, 0.12)",
-              border: "1px solid rgba(57, 211, 83, 0.35)",
-              borderRadius: "12px",
-              padding: "10px 14px",
-              margin: "10px 0 14px",
-              textAlign: "center"
-            }}>
-              <span style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "1px", color: "var(--neon-green, #39d353)", fontWeight: 700, display: "block" }}>
+            <div className="ipac-test-link-banner">
+              <span className="ipac-test-link-label">
                 Athlete Testing Link (Live HTTPS)
               </span>
               <a
                 href={athleteTestLink}
                 target="_blank"
                 rel="noreferrer"
-                style={{ fontSize: "0.85rem", fontWeight: 700, color: "#ffffff", wordBreak: "break-all", display: "inline-block", marginTop: "4px" }}
+                className="ipac-test-link-url"
               >
                 {athleteTestLink}
               </a>
