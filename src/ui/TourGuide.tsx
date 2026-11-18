@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { say } from "../lib/sound";
+import { beep, playStarterHorn, playWhistleBlast, say, vibrate } from "../lib/sound";
 import {
+  ATHLETE_GUIDE_STEPS,
+  COACH_MASTERY_STEPS,
   MOST_USED_TOUR_STEPS,
   OVERVIEW_TOUR_STEPS,
   setTourCompleted,
@@ -14,12 +16,19 @@ interface TourGuideProps {
 }
 
 export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
-  const [tourMode, setTourMode] = useState<TourMode>("most_used");
+  const [tourMode, setTourMode] = useState<TourMode>("athlete_guide");
   const [stepIndex, setStepIndex] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
   const [voiceSpeaking, setVoiceSpeaking] = useState(false);
 
-  const steps: TourStep[] = tourMode === "most_used" ? MOST_USED_TOUR_STEPS : OVERVIEW_TOUR_STEPS;
+  const steps: TourStep[] =
+    tourMode === "athlete_guide"
+      ? ATHLETE_GUIDE_STEPS
+      : tourMode === "coach_mastery"
+      ? COACH_MASTERY_STEPS
+      : tourMode === "most_used"
+      ? MOST_USED_TOUR_STEPS
+      : OVERVIEW_TOUR_STEPS;
   const curStep: TourStep = steps[stepIndex] || steps[0];
   const totalSteps = steps.length;
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -101,6 +110,21 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
     onClose();
   };
 
+  const handlePracticeAction = () => {
+    vibrate([40, 40]);
+    if (curStep.id.includes("clock") || curStep.id.includes("start-race")) {
+      playStarterHorn();
+    } else if (curStep.id.includes("bib") || curStep.id.includes("handsfree")) {
+      playWhistleBlast();
+      say("Split 4 minutes 12 seconds, pace 4:10");
+    } else if (curStep.id.includes("pwa") || curStep.id.includes("install")) {
+      say("PWA runs offline with zero cellular data required");
+    } else {
+      beep(880, 150);
+      say(`Testing ${curStep.title}`);
+    }
+  };
+
   // Determine card placement relative to target
   let cardTop = "auto";
   let cardBottom = "24px";
@@ -146,29 +170,51 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
           transform: cardTransform,
         }}
       >
-        {/* Mode Selector Toggle */}
-        <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+        {/* Interactive Track Selector */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px", marginBottom: "8px" }}>
+          <button
+            type="button"
+            className={`ipac-btn ${tourMode === "athlete_guide" ? "ipac-btn-primary" : "ipac-btn-quiet"}`}
+            style={{ fontSize: "0.72rem", padding: "3px 6px", minHeight: "26px" }}
+            onClick={() => {
+              setTourMode("athlete_guide");
+              setStepIndex(0);
+            }}
+          >
+            Athlete Guide ({ATHLETE_GUIDE_STEPS.length})
+          </button>
+          <button
+            type="button"
+            className={`ipac-btn ${tourMode === "coach_mastery" ? "ipac-btn-primary" : "ipac-btn-quiet"}`}
+            style={{ fontSize: "0.72rem", padding: "3px 6px", minHeight: "26px" }}
+            onClick={() => {
+              setTourMode("coach_mastery");
+              setStepIndex(0);
+            }}
+          >
+            Coach Mastery ({COACH_MASTERY_STEPS.length})
+          </button>
           <button
             type="button"
             className={`ipac-btn ${tourMode === "most_used" ? "ipac-btn-primary" : "ipac-btn-quiet"}`}
-            style={{ fontSize: "0.74rem", padding: "2px 8px", minHeight: "26px", flex: 1 }}
+            style={{ fontSize: "0.72rem", padding: "3px 6px", minHeight: "26px" }}
             onClick={() => {
               setTourMode("most_used");
               setStepIndex(0);
             }}
           >
-            Most-Used Buttons ({MOST_USED_TOUR_STEPS.length})
+            Buttons ({MOST_USED_TOUR_STEPS.length})
           </button>
           <button
             type="button"
             className={`ipac-btn ${tourMode === "overview" ? "ipac-btn-primary" : "ipac-btn-quiet"}`}
-            style={{ fontSize: "0.74rem", padding: "2px 8px", minHeight: "26px", flex: 1 }}
+            style={{ fontSize: "0.72rem", padding: "3px 6px", minHeight: "26px" }}
             onClick={() => {
               setTourMode("overview");
               setStepIndex(0);
             }}
           >
-            Full App Tour ({OVERVIEW_TOUR_STEPS.length})
+            Overview ({OVERVIEW_TOUR_STEPS.length})
           </button>
         </div>
 
@@ -200,6 +246,31 @@ export default function TourGuide({ onClose, onNavigateTab }: TourGuideProps) {
 
         <div className="ipac-tour-hint">
           <b>How to use:</b> {curStep.actionHint}
+        </div>
+
+        {/* Practice and step jump controls */}
+        <div style={{ display: "flex", gap: "6px", alignItems: "center", margin: "10px 0", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-outline"
+            style={{ fontSize: "0.78rem", fontWeight: 700, padding: "5px 10px", minHeight: "30px" }}
+            onClick={handlePracticeAction}
+          >
+            Practice Action / Sound
+          </button>
+          <div style={{ display: "flex", gap: "3px", overflowX: "auto" }}>
+            {steps.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`ipac-chip ${i === stepIndex ? "ipac-chip-active" : ""}`}
+                style={{ padding: "2px 7px", fontSize: "0.72rem", minHeight: "26px", fontWeight: i === stepIndex ? 800 : 500 }}
+                onClick={() => setStepIndex(i)}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Action Controls */}

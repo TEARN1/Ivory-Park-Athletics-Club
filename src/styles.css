@@ -2823,3 +2823,243 @@ body.has-fullscreen-map .ipac-main {
   border: 1px solid rgba(234, 179, 8, 0.6);
   backdrop-filter: blur(8px);
 }
+
+/* Role Switcher Pill in Header */
+.ipac-role-switch {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+.ipac-role-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-fg);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ipac-role-btn.active {
+  background: var(--color-navy);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Floating Quick Speed Dial Button */
+.ipac-speed-dial-wrap {
+  position: fixed;
+  bottom: 74px;
+  right: 18px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: auto;
+}
+.ipac-speed-dial-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--p-navy) 0%, var(--p-deep) 100%);
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  font-size: 1.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s;
+  touch-action: manipulation;
+}
+.ipac-speed-dial-btn.ipac-sd-open {
+  transform: rotate(90deg);
+  background: var(--p-hot);
+}
+.ipac-speed-dial-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: flex-end;
+  animation: ipac-pop 0.2s ease-out;
+}
+.ipac-speed-dial-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(26, 30, 92, 0.95);
+  backdrop-filter: blur(12px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 24px;
+  padding: 6px 14px 6px 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  touch-action: manipulation;
+}
+.ipac-speed-dial-item.ipac-sd-sos {
+  background: rgba(232, 24, 32, 0.95);
+  border-color: #ff8088;
+}
+.ipac-sd-icon {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.ipac-sd-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Full-Screen High-Contrast AMOLED Runner Heads-Up Display */
+.ipac-hud-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  color: #ffffff;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 20px;
+  touch-action: manipulation;
+  font-family: var(--font-display), monospace, sans-serif;
+  box-sizing: border-box;
+}
+.ipac-hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #222222;
+  padding-bottom: 12px;
+}
+.ipac-hud-badge {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #39ff14;
+}
+.ipac-hud-close {
+  background: #222222;
+  color: #ffffff;
+  border: 1px solid #444444;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.ipac-hud-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: auto 0;
+}
+.ipac-hud-primary {
+  text-align: center;
+}
+.ipac-hud-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #888888;
+  display: block;
+  margin-bottom: 4px;
+}
+.ipac-hud-time {
+  font-size: clamp(3.6rem, 14vw, 5.8rem);
+  font-weight: 900;
+  color: #39ff14;
+  text-shadow: 0 0 16px rgba(57, 255, 20, 0.4);
+  line-height: 1;
+}
+.ipac-hud-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 16px;
+  text-align: center;
+  background: #111111;
+  border: 1px solid #282828;
+  border-radius: 14px;
+  padding: 16px 12px;
+}
+.ipac-hud-stat {
+  display: flex;
+  flex-direction: column;
+}
+.ipac-hud-val {
+  font-size: clamp(1.6rem, 6vw, 2.4rem);
+  font-weight: 800;
+  color: #ffffff;
+}
+.ipac-hud-tap-zone {
+  min-height: 180px;
+  background: linear-gradient(180deg, #161a22 0%, #0d1117 100%);
+  border: 3px solid #39ff14;
+  border-radius: 20px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  padding: 20px;
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.15);
+}
+.ipac-hud-tap-zone:active {
+  background: #39ff14;
+  color: #000000;
+}
+.ipac-hud-tap-zone:active .ipac-hud-tap-sub {
+  color: #000000;
+}
+.ipac-hud-tap-text {
+  font-size: clamp(1.3rem, 5vw, 1.8rem);
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.ipac-hud-tap-sub {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 6px;
+  font-family: var(--font-body);
+}
+
+/* SOS Coords Card */
+.ipac-sos-sheet {
+  max-width: 440px;
+}
+.ipac-sos-coords-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  margin-top: 10px;
+}
+.ipac-sos-coords-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #ff8088;
+  font-weight: 700;
+}
+.ipac-sos-coords-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 6px 0;
+  font-family: monospace;
+}

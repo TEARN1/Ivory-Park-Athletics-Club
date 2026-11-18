@@ -128,6 +128,129 @@ export async function eventFlyerImage(ev: { title: string; date: string; time: s
   return new Promise((ok, bad) => c.toBlob((b) => (b ? ok(b) : bad(new Error("Could not make the flyer"))), "image/png"));
 }
 
+/** 1080x1080 square PB Trophy Card for WhatsApp status and social sharing */
+export async function pbTrophyCardImage(
+  params: {
+    name: string;
+    bib?: string;
+    distanceKm: number;
+    timeStr: string;
+    paceStr: string;
+    dateStr: string;
+  },
+  logoSrc: string
+): Promise<Blob> {
+  const W = 1080, H = 1080, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d")!;
+  await document.fonts?.ready;
+  const navy = css("--p-navy", "#2a3090"), red = css("--p-hot", "#e81820"), disp = '"Barlow Condensed","Arial Narrow",sans-serif';
+
+  // Metallic deep background
+  const bgGrad = g.createRadialGradient(W / 2, H / 2, 80, W / 2, H / 2, 700);
+  bgGrad.addColorStop(0, "#191e5c");
+  bgGrad.addColorStop(1, "#0a0c20");
+  g.fillStyle = bgGrad;
+  g.fillRect(0, 0, W, H);
+
+  // Border accents
+  g.strokeStyle = "rgba(232, 24, 32, 0.6)";
+  g.lineWidth = 14;
+  g.strokeRect(18, 18, W - 36, H - 36);
+  g.strokeStyle = "rgba(163, 169, 255, 0.4)";
+  g.lineWidth = 2;
+  g.strokeRect(32, 32, W - 64, H - 64);
+
+  // Logo
+  try {
+    const img = new Image();
+    img.src = logoSrc;
+    await img.decode();
+    g.fillStyle = "#ffffff";
+    roundRect(g, W / 2 - 75, 60, 150, 150, 24);
+    g.fill();
+    g.drawImage(img, W / 2 - 65, 70, 130, 130);
+  } catch { /* no logo */ }
+
+  // Club Name
+  g.fillStyle = "#ffffff";
+  g.font = `800 52px ${disp}`;
+  g.textAlign = "center";
+  g.fillText("IVORY PARK ATHLETICS CLUB", W / 2, 260);
+
+  // PB Achievement Banner
+  g.fillStyle = red;
+  roundRect(g, W / 2 - 320, 290, 640, 56, 12);
+  g.fill();
+  g.fillStyle = "#ffffff";
+  g.font = `800 36px ${disp}`;
+  g.fillText("NEW PERSONAL BEST ACHIEVED", W / 2, 330);
+
+  // Athlete Name
+  g.fillStyle = "#ffffff";
+  g.font = `800 68px ${disp}`;
+  const athleteLabel = params.name ? params.name.toUpperCase() : `BIB ${params.bib || "RUNNER"}`;
+  g.fillText(athleteLabel, W / 2, 440);
+  if (params.bib) {
+    g.font = `600 32px system-ui,sans-serif`;
+    g.fillStyle = "#a5b4fc";
+    g.fillText(`Bib #${params.bib} · Official Club Time`, W / 2, 490);
+  }
+
+  // Large Stat Cards (Time & Pace)
+  g.fillStyle = "rgba(255, 255, 255, 0.07)";
+  roundRect(g, 100, 540, 410, 220, 20);
+  g.fill();
+  g.strokeStyle = "rgba(255, 255, 255, 0.15)";
+  g.lineWidth = 2;
+  g.stroke();
+
+  roundRect(g, 570, 540, 410, 220, 20);
+  g.fill();
+  g.stroke();
+
+  // Stat 1: Time
+  g.fillStyle = "#ff8088";
+  g.font = `700 32px ${disp}`;
+  g.fillText("OFFICIAL TIME", 305, 590);
+  g.fillStyle = "#ffffff";
+  g.font = `800 76px ${disp}`;
+  g.fillText(params.timeStr, 305, 680);
+  g.font = `600 28px system-ui,sans-serif`;
+  g.fillStyle = "#94a3b8";
+  g.fillText(`${params.distanceKm} km Distance`, 305, 730);
+
+  // Stat 2: Pace
+  g.fillStyle = "#86efac";
+  g.font = `700 32px ${disp}`;
+  g.fillText("AVERAGE PACE", 775, 590);
+  g.fillStyle = "#ffffff";
+  g.font = `800 76px ${disp}`;
+  g.fillText(params.paceStr, 775, 680);
+  g.font = `600 28px system-ui,sans-serif`;
+  g.fillStyle = "#94a3b8";
+  g.fillText("Minutes per km", 775, 730);
+
+  // Bottom info banner: Highveld altitude & date
+  g.fillStyle = "rgba(42, 48, 144, 0.4)";
+  roundRect(g, 100, 810, 880, 110, 16);
+  g.fill();
+  g.fillStyle = "#ffffff";
+  g.font = `600 32px ${disp}`;
+  g.fillText(`DATE: ${params.dateStr} · HIGHVELD 1,520M ELEVATION`, W / 2, 860);
+  g.fillStyle = "#cbd5e1";
+  g.font = `500 26px system-ui,sans-serif`;
+  g.fillText("Fast and unshakeable on township roads. Train with Ivory Park AC.", W / 2, 895);
+
+  // Footer
+  g.fillStyle = "#94a3b8";
+  g.font = `500 26px system-ui,sans-serif`;
+  g.fillText("tearn1.github.io/Ivory-Park-Athletics-Club", W / 2, 980);
+
+  g.textAlign = "left"; // reset
+  return new Promise((ok, bad) => c.toBlob((b) => (b ? ok(b) : bad(new Error("Could not make trophy card"))), "image/png"));
+}
+
 /** Share the image where the phone allows it, otherwise save it. */
 export async function shareOrSave(blob: Blob, name: string): Promise<"shared" | "saved"> {
   const file = new File([blob], name, { type: "image/png" });

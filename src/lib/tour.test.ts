@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  ATHLETE_GUIDE_STEPS,
+  COACH_MASTERY_STEPS,
   isTourCompleted,
   MOST_USED_TOUR_STEPS,
   OVERVIEW_TOUR_STEPS,
@@ -36,6 +38,18 @@ describe("tour library", () => {
 
     // Strictly ensure zero emojis in step text
     MOST_USED_TOUR_STEPS.forEach((step) => {
+      expect(/[\uD800-\uDFFF]/.test(step.title)).toBe(false);
+      expect(/[\uD800-\uDFFF]/.test(step.description)).toBe(false);
+      expect(/[\uD800-\uDFFF]/.test(step.badge)).toBe(false);
+      expect(/[\uD800-\uDFFF]/.test(step.actionHint)).toBe(false);
+    });
+  });
+
+  it("provides specialized Athlete Guide and Coach Mastery tour tracks", () => {
+    expect(ATHLETE_GUIDE_STEPS.length).toBe(6);
+    expect(COACH_MASTERY_STEPS.length).toBe(6);
+
+    [...ATHLETE_GUIDE_STEPS, ...COACH_MASTERY_STEPS].forEach((step) => {
       expect(/[\uD800-\uDFFF]/.test(step.title)).toBe(false);
       expect(/[\uD800-\uDFFF]/.test(step.description)).toBe(false);
       expect(/[\uD800-\uDFFF]/.test(step.badge)).toBe(false);

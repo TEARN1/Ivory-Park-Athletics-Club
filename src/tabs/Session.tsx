@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { sessionCsv } from "../lib/csv";
+import { sessionCsv, cgaAsaSanctionCsv, compressedSmsResults } from "../lib/csv";
 import * as C from "../lib/club";
 import * as S from "../lib/session";
 import { shareOrSave, resultsImage } from "../lib/shareImage";
-import { spokenTime } from "../lib/sound";
+import { playStarterHorn, playWhistleBlast, spokenTime } from "../lib/sound";
 import { loadHistory } from "../lib/store";
 import * as W from "../lib/workout";
 import { Confirm, download } from "../ui";
@@ -116,9 +116,122 @@ function Running(p: SessionProps) {
   useWakeLock();
   return p.s.mode === "reps" ? <RepsRunning {...p} /> : <RaceRunning {...p} />;
 }
+
+/** Full-Screen High-Contrast AMOLED Runner Heads-Up Display */
+function RunnerHud({
+  s,
+  now,
+  onExit,
+  onLapSplit,
+}: {
+  s: S.Session;
+  now: number;
+  onExit: () => void;
+  onLapSplit: () => void;
+}) {
+  const elapsedMs = s.startedAt ? now - s.startedAt : 0;
+  const elapsedSec = Math.floor(elapsedMs / 1000);
+  const distanceKm = s.distanceKm || 5.0;
+  const currentPaceSec = distanceKm > 0 && elapsedSec > 0 ? elapsedSec / distanceKm : 0;
+  const laps = s.mode === "laps" ? s.laps : undefined;
+
+  // Media Session handlers for earphone / smartwatch physical buttons
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: "IPAC AMOLED HUD Running Clock",
+          artist: "Ivory Park AC",
+          album: "In-Run Lap Timing",
+        });
+        const handleAction = () => onLapSplit();
+        navigator.mediaSession.setActionHandler("play", handleAction);
+        navigator.mediaSession.setActionHandler("pause", handleAction);
+        navigator.mediaSession.setActionHandler("nexttrack", handleAction);
+      } catch { /* unsupported */ }
+    }
+  }, [onLapSplit]);
+
+  // Tactile volume keys and spacebar trigger
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "Enter" || e.key === "VolumeUp" || e.key === "VolumeDown") {
+        e.preventDefault();
+        onLapSplit();
+      } else if (e.key === "Escape") {
+        onExit();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onLapSplit, onExit]);
+
+  return (
+    <div className="ipac-hud-overlay" role="dialog" aria-modal="true" aria-label="Runner Heads-Up Display">
+      <div className="ipac-hud-header">
+        <span className="ipac-hud-badge">AMOLED RUNNER HUD · ZERO-DATA</span>
+        <button type="button" className="ipac-hud-close" onClick={onExit} aria-label="Exit HUD mode">
+          Standard View ✕
+        </button>
+      </div>
+
+      <div className="ipac-hud-metrics">
+        <div className="ipac-hud-primary">
+          <span className="ipac-hud-label">ELAPSED TIME</span>
+          <div className="ipac-hud-time">{S.fmtTime(elapsedMs)}</div>
+        </div>
+
+        <div className="ipac-hud-grid">
+          <div className="ipac-hud-stat">
+            <span className="ipac-hud-label">AVG PACE</span>
+            <div className="ipac-hud-val">{S.fmtPace(currentPaceSec)}</div>
+          </div>
+          <div className="ipac-hud-stat">
+            <span className="ipac-hud-label">TARGET DIST</span>
+            <div className="ipac-hud-val">{distanceKm} KM</div>
+          </div>
+          {laps && (
+            <div className="ipac-hud-stat">
+              <span className="ipac-hud-label">CIRCUIT LAPS</span>
+              <div className="ipac-hud-val">{laps.count} LAPS</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="ipac-hud-tap-zone"
+        onClick={onLapSplit}
+        aria-label="Tap anywhere here to record a split or lap"
+      >
+        <span className="ipac-hud-tap-text">TAP ANYWHERE TO SPLIT / LAP</span>
+        <span className="ipac-hud-tap-sub">Single-finger touch · Earphone & volume button enabled</span>
+      </button>
+    </div>
+  );
+}
+
 function RaceRunning({ s, act, now, toast, onEnd, announce, members, safetyPaceSec }: SessionProps) {
   const left = S.stillRunning(s), rows = S.standings(s), median = S.groupMedianPace(s), total = s.runners.length, laps = s.mode === "laps" ? s.laps : undefined;
+  const [showHud, setShowHud] = useState(false);
   const memberPace = (r: S.Runner) => members.find((m) => m.id === r.memberId)?.targetPaceSec;
+
+  // Tactile volume button listener
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+      if (isInput) return;
+      if (e.key === "VolumeUp" || e.key === "VolumeDown") {
+        e.preventDefault();
+        if (left.length > 0) tap(left[0]);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [left]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const tap = (r: S.Runner) => {
     navigator.vibrate?.(30); const t = Date.now();
     if (laps) {
@@ -141,7 +254,32 @@ function RaceRunning({ s, act, now, toast, onEnd, announce, members, safetyPaceS
         <div className="ipac-clock" role="timer">{S.fmtTime(now - s.startedAt!)}</div>
         <div className="ipac-prog" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={rows.length} aria-label="Runners home"><span style={{ width: `${(rows.length / total) * 100}%` }} /></div>
         <div className="ipac-clockfoot"><span>{rows.length} of {total} home</span><span>Median pace {S.fmtPace(median)}</span></div>
+        <div className="ipac-row2" style={{ marginTop: "12px", gap: "8px" }}>
+          <button type="button" className="ipac-btn ipac-btn-outline" onClick={() => setShowHud(true)}>
+            AMOLED HUD Mode
+          </button>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button type="button" className="ipac-btn ipac-btn-quiet" title="Track Starter Horn" onClick={() => playStarterHorn()}>
+              Horn
+            </button>
+            <button type="button" className="ipac-btn ipac-btn-quiet" title="Referee Whistle" onClick={() => playWhistleBlast()}>
+              Whistle
+            </button>
+          </div>
+        </div>
       </section>
+
+      {showHud && (
+        <RunnerHud
+          s={s}
+          now={now}
+          onExit={() => setShowHud(false)}
+          onLapSplit={() => {
+            if (left.length > 0) tap(left[0]);
+            else toast("All runners have crossed the line");
+          }}
+        />
+      )}
 
       <SafetyCard s={s} now={now} members={members} safetyPaceSec={safetyPaceSec} />
       {!laps && <BibKeypad s={s} act={act} toast={toast} announce={announce} />}
@@ -169,9 +307,20 @@ function RaceRunning({ s, act, now, toast, onEnd, announce, members, safetyPaceS
 }
 
 /* ---------- 3. Results ---------- */
-function Done({ s, act, onNew, logo, toast }: SessionProps) {
+function Done({ s, act, onNew, logo, toast, members }: SessionProps) {
   const rows = S.standings(s), out = S.stillRunning(s), median = S.groupMedianPace(s), [busy, setBusy] = useState(false);
+  const [copiedSms, setCopiedSms] = useState(false);
   const share = async () => { setBusy(true); try { const how = await shareOrSave(await resultsImage(s, logo), `ipac-results-${s.date}.png`); toast(how === "saved" ? "Results image saved" : "Results image ready to share"); } catch (e) { toast((e as Error).message); } finally { setBusy(false); } };
+  const copySms = async () => {
+    try {
+      await navigator.clipboard.writeText(compressedSmsResults(s));
+      setCopiedSms(true);
+      toast("SMS result string copied for zero-data broadcast");
+      setTimeout(() => setCopiedSms(false), 2500);
+    } catch {
+      toast("Could not access clipboard");
+    }
+  };
   return (
     <>
       <section className="ipac-card">
@@ -189,7 +338,15 @@ function Done({ s, act, onNew, logo, toast }: SessionProps) {
       <section className="ipac-card ipac-next">
         <button className="ipac-btn ipac-btn-hero" onClick={() => onNew(true)}>New session, same runners</button>
         {s.mode !== "reps" && <button className="ipac-btn ipac-btn-outline" onClick={share} disabled={!rows.length || busy}>{busy ? "Making image…" : "Share results image"}</button>}
-        <button className="ipac-btn ipac-btn-outline" onClick={() => download(`ipac-${s.date}.csv`, sessionCsv(s))} disabled={!rows.length}>Download CSV</button>
+        <div className="ipac-row2">
+          <button type="button" className="ipac-btn ipac-btn-outline" onClick={copySms} disabled={!rows.length}>
+            {copiedSms ? "SMS Text Copied" : "Copy Zero-Data SMS"}
+          </button>
+          <button type="button" className="ipac-btn ipac-btn-outline" onClick={() => download(`ipac-cga-asa-${s.date}.csv`, cgaAsaSanctionCsv(s, members))} disabled={!rows.length}>
+            CGA/ASA Sanction CSV
+          </button>
+        </div>
+        <button className="ipac-btn ipac-btn-outline" onClick={() => download(`ipac-${s.date}.csv`, sessionCsv(s))} disabled={!rows.length}>Download Standard CSV</button>
         <div className="ipac-row2">
           <button className="ipac-btn ipac-btn-quiet" onClick={() => act((x) => S.resumeSession(x))}>Resume timing</button>
           <Confirm label="Start fresh" ask="Clear all runners?" onYes={() => onNew(false)} />
@@ -361,22 +518,84 @@ function WorkoutTable({ s }: { s: S.Session }) {
   );
 }
 
-/** Type a bib to finish someone: fast for big fields and for a second timekeeper without the full list. */
+/** Type or rapid-tap a bib to finish someone: fast for big fields and for a finish line official. */
 function BibKeypad({ s, act, toast, announce }: Pick<SessionProps, "s" | "act" | "toast" | "announce">) {
   const [bib, setBib] = useState(""), [err, setErr] = useState("");
+  const [showNumpad, setShowNumpad] = useState(false);
+
+  const finishBib = (targetBib: string) => {
+    try {
+      const t = Date.now(), { session, runner } = S.finishByBib(s, targetBib, t);
+      act(() => session);
+      setBib("");
+      setErr("");
+      navigator.vibrate?.(30);
+      const place = S.standings(session).find((x) => x.runner.id === runner.id);
+      toast(`${S.label(runner)} finished`, () => act((x) => S.undoFinish(x, runner.id)));
+      if (place) announce("finishes", `${runner.name.trim() ? runner.name.trim().split(/\s+/)[0] : `Bib ${runner.bib}`}, ${S.ordinal(place.rank)}, ${spokenTime(place.elapsedMs)}`);
+    } catch (x) { setErr((x as Error).message); }
+  };
+
   return (
-    <form className="ipac-keypad" onSubmit={(e) => {
-      e.preventDefault();
-      try {
-        const t = Date.now(), { session, runner } = S.finishByBib(s, bib, t); act(() => session); setBib(""); setErr(""); navigator.vibrate?.(30);
-        const place = S.standings(session).find((x) => x.runner.id === runner.id);
-        toast(`${S.label(runner)} finished`, () => act((x) => S.undoFinish(x, runner.id)));
-        if (place) announce("finishes", `${runner.name.trim() ? runner.name.trim().split(/\s+/)[0] : `Bib ${runner.bib}`}, ${S.ordinal(place.rank)}, ${spokenTime(place.elapsedMs)}`);
-      } catch (x) { setErr((x as Error).message); }
-    }}>
-      <input aria-label="Finish by bib number" inputMode="numeric" placeholder="Type a bib" value={bib} onChange={(e) => setBib(e.target.value)} />
-      <button className="ipac-btn ipac-btn-primary" disabled={!bib.trim()}>Finish</button>
-      {err && <p role="alert" className="ipac-err">{err}</p>}
-    </form>
+    <div className="ipac-card" style={{ padding: "12px", margin: "12px 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <h3 style={{ margin: 0, fontSize: "0.95rem" }}>Rapid-Tap Bib Finish</h3>
+        <button
+          type="button"
+          className="ipac-btn ipac-btn-quiet"
+          onClick={() => setShowNumpad((v) => !v)}
+          style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+        >
+          {showNumpad ? "Hide Keypad" : "Show 0-9 Keypad"}
+        </button>
+      </div>
+
+      <form className="ipac-keypad" onSubmit={(e) => { e.preventDefault(); if (bib.trim()) finishBib(bib); }}>
+        <input aria-label="Finish by bib number" inputMode="numeric" placeholder="Type or tap bib" value={bib} onChange={(e) => setBib(e.target.value)} />
+        <button className="ipac-btn ipac-btn-primary" disabled={!bib.trim()}>Finish</button>
+      </form>
+
+      {showNumpad && (
+        <div className="ipac-numpad-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginTop: "10px" }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className="ipac-btn ipac-btn-outline"
+              style={{ minHeight: "44px", fontSize: "1.2rem", fontWeight: 700 }}
+              onClick={() => setBib((b) => b + n)}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-quiet"
+            style={{ minHeight: "44px", fontWeight: 700 }}
+            onClick={() => setBib("")}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-outline"
+            style={{ minHeight: "44px", fontSize: "1.2rem", fontWeight: 700 }}
+            onClick={() => setBib((b) => b + "0")}
+          >
+            0
+          </button>
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-hero"
+            style={{ minHeight: "44px", fontWeight: 800 }}
+            disabled={!bib.trim()}
+            onClick={() => finishBib(bib)}
+          >
+            Record
+          </button>
+        </div>
+      )}
+      {err && <p role="alert" className="ipac-err" style={{ margin: "8px 0 0" }}>{err}</p>}
+    </div>
   );
 }

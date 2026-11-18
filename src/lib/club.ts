@@ -5,10 +5,13 @@ export type Gender = "F" | "M" | "X";
 export interface Contact { name: string; phone: string }
 export interface Note { id: string; at: number; text: string }
 export interface PlanItem { id: string; day: string; text: string }
+export interface ShoeRecord { id: string; model: string; km: number; retired?: boolean }
 export interface Member {
   id: string; name: string; bib?: string; licenseNumber?: string; gender?: Gender; birthYear?: number;
   emergency?: Contact; guardian?: Contact; consentAt?: number;   // parent or guardian consent, needed under 18
   active: boolean; joinedAt: number; targetPaceSec?: number; notes: Note[]; plan: PlanItem[];
+  shoes?: ShoeRecord[];
+  medicalNotes?: string;
   updatedAt?: number;   // used to merge backups from two phones: the newer edit wins
 }
 export function newMember(name: string, extra: Partial<Member> = {}, now = Date.now()): Member {

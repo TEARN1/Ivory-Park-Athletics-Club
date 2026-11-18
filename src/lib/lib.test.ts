@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { destination, haversineM, splits, cleanTrack, pathLengthM, reverseGeocodeOsm, type TrackPoint } from "./geo";
 import { initialRelay, relayReduce } from "./relay";
 import { DEFAULT_HUB, generateLoops, reroute, usesBearing } from "./routes";
-import { sessionCsv } from "./csv";
+import { cgaAsaSanctionCsv, compressedSmsResults, sessionCsv } from "./csv";
 import * as S from "./session";
 
 const steady = (paceSecPerKm: number, km: number): TrackPoint[] => {
@@ -75,6 +75,19 @@ describe("csv + edits", () => {
   it("escapes formulas and commas", () => {
     let s = S.newSession(5); s = S.addRunner(s, '=HYPERLINK("x"), Bob', "9"); s = S.start(s, 0); s = S.finish(s, s.runners[0].id, 1_500_000);
     const csv = sessionCsv(s); expect(csv).toContain(`"'=HYPERLINK(""x""), Bob"`); expect(csv.split("\n")[1].startsWith("1st,9,")).toBe(true);
+  });
+  it("generates CGA/ASA sanctioning CSV and compressed SMS results", () => {
+    let s = S.newSession(5);
+    s = S.addRunner(s, "Tshepo Mokoena", "12");
+    s = S.start(s, 0);
+    s = S.finish(s, s.runners[0].id, 1_000_000); // 16:40
+    const sanctionCsv = cgaAsaSanctionCsv(s, [{ id: s.runners[0].id, licenseNumber: "CGA-2026-99" }]);
+    expect(sanctionCsv).toContain("Ivory Park Athletics Club");
+    expect(sanctionCsv).toContain("CGA-2026-99");
+    expect(sanctionCsv).toContain("SeaLevelEquivalentTime");
+    const sms = compressedSmsResults(s);
+    expect(sms).toContain("IPAC 5KM");
+    expect(sms).toContain("1.#12 Tshepo");
   });
   it("edits a runner and a finish time", () => {
     let s = S.newSession(5); s = S.addRunner(s, "A", "1"); s = S.addRunner(s, "B", "2"); s = S.start(s, 0); const [a] = s.runners; s = S.finish(s, a.id, 600000);

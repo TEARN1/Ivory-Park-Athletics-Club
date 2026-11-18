@@ -58,6 +58,48 @@ export function vibrate(pattern: number | number[] = [400, 200, 400, 200, 600]) 
   }
 }
 
+/** Synthesized loud track start horn */
+export function playStarterHorn(): void {
+  try {
+    const c = getContext();
+    if (!c) return;
+    const osc1 = c.createOscillator();
+    const osc2 = c.createOscillator();
+    const g = c.createGain();
+    osc1.type = "sawtooth";
+    osc2.type = "square";
+    osc1.frequency.value = 440;
+    osc2.frequency.value = 554;
+    g.gain.setValueAtTime(0.5, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01, c.currentTime + 0.8);
+    osc1.connect(g);
+    osc2.connect(g);
+    g.connect(c.destination);
+    osc1.start();
+    osc2.start();
+    osc1.stop(c.currentTime + 0.8);
+    osc2.stop(c.currentTime + 0.8);
+  } catch {}
+}
+
+/** Synthesized referee whistle blast */
+export function playWhistleBlast(): void {
+  try {
+    const c = getContext();
+    if (!c) return;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(2400, c.currentTime);
+    osc.frequency.linearRampToValueAtTime(2700, c.currentTime + 0.25);
+    g.gain.setValueAtTime(0.4, c.currentTime);
+    g.gain.linearRampToValueAtTime(0.01, c.currentTime + 0.35);
+    osc.connect(g).connect(c.destination);
+    osc.start();
+    osc.stop(c.currentTime + 0.35);
+  } catch {}
+}
+
 /** Energetic morning wake-up chime / race fanfare */
 export function playAlarmFanfare() {
   try {

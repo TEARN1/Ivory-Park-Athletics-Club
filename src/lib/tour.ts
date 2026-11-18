@@ -8,7 +8,123 @@ export interface TourStep {
   suggestedTab?: "today" | "session" | "runners" | "map" | "dispatch" | "club";
 }
 
-export type TourMode = "most_used" | "overview";
+export type TourMode = "athlete_guide" | "coach_mastery" | "most_used" | "overview";
+
+/** Track 1: Athlete Daily Guide: Training, HUD & Pick Me Up */
+export const ATHLETE_GUIDE_STEPS: TourStep[] = [
+  {
+    id: "ath-pwa",
+    selector: '.ipac-head-actions button[title*="Get App"], .ipac-head-actions button:first-child',
+    title: "1. Install PWA for Zero-Data Offline Access",
+    badge: "Athlete Essential",
+    description: "Install this app directly to your phone home screen. Once installed, it runs 100% offline without requiring cellular data.",
+    actionHint: "Tap the install icon in the header, or choose 'Add to Home Screen' in your mobile browser menu.",
+    suggestedTab: "today",
+  },
+  {
+    id: "ath-gps-map",
+    selector: ".ipac-map-engine-pill, .ipac-floating-actions",
+    title: "2. Single-Touch Map Navigation & Live GPS",
+    badge: "In-Run Navigation",
+    description: "Navigate routes across Ivory Park with one-finger touch controls. Tap 'My Location' to instantly center the camera on your live GPS coordinates.",
+    actionHint: "Switch between OpenStreetMap Night and Esri Satellite Hybrid without any API paywalls.",
+    suggestedTab: "map",
+  },
+  {
+    id: "ath-pickup",
+    selector: ".ipac-card:has(h3:contains('Pickup'))",
+    title: "3. Race-Day Gate Pickup Request",
+    badge: "Fleet Logistics",
+    description: "Before sleeping or on Saturday morning, tap 'Pick Me Up' to transmit your high-accuracy GPS coordinates to the coach van and volunteer carpools.",
+    actionHint: "Locks your exact gate coordinates within +/- 4 meters, eliminating rough cell-tower offsets.",
+    suggestedTab: "today",
+  },
+  {
+    id: "ath-hud",
+    selector: ".ipac-card:has(h2:contains('Today'))",
+    title: "4. High-Contrast Runner Heads-Up Display (HUD)",
+    badge: "Glanceable Timing",
+    description: "Switch to AMOLED black HUD mode during training for giant, high-contrast numbers displaying elapsed time, pace per km, and distance.",
+    actionHint: "Automatic Screen Wake Lock prevents your phone from sleeping while running on pace.",
+    suggestedTab: "session",
+  },
+  {
+    id: "ath-handsfree",
+    selector: ".ipac-status",
+    title: "5. Hands-Free Audio Splits & Earphone Controls",
+    badge: "Audio Intelligence",
+    description: "Receive automatic spoken kilometer pace announcements through your earphones. Tap your Bluetooth earphone button to log lap splits without touching your phone.",
+    actionHint: "Configure voice cadence and lap announcements in Appearance settings.",
+    suggestedTab: "session",
+  },
+  {
+    id: "ath-safety",
+    selector: ".ipac-map-loc-banner, .ipac-floating-actions",
+    title: "6. Township Safety Flags & Emergency SOS Beacon",
+    badge: "Athlete Protection",
+    description: "Inspect road hazard markers for unlit intersections and loose dogs. Use the SOS button to instantly share your exact location via WhatsApp or SMS in an emergency.",
+    actionHint: "Check morning sunrise alerts to ensure you run with reflective gear before dawn.",
+    suggestedTab: "map",
+  },
+];
+
+/** Track 2: Coach & Race Director Mastery */
+export const COACH_MASTERY_STEPS: TourStep[] = [
+  {
+    id: "coach-distances",
+    selector: '.ipac-chips[aria-label="Distance"]',
+    title: "1. Race Distances (1, 2, 5, 10, 15, 20, 21.1 km)",
+    badge: "Session Setup",
+    description: "One-click distance dials configured for Ivory Park speedwork and long runs, from 1 km cadence repeats to 21.1 km Highveld endurance tests.",
+    actionHint: "Select a distance preset to automatically calibrate target paces and runner rankings.",
+    suggestedTab: "session",
+  },
+  {
+    id: "coach-clock",
+    selector: ".ipac-cta button.ipac-btn-hero, .ipac-cta",
+    title: "2. Master Race Clock & Starter Horn",
+    badge: "Field Operations",
+    description: "Start official sessions with a synthesized 5-second countdown and loud start horn. Audio plays cleanly through connected Bluetooth track speakers.",
+    actionHint: "Supports staggered wave heats (Sub-20 5K, 5:00/km pack, Junior Development squad).",
+    suggestedTab: "session",
+  },
+  {
+    id: "coach-bib-pad",
+    selector: ".ipac-tk-table-wrap, .ipac-card",
+    title: "3. Rapid-Tap Bib Keypad & Volume Button Logging",
+    badge: "Finish Line Timing",
+    description: "Rapidly record sprint finishes by tapping bib digits on the keypad, or press physical device volume buttons to capture split seconds with tactile feedback.",
+    actionHint: "Sub-second millisecond timestamps prevent finish chute congestion.",
+    suggestedTab: "session",
+  },
+  {
+    id: "coach-fleet",
+    selector: ".ipac-card:has(label:contains('Transport'))",
+    title: "4. Multi-Vehicle Fleet Dispatch & Driver Turn-by-Turn",
+    badge: "Transport Optimizer",
+    description: "Optimize shortest driving routes across the 14-seater Coach Van and 4-seater Carpool. Export turn-by-turn multi-stop Google Maps directions with one click.",
+    actionHint: "Automatic geographic clustering balances seat capacities and minimizes fuel transit.",
+    suggestedTab: "map",
+  },
+  {
+    id: "coach-alarm",
+    selector: ".ipac-card .ipac-form button.ipac-btn-primary",
+    title: "5. Morning 04:30 Wake-Up Alarm & Squad Dispatch",
+    badge: "Saturday Coordination",
+    description: "Broadcast offline alarms for Saturday 5km time trials and league races. Generates WhatsApp links that sound alarms on athletes' phones even without network access.",
+    actionHint: "Track live attendance check-ins (Awake, En Route, Needs Pickup).",
+    suggestedTab: "dispatch",
+  },
+  {
+    id: "coach-asa-export",
+    selector: ".ipac-card:has(button:contains('CSV'))",
+    title: "6. CGA / ASA Compliance Export & Cloud Isolation",
+    badge: "Official Sanctioning",
+    description: "Export Central Gauteng Athletics (CGA) and ASA sanctioning reports with category rankings. Synced securely to the shared Supabase database in dedicated 'ipac_*' tables.",
+    actionHint: "Complete separation from The Resident and The Grooves database records.",
+    suggestedTab: "club",
+  },
+];
 
 /** High-impact, most-used daily action buttons on the app */
 export const MOST_USED_TOUR_STEPS: TourStep[] = [

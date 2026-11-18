@@ -3,6 +3,8 @@ import * as C from "../lib/club";
 import * as S from "../lib/session";
 import { Confirm } from "../ui";
 import AthleticLab from "./AthleticLab";
+import { pbTrophyCardImage, shareOrSave } from "../lib/shareImage";
+import logo from "../assets/logo.jpg";
 
 type Props = { club: C.ClubData; setClub: (c: C.ClubData) => void; history: S.Session[]; today: string };
 const year = (today: string) => +today.slice(0, 4);
@@ -103,8 +105,60 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
     pace: C.fmtPaceInput(m.targetPaceSec),
   });
   const [ec, setEc] = useState(m.emergency ?? { name: "", phone: "" }), [gd, setGd] = useState(m.guardian ?? { name: "", phone: "" });
+  const [medNotes, setMedNotes] = useState(m.medicalNotes || "");
+  const [shoeModel, setShoeModel] = useState(""), [shoeKm, setShoeKm] = useState(""), [trophyBusy, setTrophyBusy] = useState(false);
   const [note, setNote] = useState(""), [plan, setPlan] = useState({ day: "", text: "" }), [err, setErr] = useState(""), [ok, setOk] = useState("");
   const done = (msg: string) => { setErr(""); setOk(msg); setTimeout(() => setOk(""), 2000); };
+
+  const shareTrophy = async (pb: { distanceKm: number; ms: number; date: string }) => {
+    setTrophyBusy(true);
+    try {
+      const paceStr = S.fmtPace(pb.ms / 1000 / pb.distanceKm);
+      const timeStr = S.fmtTime(pb.ms);
+      const blob = await pbTrophyCardImage(
+        {
+          name: m.name,
+          bib: m.bib,
+          distanceKm: pb.distanceKm,
+          timeStr,
+          paceStr,
+          dateStr: pb.date,
+        },
+        logo
+      );
+      await shareOrSave(blob, `ipac-pb-trophy-${m.name.toLowerCase().replace(/\s+/g, "-")}-${pb.distanceKm}k.png`);
+      done("PB Trophy Card shared / saved");
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setTrophyBusy(false);
+    }
+  };
+
+  const shoes = m.shoes || [];
+  const addShoe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shoeModel.trim()) return;
+    const newShoe: C.ShoeRecord = {
+      id: crypto.randomUUID(),
+      model: shoeModel.trim(),
+      km: Math.max(0, parseFloat(shoeKm) || 0),
+    };
+    save({ shoes: [...shoes, newShoe] });
+    setShoeModel("");
+    setShoeKm("");
+    done("Shoe gear tracked");
+  };
+  const addShoeKm = (shoeId: string, addKm: number) => {
+    const updated = shoes.map((s) => (s.id === shoeId ? { ...s, km: Math.round((s.km + addKm) * 10) / 10 } : s));
+    save({ shoes: updated });
+    done(`Logged +${addKm} km to shoe`);
+  };
+  const retireShoe = (shoeId: string) => {
+    const updated = shoes.map((s) => (s.id === shoeId ? { ...s, retired: !s.retired } : s));
+    save({ shoes: updated });
+    done("Shoe status updated");
+  };
   const saveDetails = (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -147,14 +201,74 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
         <h2>Personal bests</h2>
         {!pbs.length ? <p className="ipac-empty">No finished races yet.</p> : (
           <ul className="ipac-roster">{pbs.map((r) => (
-            <li key={r.distanceKm}><span className="ipac-who"><b>{r.distanceKm} km · {S.fmtTime(r.ms)}</b>
-              <small>{r.date} · {S.fmtPace(r.ms / 1000 / r.distanceKm)}{age !== undefined && ` · age-adjusted ${S.fmtTime(C.ageAdjustedMs(r.ms, age))}`}</small></span></li>))}</ul>)}
+            <li key={r.distanceKm}>
+              <span className="ipac-who">
+                <b>{r.distanceKm} km · {S.fmtTime(r.ms)}</b>
+                <small>{r.date} · {S.fmtPace(r.ms / 1000 / r.distanceKm)}{age !== undefined && ` · age-adjusted ${S.fmtTime(C.ageAdjustedMs(r.ms, age))}`}</small>
+              </span>
+              <button
+                type="button"
+                className="ipac-btn ipac-btn-quiet"
+                disabled={trophyBusy}
+                onClick={() => shareTrophy(r)}
+                title="Create WhatsApp PB Trophy Card"
+                aria-label={`Share ${r.distanceKm} km PB Trophy card`}
+              >
+                Trophy Card
+              </button>
+            </li>))}</ul>)}
         {age !== undefined && pbs.length > 0 && <p className="ipac-hint">Age-adjusted times use a simple club estimate, not the official WMA age-grading tables.</p>}
         {distances.length > 0 && <>
           <h2 className="ipac-h2gap">Progress</h2>
           {distances.length > 1 && <div className="ipac-chips" role="group" aria-label="Progress distance">{distances.map((k) => <button key={k} className="ipac-chip" aria-pressed={chartKm === k} onClick={() => setChartKm(k)}>{k} km</button>)}</div>}
           <Progress results={res.filter((r) => r.distanceKm === (chartKm ?? distances[0]))} km={chartKm ?? distances[0]} />
         </>}
+      </section>
+
+      <section className="ipac-card">
+        <h2>Running Shoes & Mileage Alert</h2>
+        <p className="ipac-hint" style={{ marginTop: 0 }}>
+          Highveld road impact breaks down midsole EVA cushioning between 500-650 km. Track mileage to prevent shin splints and knee strain.
+        </p>
+        {shoes.length > 0 && (
+          <ul className="ipac-roster">
+            {shoes.map((sh) => {
+              const isWorn = sh.km >= 650;
+              const isWarning = sh.km >= 450 && sh.km < 650;
+              return (
+                <li key={sh.id} style={{ opacity: sh.retired ? 0.6 : 1 }}>
+                  <span className="ipac-who">
+                    <b>{sh.model} {sh.retired && "(Retired)"}</b>
+                    <small>
+                      {sh.km} km logged · {isWorn ? "Injury Risk: Midsole EVA compressed, replace" : isWarning ? "Moderate wear: Monitor joint strain" : "Cushioning healthy"}
+                    </small>
+                    <span className="ipac-flags">
+                      {isWorn && <em className="ipac-flag ipac-flag-warn">Over 650 km - Replace</em>}
+                      {isWarning && <em className="ipac-flag">450-650 km - Monitor</em>}
+                      {!isWorn && !isWarning && <em className="ipac-flag" style={{ borderColor: "#0e7a3d", color: "#0e7a3d" }}>Healthy</em>}
+                    </span>
+                  </span>
+                  {!sh.retired ? (
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      <button type="button" className="ipac-btn ipac-btn-quiet" onClick={() => addShoeKm(sh.id, 5)}>+5k</button>
+                      <button type="button" className="ipac-btn ipac-btn-quiet" onClick={() => addShoeKm(sh.id, 10)}>+10k</button>
+                      <button type="button" className="ipac-btn ipac-btn-quiet" onClick={() => retireShoe(sh.id)}>Retire</button>
+                    </div>
+                  ) : (
+                    <button type="button" className="ipac-btn ipac-btn-quiet" onClick={() => retireShoe(sh.id)}>Unretire</button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <form className="ipac-form" onSubmit={addShoe}>
+          <div className="ipac-grid2">
+            <label>Shoe Model<input placeholder="e.g. Nike Pegasus 40" value={shoeModel} onChange={(e) => setShoeModel(e.target.value)} /></label>
+            <label>Current km<input inputMode="numeric" placeholder="0" value={shoeKm} onChange={(e) => setShoeKm(e.target.value.replace(/[^\d.]/g, ""))} /></label>
+          </div>
+          <button className="ipac-btn ipac-btn-outline" disabled={!shoeModel.trim()}>Add Shoe Pair</button>
+        </form>
       </section>
 
       <section className="ipac-card">
@@ -174,11 +288,17 @@ function Profile({ m, club, setClub, history, today, back }: Props & { m: C.Memb
       </section>
 
       <section className="ipac-card">
-        <h2>Safety</h2>
+        <h2>Safety & Medical Aid</h2>
         <form className="ipac-form" onSubmit={(e) => { e.preventDefault(); save({ emergency: ec.name || ec.phone ? { name: ec.name.trim(), phone: ec.phone.trim() } : undefined }); done("Emergency contact saved"); }}>
-          <p className="ipac-label">Emergency contact</p>
+          <p className="ipac-label">Emergency contact (ICE)</p>
           <div className="ipac-grid2"><label>Name<input value={ec.name} onChange={(e) => setEc({ ...ec, name: e.target.value })} /></label><label>Phone<input inputMode="tel" value={ec.phone} onChange={(e) => setEc({ ...ec, phone: e.target.value })} /></label></div>
           <button className="ipac-btn ipac-btn-outline">Save emergency contact</button>
+        </form>
+        <form className="ipac-form" onSubmit={(e) => { e.preventDefault(); save({ medicalNotes: medNotes.trim() }); done("Medical aid details saved"); }}>
+          <label>Medical Conditions, Allergies & Aid
+            <input value={medNotes} onChange={(e) => setMedNotes(e.target.value)} placeholder="e.g. Asthmatic (inhaler), Penicillin allergy, Discovery Vitality 9812..." />
+          </label>
+          <button className="ipac-btn ipac-btn-outline">Save medical notes</button>
         </form>
         {C.isMinor(m, yr) && (
           <form className="ipac-form" onSubmit={(e) => { e.preventDefault(); save({ guardian: { name: gd.name.trim(), phone: gd.phone.trim() } }); done("Guardian saved"); }}>

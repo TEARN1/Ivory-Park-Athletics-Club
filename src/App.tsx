@@ -29,7 +29,16 @@ import { isTourCompleted } from "./lib/tour";
 import { Confirm, Icons } from "./ui";
 
 type Tab = "today" | "session" | "runners" | "map" | "dispatch" | "club";
-const NAV: [Tab, string][] = [
+type RoleMode = "athlete" | "coach";
+
+const NAV_ATHLETE: [Tab, string][] = [
+  ["today", "Today"],
+  ["session", "Run & HUD"],
+  ["map", "Map"],
+  ["dispatch", "Team Hub"],
+];
+
+const NAV_COACH: [Tab, string][] = [
   ["today", "Today"],
   ["session", "Session"],
   ["runners", "Runners"],
@@ -37,12 +46,26 @@ const NAV: [Tab, string][] = [
   ["dispatch", "Team Hub"],
   ["club", "Club"],
 ];
+
 const PHASE_LABEL = { setup: "Setting up", running: "Race on", done: "Finished" };
 const STAGES: [S.Phase, string][] = [["setup", "Set up"], ["running", "Race on"], ["done", "Results"]];
 const deepLink = parseJoinParams(location.search);
 const prefersDark = () => window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 
 export default function App() {
+  const [roleMode, setRoleMode] = useState<RoleMode>(() => {
+    try {
+      return (localStorage.getItem("ipac_role_mode") as RoleMode) || "athlete";
+    } catch {
+      return "athlete";
+    }
+  });
+  const [speedDialOpen, setSpeedDialOpen] = useState(false);
+  const [showSos, setShowSos] = useState(false);
+  const [sosLocation, setSosLocation] = useState<{ lat: number; lon: number; accuracy: number } | null>(null);
+  const [sosSiren, setSosSiren] = useState(false);
+  const sosSirenStop = useRef<(() => void) | null>(null);
+
   const [s, setS] = useState<S.Session | null>(null), [tab, setTab] = useState<Tab>(deepLink ? "today" : "session"), [now, setNow] = useState(Date.now());
   const [err, setErr] = useState(""), [pending, setPending] = useState(0), [cfg, setCfg] = useState<Config>({ serverUrl: "", token: "" }), [notices, setNotices] = useState<Notice[]>([]);
   const [prefs, setPrefsState] = useState<Prefs>(defaultPrefs()), [sheet, setSheet] = useState(false), [mapView, setMapView] = useState<"live" | "routes" | "demo">("live");
@@ -279,10 +302,54 @@ export default function App() {
     } catch (e) { setErr((e as Error).message); }
   };
   const onNew = (keep: boolean) => { if (sharing) live.send({ type: "timing", action: { type: "reset" } }); const n = S.nextSession(s, keep); ref.current = n; setS(n); setTab("session"); setSheet(false); window.scrollTo(0, 0); };
-  const go = (t: Tab) => { setTab(t); setSheet(false); window.scrollTo(0, 0); };
+  const go = (t: Tab) => {
+    setTab(t);
+    setSheet(false);
+    setSpeedDialOpen(false);
+    try { window.location.hash = `#${t}`; } catch {}
+    window.scrollTo(0, 0);
+  };
   const startRace = () => { setSheet(false); if (!s.runners.length) return; if (prefs.sound.countdownSec > 0) setCountdown(prefs.sound.countdownSec); else { if (prefs.sound.beeps) beep(1200, 600); startNow(); go("session"); } };
   const announce = (kind: "finishes" | "laps", text: string) => { if (prefs.sound.beeps) beep(1000, 90, 0.25); if (prefs.sound.voice && prefs.sound[kind]) say(text); };
   const joinPanel = (bare?: boolean) => <JoinPanel s={s} act={act} cfg={cfg} bare={bare} />;
+
+  // Deep-Link Hash Routing
+  useEffect(() => {
+    const handleHash = () => {
+      const h = window.location.hash.replace("#", "") as Tab;
+      if (["today", "session", "runners", "map", "dispatch", "club"].includes(h)) {
+        setTab(h);
+      }
+    };
+    if (window.location.hash) handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
+
+  // Emergency SOS GPS tracking
+  useEffect(() => {
+    if (!showSos) {
+      if (sosSirenStop.current) {
+        sosSirenStop.current();
+        sosSirenStop.current = null;
+        setSosSiren(false);
+      }
+      return;
+    }
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setSosLocation({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            accuracy: Math.round(pos.coords.accuracy),
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+  }, [showSos]);
 
   const athleteTestLink = typeof window !== "undefined" && (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1"))
     ? "https://tearn1.github.io/Ivory-Park-Athletics-Club/"
@@ -294,6 +361,30 @@ export default function App() {
         <img className="ipac-logo" src={logo} alt="Ivory Park Athletics Club logo" />
         <div className="ipac-title"><h1>Ivory Park Athletics Club</h1><p>{s.date} · {s.distanceKm} km</p></div>
         <div className="ipac-head-actions">
+          <div className="ipac-role-switch" role="group" aria-label="Role selector">
+            <button
+              type="button"
+              className={`ipac-role-btn ${roleMode === "athlete" ? "active" : ""}`}
+              onClick={() => {
+                setRoleMode("athlete");
+                try { localStorage.setItem("ipac_role_mode", "athlete"); } catch {}
+                showToast("Athlete Mode: In-run timing and streamlined navigation");
+              }}
+            >
+              Athlete
+            </button>
+            <button
+              type="button"
+              className={`ipac-role-btn ${roleMode === "coach" ? "active" : ""}`}
+              onClick={() => {
+                setRoleMode("coach");
+                try { localStorage.setItem("ipac_role_mode", "coach"); } catch {}
+                showToast("Coach Mode: Full race clock, fleet dispatch and admin");
+              }}
+            >
+              Coach
+            </button>
+          </div>
           <button className="ipac-themebtn" aria-label="Take app tour / Help" title="Interactive App Tour" onClick={() => setShowTour(true)}>{Icons.help}</button>
           <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
           <button className="ipac-themebtn" aria-label={isNight ? "Switch to day theme" : "Switch to night theme"} onClick={() => setPrefs({ ...prefs, mode: isNight ? "light" : "dark" })}>{isNight ? Icons.sun : Icons.moon}</button>
@@ -490,8 +581,158 @@ export default function App() {
         </div>
       )}
 
+      {/* Quick-Action Floating Speed Dial */}
+      <div className="ipac-speed-dial-wrap">
+        {speedDialOpen && (
+          <div className="ipac-speed-dial-menu" role="menu">
+            <button
+              type="button"
+              className="ipac-speed-dial-item ipac-sd-sos"
+              role="menuitem"
+              onClick={() => { setSpeedDialOpen(false); setShowSos(true); }}
+            >
+              <span className="ipac-sd-icon">SOS</span>
+              <span className="ipac-sd-label">Emergency SOS</span>
+            </button>
+            <button
+              type="button"
+              className="ipac-speed-dial-item"
+              role="menuitem"
+              onClick={() => {
+                setSpeedDialOpen(false);
+                vibrate([40, 40]);
+                say("Split timestamp recorded");
+                showToast(`Split recorded at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`);
+              }}
+            >
+              <span className="ipac-sd-icon">SPLIT</span>
+              <span className="ipac-sd-label">Record Split</span>
+            </button>
+            <button
+              type="button"
+              className="ipac-speed-dial-item"
+              role="menuitem"
+              onClick={() => {
+                setSpeedDialOpen(false);
+                go("session");
+              }}
+            >
+              <span className="ipac-sd-icon">RUN</span>
+              <span className="ipac-sd-label">Run & HUD</span>
+            </button>
+            <button
+              type="button"
+              className="ipac-speed-dial-item"
+              role="menuitem"
+              onClick={() => {
+                setSpeedDialOpen(false);
+                if ("geolocation" in navigator) {
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      kvSet("ipac_last_gps", {
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude,
+                        accuracy: Math.round(pos.coords.accuracy),
+                        at: Date.now(),
+                      });
+                      say("Pickup beacon transmitted");
+                      showToast(`Gate pickup location locked (+/- ${Math.round(pos.coords.accuracy)}m)`);
+                    },
+                    () => { showToast("Could not acquire GPS position"); },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                  );
+                }
+              }}
+            >
+              <span className="ipac-sd-icon">PICKUP</span>
+              <span className="ipac-sd-label">Pick Me Up</span>
+            </button>
+          </div>
+        )}
+        <button
+          type="button"
+          className={`ipac-speed-dial-btn ${speedDialOpen ? "ipac-sd-open" : ""}`}
+          aria-label="Quick Actions"
+          aria-expanded={speedDialOpen}
+          onClick={() => {
+            vibrate(20);
+            setSpeedDialOpen((v) => !v);
+          }}
+        >
+          {speedDialOpen ? "✕" : "+"}
+        </button>
+      </div>
+
+      {/* Emergency SOS Beacon Modal */}
+      {showSos && (
+        <div className="ipac-scrim" onClick={(e) => e.target === e.currentTarget && setShowSos(false)}>
+          <div className="ipac-sheet ipac-sos-sheet" role="dialog" aria-modal="true" aria-label="Emergency SOS Beacon">
+            <div className="ipac-sheet-head">
+              <h2 style={{ color: "#ff4a52" }}>Emergency SOS Beacon</h2>
+              <button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close SOS" onClick={() => setShowSos(false)}>Close</button>
+            </div>
+            <p className="ipac-hint" style={{ marginTop: 0 }}>
+              Broadcast your high-accuracy GPS coordinates to the coach and emergency contacts in case of road injury, stray dog pack, or distress.
+            </p>
+            <div className="ipac-sos-coords-card">
+              <span className="ipac-sos-coords-label">High-Accuracy GPS Lock</span>
+              <div className="ipac-sos-coords-val">
+                {sosLocation ? `${sosLocation.lat.toFixed(5)}, ${sosLocation.lon.toFixed(5)}` : "Acquiring satellite lock…"}
+              </div>
+              <small style={{ color: "#94a3b8" }}>
+                {sosLocation ? `Accuracy within +/- ${sosLocation.accuracy} meters` : "Enabling GPS sensors…"}
+              </small>
+            </div>
+
+            <div style={{ display: "grid", gap: "10px", marginTop: "16px" }}>
+              <a
+                className="ipac-btn ipac-btn-hero ipac-btn-wide"
+                style={{ background: "#25D366", borderColor: "#25D366", color: "#000000", fontWeight: 800, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}
+                href={`https://wa.me/?text=${encodeURIComponent(`EMERGENCY SOS: Ivory Park athlete requires immediate assistance on training route. Location coordinates: https://maps.google.com/?q=${sosLocation?.lat || -25.9967},${sosLocation?.lon || 28.2}`)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Send SOS via WhatsApp
+              </a>
+              <a
+                className="ipac-btn ipac-btn-outline ipac-btn-wide"
+                style={{ textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}
+                href={`sms:?body=${encodeURIComponent(`EMERGENCY SOS: Ivory Park athlete requires immediate assistance. Coordinates: https://maps.google.com/?q=${sosLocation?.lat || -25.9967},${sosLocation?.lon || 28.2}`)}`}
+              >
+                Send SOS via SMS (Zero Data)
+              </a>
+              <button
+                type="button"
+                className="ipac-btn ipac-btn-quiet"
+                style={{ color: sosSiren ? "#ff8088" : "inherit" }}
+                onClick={() => {
+                  if (sosSiren) {
+                    if (sosSirenStop.current) {
+                      sosSirenStop.current();
+                      sosSirenStop.current = null;
+                    }
+                    setSosSiren(false);
+                  } else {
+                    sosSirenStop.current = startAlarmLoop("siren");
+                    vibrate([400, 200, 400, 200, 800]);
+                    setSosSiren(true);
+                  }
+                }}
+              >
+                {sosSiren ? "Stop Loud Siren Alarm" : "Play Loud Distress Siren"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="ipac-nav" aria-label="Sections">
-        {NAV.map(([t, l]) => <button key={t} aria-current={tab === t ? "page" : undefined} onClick={() => go(t)}>{Icons[t]}<span>{l}</span></button>)}
+        {(roleMode === "athlete" ? NAV_ATHLETE : NAV_COACH).map(([t, l]) => (
+          <button key={t} aria-current={tab === t ? "page" : undefined} onClick={() => go(t)}>
+            {Icons[t]}
+            <span>{l}</span>
+          </button>
+        ))}
       </nav>
 
       {showTour && (
