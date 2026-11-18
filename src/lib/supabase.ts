@@ -20,6 +20,7 @@ export const IPAC_TABLES = {
   ALARMS: "ipac_alarms",
   NOTICES: "ipac_notices",
   PROFILES: "ipac_profiles",
+  COACH_CHATS: "ipac_coach_chats",
 } as const;
 
 const STORAGE_KEY = "ipac_supabase_config";

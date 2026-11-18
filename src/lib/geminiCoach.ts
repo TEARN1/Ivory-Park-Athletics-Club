@@ -3,6 +3,7 @@ import { loadCoachAlarm, saveCoachAlarm, saveAthleteCheckIn, type CoachAlarm } f
 import { loadClubSchedule, saveClubSchedule, type ClubScheduleDay } from "./schedule";
 import { standings, fmtTime, fmtPace, type Session } from "./session";
 import { memberResults, personalBests, type Member } from "./club";
+import type { AthleteProfile } from "./auth";
 
 export type CoachActionType =
   | "set_alarm"
@@ -705,6 +706,7 @@ export async function processCoachQuery(
     schedule: ClubScheduleDay[];
     roleMode: "coach" | "athlete";
     apiKey?: string;
+    athlete?: AthleteProfile | null;
   }
 ): Promise<CoachMessage> {
   const q = query.trim().toLowerCase();
@@ -777,6 +779,44 @@ Guidelines:
   }
 
   // 2. High-speed local conversational engine (runs 100% offline with zero latency)
+
+  // 0. Personal Athlete Profile Queries (Private Athlete Mode)
+  if (
+    context.athlete &&
+    (q.includes("my personal best") ||
+      q.includes("my pb") ||
+      q.includes("my shoe") ||
+      q.includes("my footwear") ||
+      q.includes("my gear") ||
+      q.includes("my training") ||
+      q.includes("my profile") ||
+      q.includes("my pace") ||
+      q.includes("my time") ||
+      q.includes("my result") ||
+      q.includes("my stat") ||
+      q.includes("how am i doing") ||
+      q.includes("who am i") ||
+      (q.includes("personal best") && !q.includes("squad") && !q.includes("team")) ||
+      (q.includes("pb") && (q.includes("what is") || q.includes("what are")) && !q.includes("squad")))
+  ) {
+    const a = context.athlete;
+    const pbDetails = [
+      a.best5k && `5km PB: ${a.best5k}`,
+      a.best10k && `10km PB: ${a.best10k}`,
+      a.targetPace && `Target Pace: ${a.targetPace}`,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const shoeDetails = a.shoeModel ? `${a.shoeModel} (${a.shoeKm || 0} km logged)` : "Standard trainers";
+
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Sanibonani ${a.name}! Reviewing your private athlete file (Bib ${a.bib || "-"} • ${a.section}):\n\n- Division: ${a.ageGroup}\n- Personal Bests: ${pbDetails || "Consistent training"}\n- Current Footwear: ${shoeDetails}\n\nYour training sessions and private coach chats are saved to your profile and synced with The Resident & The Gruvs unified club database. Keep your stride smooth on our Highveld roads!`,
+      timestamp,
+    };
+  }
 
   // A. Explicit Action Commands
   if (q.includes("alarm") || (q.includes("set") && (q.includes("5:00") || q.includes("4:30") || q.includes("wake")))) {
@@ -1670,6 +1710,14 @@ Guidelines:
     q === "hello" ||
     q === "coach"
   ) {
+    if (context.athlete) {
+      return {
+        id: timeId,
+        role: "coach",
+        text: `Sanibonani ${context.athlete.name}! I am right here with you on your private coaching channel. What is on your mind? We can chat about how your body is holding up, review your personal targets (Bib ${context.athlete.bib || "-"} • ${context.athlete.section}), analyze your pacing, or plan out our weekend miles. How are your legs feeling after the last run?`,
+        timestamp,
+      };
+    }
     return {
       id: timeId,
       role: "coach",

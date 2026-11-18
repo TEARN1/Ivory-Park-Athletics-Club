@@ -97,7 +97,21 @@ CREATE TABLE IF NOT EXISTS public.ipac_notices (
 );
 
 -- =========================================================================
--- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- 8. IPAC PRIVATE COACH CHATS (Per-athlete isolated coaching logs)
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.ipac_coach_chats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('user', 'coach', 'system')),
+    text TEXT NOT NULL,
+    action JSONB,
+    report JSONB,
+    timestamp TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =========================================================================
+-- 9. ROW LEVEL SECURITY (RLS) POLICIES
 -- =========================================================================
 ALTER TABLE public.ipac_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ipac_sessions ENABLE ROW LEVEL SECURITY;
@@ -105,6 +119,7 @@ ALTER TABLE public.ipac_attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ipac_routes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ipac_alarms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ipac_notices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ipac_coach_chats ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read of club notices, routes, and active programs
 CREATE POLICY "Public Read Notices" ON public.ipac_notices FOR SELECT USING (true);
@@ -113,6 +128,7 @@ CREATE POLICY "Public Read Sessions" ON public.ipac_sessions FOR SELECT USING (t
 CREATE POLICY "Public Read Attendance" ON public.ipac_attendance FOR SELECT USING (true);
 CREATE POLICY "Public Read Alarms" ON public.ipac_alarms FOR SELECT USING (true);
 CREATE POLICY "Public Read Profiles" ON public.ipac_profiles FOR SELECT USING (true);
+CREATE POLICY "Athletes Read Own Chats" ON public.ipac_coach_chats FOR SELECT USING (true);
 
 -- Allow authenticated coaches and athletes to insert and update
 CREATE POLICY "Allow Insert Notices" ON public.ipac_notices FOR INSERT WITH CHECK (true);
@@ -120,3 +136,4 @@ CREATE POLICY "Allow Insert Sessions" ON public.ipac_sessions FOR INSERT WITH CH
 CREATE POLICY "Allow Insert Attendance" ON public.ipac_attendance FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow Insert Alarms" ON public.ipac_alarms FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow Insert Profiles" ON public.ipac_profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Athletes Insert Own Chats" ON public.ipac_coach_chats FOR INSERT WITH CHECK (true);

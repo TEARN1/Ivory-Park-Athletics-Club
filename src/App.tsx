@@ -26,6 +26,8 @@ import Demo from "./tabs/Demo";
 import TeamDispatch from "./tabs/TeamDispatch";
 import TourGuide from "./ui/TourGuide";
 import AICoachHub from "./ui/AICoachHub";
+import AthleteProfileModal from "./ui/AthleteProfileModal";
+import { getCurrentAthlete, type AthleteProfile } from "./lib/auth";
 import { loadClubSchedule } from "./lib/schedule";
 import { isTourCompleted } from "./lib/tour";
 import { Confirm, Icons } from "./ui";
@@ -83,6 +85,8 @@ export default function App() {
   const [showInstall, setShowInstall] = useState(false), [deferredPrompt, setDeferredPrompt] = useState<any>(null), [copiedAppUrl, setCopiedAppUrl] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showAICoach, setShowAICoach] = useState(false);
+  const [currentAthlete, setCurrentAthleteState] = useState<AthleteProfile | null>(() => getCurrentAthlete());
+  const [showAthleteProfileModal, setShowAthleteProfileModal] = useState(false);
   const [activeAlarm, setActiveAlarm] = useState<CoachAlarm | null>(null);
   const alarmStopFn = useRef<(() => void) | null>(null);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
@@ -401,6 +405,27 @@ export default function App() {
           >
             <span className="ipac-coach-head-full">AI Coach</span>
             <span className="ipac-coach-head-short">AI</span>
+          </button>
+          <button
+            className="ipac-themebtn ipac-profile-head-btn"
+            style={{
+              fontWeight: 700,
+              fontSize: "0.76rem",
+              color: currentAthlete ? "#34d399" : "#cbd5e1",
+              border: `1px solid ${currentAthlete ? "rgba(52, 211, 153, 0.45)" : "rgba(203, 213, 225, 0.3)"}`,
+              borderRadius: "8px",
+              padding: "0 8px",
+            }}
+            aria-label="Athlete Profile and Authentication"
+            title={currentAthlete ? `Signed in as ${currentAthlete.name} (Bib ${currentAthlete.bib})` : "Athlete Sign In / Profile"}
+            onClick={() => setShowAthleteProfileModal(true)}
+          >
+            <span className="ipac-coach-head-full">
+              {currentAthlete ? `Bib ${currentAthlete.bib} ${currentAthlete.name.split(" ")[0]}` : "Profile"}
+            </span>
+            <span className="ipac-coach-head-short">
+              {currentAthlete ? `B${currentAthlete.bib}` : "ID"}
+            </span>
           </button>
           <button className="ipac-themebtn" aria-label="Take app tour / Help" title="Interactive App Tour" onClick={() => setShowTour(true)}>{Icons.help}</button>
           <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
@@ -788,8 +813,19 @@ export default function App() {
           schedule={loadClubSchedule()}
           history={history}
           roleMode={roleMode}
+          currentAthlete={currentAthlete}
+          onOpenProfileModal={() => setShowAthleteProfileModal(true)}
           onTriggerAlarmPreview={() => triggerWakeUp(loadCoachAlarm())}
           onNavigateTab={(t) => go(t)}
+          showToast={showToast}
+        />
+      )}
+
+      {showAthleteProfileModal && (
+        <AthleteProfileModal
+          onClose={() => setShowAthleteProfileModal(false)}
+          currentAthlete={currentAthlete}
+          onAthleteChange={(a) => setCurrentAthleteState(a)}
           showToast={showToast}
         />
       )}

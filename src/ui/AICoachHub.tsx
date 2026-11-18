@@ -11,6 +11,12 @@ import { startAlarmLoop, say, beep, vibrate } from "../lib/sound";
 import type { Member } from "../lib/club";
 import type { ClubScheduleDay } from "../lib/schedule";
 import type { Session } from "../lib/session";
+import type { AthleteProfile } from "../lib/auth";
+import {
+  loadAthleteChatHistory,
+  saveAthleteChatHistory,
+  clearAthleteChatHistory,
+} from "../lib/chatStorage";
 
 interface AICoachHubProps {
   onClose: () => void;
@@ -18,6 +24,8 @@ interface AICoachHubProps {
   schedule: ClubScheduleDay[];
   history: Session[];
   roleMode: "coach" | "athlete";
+  currentAthlete?: AthleteProfile | null;
+  onOpenProfileModal?: () => void;
   onTriggerAlarmPreview?: () => void;
   onNavigateTab?: (tab: "today" | "session" | "runners" | "map" | "dispatch" | "club") => void;
   showToast: (msg: string) => void;
@@ -745,6 +753,8 @@ export default function AICoachHub({
   schedule,
   history,
   roleMode,
+  currentAthlete,
+  onOpenProfileModal,
   onTriggerAlarmPreview,
   onNavigateTab,
   showToast,
@@ -766,16 +776,27 @@ export default function AICoachHub({
   const metronomeTimerRef = useRef<any>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const [messages, setMessages] = useState<CoachMessage[]>(() => {
-    return [
-      {
-        id: "intro",
-        role: "coach",
-        text: `Sanibonani! Head Coach and Founder here. Whether you want to talk about how your training is feeling, analyze our past finishing times and pace trends, set morning alarms, or schedule our next Highveld session, I am right here with you. What is on your mind?`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      },
-    ];
-  });
+  const [messages, setMessages] = useState<CoachMessage[]>(() =>
+    loadAthleteChatHistory(currentAthlete || null)
+  );
+
+  // Sync chat history if athlete profile changes
+  useEffect(() => {
+    setMessages(loadAthleteChatHistory(currentAthlete || null));
+  }, [currentAthlete?.id]);
+
+  // Persist messages whenever updated
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveAthleteChatHistory(currentAthlete || null, messages);
+    }
+  }, [messages, currentAthlete?.id]);
+
+  const handleClearHistory = () => {
+    const fresh = clearAthleteChatHistory(currentAthlete || null);
+    setMessages(fresh);
+    showToast("Private coaching chat history cleared");
+  };
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -916,6 +937,7 @@ export default function AICoachHub({
         schedule,
         roleMode,
         apiKey,
+        athlete: currentAthlete || null,
       });
 
       setMessages((prev) => [...prev, response]);
@@ -962,6 +984,69 @@ export default function AICoachHub({
             <p className="ipac-hint" style={{ margin: 0 }}>
               Ivory Park Athletics Club • Autonomous Squad Management
             </p>
+            {currentAthlete ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "10px",
+                    background: "rgba(16, 185, 129, 0.15)",
+                    color: "#10b981",
+                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                  }}
+                >
+                  Private Chat: {currentAthlete.name} (Bib {currentAthlete.bib})
+                </span>
+                {onOpenProfileModal && (
+                  <button
+                    type="button"
+                    className="ipac-btn ipac-btn-quiet"
+                    style={{ fontSize: "0.7rem", padding: "2px 6px" }}
+                    onClick={onOpenProfileModal}
+                  >
+                    Switch Athlete
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="ipac-btn ipac-btn-quiet"
+                  style={{ fontSize: "0.7rem", padding: "2px 6px", color: "#94a3b8" }}
+                  onClick={handleClearHistory}
+                  title="Clear private chat history"
+                >
+                  Clear History
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "4px 8px",
+                  background: "rgba(59, 130, 246, 0.08)",
+                  border: "1px solid rgba(59, 130, 246, 0.2)",
+                  borderRadius: "6px",
+                  fontSize: "0.74rem",
+                  marginTop: "4px",
+                  gap: "6px",
+                }}
+              >
+                <span>Guest mode. Sign in to save private chats with The Gruvs & Resident DB.</span>
+                {onOpenProfileModal && (
+                  <button
+                    type="button"
+                    className="ipac-btn ipac-btn-primary"
+                    style={{ fontSize: "0.7rem", padding: "2px 8px", whiteSpace: "nowrap" }}
+                    onClick={onOpenProfileModal}
+                  >
+                    Sign In
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
             <button
