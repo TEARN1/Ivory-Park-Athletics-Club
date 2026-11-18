@@ -133,4 +133,50 @@ describe("geminiCoach engine", () => {
     const alarm = loadCoachAlarm();
     expect(alarm.time).toBe("05:00");
   });
+
+  it("handles casual conversation 'I wanna talk' warmly without robotic capability dumping", async () => {
+    const res = await processCoachQuery("I wanna talk", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.role).toBe("coach");
+    expect(res.text).toContain("What is on your mind?");
+    expect(res.text).not.toContain("What would you like me to execute?");
+  });
+
+  it("pulls past finishing times and PBs on results inquiry", async () => {
+    const res = await processCoachQuery("Can you analyze our recent finishing times and past results?", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.role).toBe("coach");
+    expect(res.text).toContain("Sipho Dlamini");
+    expect(res.text).toContain("Sibusiso Molefe");
+    expect(res.text).toContain("PB");
+  });
+
+  it("analyzes pace drops and fatigue across sessions", async () => {
+    const res = await processCoachQuery("Who dropped pace on the last run?", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.role).toBe("coach");
+    expect(res.text).toContain("Thabo Mokoena");
+    expect(res.text).toContain("Rabie Ridge");
+    expect(res.text).toContain("45:15");
+  });
+
+  it("answers specific athlete inquiry for Sipho with verified stats", async () => {
+    const res = await processCoachQuery("How is Sipho running lately?", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.role).toBe("coach");
+    expect(res.text).toContain("19:35");
+    expect(res.text).toContain("Personal Best");
+  });
 });

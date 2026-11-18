@@ -9,11 +9,13 @@ import {
 import { startAlarmLoop, say, beep, vibrate } from "../lib/sound";
 import type { Member } from "../lib/club";
 import type { ClubScheduleDay } from "../lib/schedule";
+import type { Session } from "../lib/session";
 
 interface AICoachHubProps {
   onClose: () => void;
   members: Member[];
   schedule: ClubScheduleDay[];
+  history: Session[];
   roleMode: "coach" | "athlete";
   onTriggerAlarmPreview?: () => void;
   onNavigateTab?: (tab: "today" | "session" | "runners" | "map" | "dispatch" | "club") => void;
@@ -21,13 +23,14 @@ interface AICoachHubProps {
 }
 
 const PRESET_COMMANDS = [
+  { label: "Analyze recent times", query: "Can you analyze our recent finishing times and past results?" },
+  { label: "Who dropped pace?", query: "Who dropped pace or faded on the last run?" },
   { label: "Set alarm for 05:00", query: "Set wake-up alarm for all athletes at 05:00 for the morning session" },
   { label: "Saturday 21.1km Long Run", query: "Schedule Saturday 21.1km Long Run at 05:00 from Freedom Drive Hub" },
-  { label: "Join QR Code (5km)", query: "Generate Join QR Code for 5km training session" },
-  { label: "Post on The Resident & Grooves", query: "Post notice to The Resident and The Grooves: Morning endurance run starts 05:00 sharp" },
   { label: "Is training tomorrow? Reserve seat", query: "Is there training tomorrow? If so, reserve my seat in the transport van" },
-  { label: "Check squad shoe wear & injuries", query: "Check squad for injuries, pace drop, and shoes exceeding 650km" },
-  { label: "Recommend 10km route", query: "Recommend a training route for 10km" },
+  { label: "Check shoe wear & injuries", query: "Check squad for injuries, pace drop, and shoes exceeding 650km" },
+  { label: "Post on The Resident & Grooves", query: "Post notice to The Resident and The Grooves: Morning endurance run starts 05:00 sharp" },
+  { label: "Join QR Code (5km)", query: "Generate Join QR Code for 5km training session" },
 ];
 
 function ActionCard({
@@ -191,6 +194,7 @@ export default function AICoachHub({
   onClose,
   members,
   schedule,
+  history,
   roleMode,
   onTriggerAlarmPreview,
   onNavigateTab,
@@ -210,7 +214,7 @@ export default function AICoachHub({
       {
         id: "intro",
         role: "coach",
-        text: `Salibonani! I am your AI Head Coach and Founder of Ivory Park Athletics Club. I can set morning alarms for the squad, schedule long runs, generate start-line join QR codes, post community bulletins to The Resident and The Grooves, reserve transport seats, analyze shoes for injury risk, and suggest Highveld routes. How can I assist you today?`,
+        text: `Sanibonani! Head Coach and Founder here. Whether you want to talk about how your training is feeling, analyze our past finishing times and pace trends, set morning alarms, or schedule our next Highveld session, I am right here with you. What is on your mind?`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       },
     ];
@@ -264,6 +268,7 @@ export default function AICoachHub({
     try {
       const response = await processCoachQuery(q, {
         members,
+        history,
         schedule,
         roleMode,
         apiKey,

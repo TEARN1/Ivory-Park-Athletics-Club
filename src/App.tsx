@@ -771,6 +771,7 @@ export default function App() {
           onClose={() => setShowAICoach(false)}
           members={club.members}
           schedule={loadClubSchedule()}
+          history={history}
           roleMode={roleMode}
           onTriggerAlarmPreview={() => triggerWakeUp(loadCoachAlarm())}
           onNavigateTab={(t) => go(t)}
