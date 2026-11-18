@@ -3569,3 +3569,248 @@ body.has-fullscreen-map .ipac-main {
   background: rgba(255, 255, 255, 0.15);
   color: #e2e8f0;
 }
+
+/* Circular Icon Close Button */
+.ipac-btn-icon-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.04);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+.ipac-btn-icon-close:hover,
+.ipac-btn-icon-close:focus-visible {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+  transform: scale(1.05);
+}
+:root[data-theme="dark"] .ipac-btn-icon-close {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+:root[data-theme="dark"] .ipac-btn-icon-close:hover,
+:root[data-theme="dark"] .ipac-btn-icon-close:focus-visible {
+  background: rgba(255, 74, 82, 0.2);
+  color: #ff4a52;
+  border-color: rgba(255, 74, 82, 0.45);
+}
+
+/* Coach Chat Tool Buttons (Mic, Camera, Speaker) */
+.ipac-coach-tool-btn {
+  width: 40px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.ipac-coach-tool-btn:hover {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+}
+.ipac-coach-mic-active {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #dc2626 !important;
+  animation: ipac-pulse 1s infinite alternate;
+}
+@keyframes ipac-pulse {
+  from { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  to { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+.ipac-coach-speaker-on {
+  color: #0284c7;
+}
+
+/* Staged Attachment Preview */
+.ipac-coach-attached-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px dashed rgba(2, 132, 199, 0.35);
+  border-radius: 8px;
+  margin-top: 8px;
+}
+.ipac-coach-preview-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+.ipac-btn-remove-thumb {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.ipac-btn-remove-thumb:hover {
+  color: #ef4444;
+}
+
+/* Message Image Wrap */
+.ipac-coach-msg-image-wrap {
+  margin: 6px 0;
+}
+.ipac-coach-msg-image {
+  max-width: 180px;
+  max-height: 140px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Shoe Scan Meter */
+.ipac-shoe-km-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ipac-shoe-km-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+}
+.ipac-shoe-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.ipac-shoe-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+  border-radius: 99px;
+}
+
+/* Readiness Circle Gauge */
+.ipac-readiness-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
+  flex-shrink: 0;
+}
+.ipac-readiness-score-num {
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.ipac-readiness-score-denom {
+  font-size: 0.55rem;
+  opacity: 0.85;
+}
+
+/* Relay & Transport Leg Item */
+.ipac-relay-leg-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  font-size: 0.78rem;
+}
+:root[data-theme="dark"] .ipac-relay-leg-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ipac-relay-leg-num {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #0284c7;
+  padding: 2px 6px;
+  background: rgba(2, 132, 199, 0.12);
+  border-radius: 4px;
+}
+
+/* Heart Rate Zones Rows */
+.ipac-hr-zone-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  background: rgba(0, 0, 0, 0.02);
+}
+:root[data-theme="dark"] .ipac-hr-zone-row {
+  background: rgba(255, 255, 255, 0.04);
+}
+.ipac-hr-zone-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ffffff;
+}
+.ipac-hr-zone-1 { background: #64748b; }
+.ipac-hr-zone-2 { background: #0284c7; }
+.ipac-hr-zone-3 { background: #16a34a; }
+.ipac-hr-zone-4 { background: #f59e0b; }
+.ipac-hr-zone-5 { background: #dc2626; }
+
+/* Cadence Metronome Pulse Dot */
+.ipac-metronome-pulse-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 10px #22c55e;
+  animation: ipac-pulse 0.33s infinite alternate;
+}
+
+/* Trophy Room Grid */
+.ipac-trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 6px 0;
+}
+.ipac-trophy-badge {
+  padding: 8px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fcd34d;
+  color: #78350f;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+:root[data-theme="dark"] .ipac-trophy-badge {
+  background: linear-gradient(135deg, rgba(69, 26, 3, 0.7) 0%, rgba(120, 53, 15, 0.8) 100%);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fef3c7;
+}
+.ipac-trophy-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}

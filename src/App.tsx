@@ -444,7 +444,7 @@ export default function App() {
       {sheet && (
         <div className="ipac-scrim" onClick={(e) => e.target === e.currentTarget && setSheet(false)}>
           <div className="ipac-sheet" role="dialog" aria-modal="true" aria-label="Session status">
-            <div className="ipac-sheet-head"><h2>Session status</h2><button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close session status" onClick={() => setSheet(false)}>Close</button></div>
+            <div className="ipac-sheet-head"><h2>Session status</h2><button className="ipac-btn-icon-close" autoFocus aria-label="Close session status" onClick={() => setSheet(false)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button></div>
             <ol className="ipac-stages" aria-label="Stages">{STAGES.map(([k, l], i) => <li key={k} aria-current={k === ph ? "step" : undefined} className={STAGES.findIndex(([x]) => x === ph) > i ? "ipac-stage-done" : ""}>{l}</li>)}</ol>
             {ph === "setup" && (<>
               <p className="ipac-hint">{s.runners.length ? `${s.runners.length} runner${s.runners.length > 1 ? "s are" : " is"} ready.` : "Add runners, or open the run for joiners, then start."}</p>
@@ -479,7 +479,12 @@ export default function App() {
           <div className="ipac-sheet ipac-install-sheet" role="dialog" aria-modal="true" aria-label="Get Ivory Park Athletics Club App">
             <div className="ipac-sheet-head">
               <h2>Get Ivory Park Athletics App</h2>
-              <button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close modal" onClick={() => setShowInstall(false)}>Close</button>
+              <button className="ipac-btn-icon-close" autoFocus aria-label="Close modal" onClick={() => setShowInstall(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             <p className="ipac-hint" style={{ marginTop: 0 }}>
               Scan the QR code with your phone camera or share the link to test and install Ivory Park Athletics Club directly onto athlete devices.
@@ -693,7 +698,12 @@ export default function App() {
           <div className="ipac-sheet ipac-sos-sheet" role="dialog" aria-modal="true" aria-label="Emergency SOS Beacon">
             <div className="ipac-sheet-head">
               <h2 style={{ color: "#ff4a52" }}>Emergency SOS Beacon</h2>
-              <button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close SOS" onClick={() => setShowSos(false)}>Close</button>
+              <button className="ipac-btn-icon-close" autoFocus aria-label="Close SOS" onClick={() => setShowSos(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             <p className="ipac-hint" style={{ marginTop: 0 }}>
               Broadcast your high-accuracy GPS coordinates to the coach and emergency contacts in case of road injury, stray dog pack, or distress.

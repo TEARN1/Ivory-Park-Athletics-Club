@@ -81,7 +81,12 @@ export default function ClubAdmin({ club, setClub, cfg, publish, publishNow }: P
           <div className="ipac-sheet ipac-broadcast-sheet" role="dialog" aria-modal="true" aria-label={`Broadcast ${broadcastEv.title}`}>
             <div className="ipac-sheet-head">
               <h2>Community Broadcast &amp; Flyer</h2>
-              <button className="ipac-btn ipac-btn-quiet" autoFocus aria-label="Close" onClick={() => setBroadcastEv(null)}>Close</button>
+              <button className="ipac-btn-icon-close" autoFocus aria-label="Close" onClick={() => setBroadcastEv(null)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             <p className="ipac-hint" style={{ marginTop: 0 }}>
               Alert sports lovers and community runners across <b>The Resident</b>, <b>The Grooves</b>, <b>The Excellency</b>, and WhatsApp.

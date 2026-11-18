@@ -179,4 +179,118 @@ describe("geminiCoach engine", () => {
     expect(res.text).toContain("19:35");
     expect(res.text).toContain("Personal Best");
   });
+
+  it("handles cadence metronome activation", async () => {
+    const res = await processCoachQuery("Activate 180 SPM cadence metronome", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("cadence_metronome");
+    expect(res.action?.payload.defaultSpm).toBe(180);
+  });
+
+  it("handles shoe wear and tread scanner queries", async () => {
+    const res = await processCoachQuery("Inspect shoe tread wear and foam creasing", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("shoe_scan");
+    expect(res.action?.payload.injuryRisk).toBe("High");
+    expect(res.action?.payload.kmLogged).toBe(685);
+  });
+
+  it("computes Highveld weather and temperature pace adjustments", async () => {
+    const res = await processCoachQuery("Adjust training pace for Highveld weather and 28C heat", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("weather_pace");
+    expect(res.action?.payload.adjustedPace).toBe("5:16/km");
+    expect(res.action?.payload.differenceSec).toBe(16);
+  });
+
+  it("generates GPX route and elevation profile for 15km perimeter run", async () => {
+    const res = await processCoachQuery("Generate a 15km perimeter route with elevation and GPX", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("gpx_route");
+    expect(res.action?.payload.distanceKm).toBe(15.0);
+    expect(res.action?.payload.gpxData).toContain("<gpx");
+  });
+
+  it("evaluates morning readiness and recovery score", async () => {
+    const res = await processCoachQuery("Check my morning readiness and recovery score", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("readiness_score");
+    expect(res.action?.payload.score).toBe(8.2);
+    expect(res.action?.payload.status).toBe("Optimal");
+  });
+
+  it("predicts championship race times from 5km PB", async () => {
+    const res = await processCoachQuery("Predict my Soweto and Comrades race times from 5km PB", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("race_prediction");
+    expect(res.action?.payload.predictions.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("selects 4-leg relay squad with tactical roles", async () => {
+    const res = await processCoachQuery("Pick our fastest 4x400m senior relay squad", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("relay_selector");
+    expect(res.action?.payload.legs.length).toBe(4);
+  });
+
+  it("calculates 5 personalized heart rate zones", async () => {
+    const res = await processCoachQuery("Calculate my 5 personalized heart rate zones", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("hr_zones");
+    expect(res.action?.payload.zones.length).toBe(5);
+  });
+
+  it("generates 40-minute fartlek workout with interval sync", async () => {
+    const res = await processCoachQuery("Create a 40-minute Highveld fartlek ladder workout", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("workout_sync");
+    expect(res.action?.payload.totalMinutes).toBe(40);
+  });
+
+  it("manages away race transport manifest and seats", async () => {
+    const res = await processCoachQuery("Show away race transport manifest and reserve seat", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("transport_manifest");
+    expect(res.action?.payload.vans.length).toBe(2);
+  });
+
+  it("triages shin splints injury with rehab exercises", async () => {
+    const res = await processCoachQuery("Triage shin splints injury and return-to-run rehab", {
+      members: [],
+      schedule: loadClubSchedule(),
+      roleMode: "coach",
+    });
+    expect(res.action?.type).toBe("injury_triage");
+    expect(res.action?.payload.suspectedCondition).toContain("Shin Splints");
+  });
 });

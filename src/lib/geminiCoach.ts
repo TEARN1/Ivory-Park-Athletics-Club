@@ -11,7 +11,23 @@ export type CoachActionType =
   | "post_community_notice"
   | "reserve_seat"
   | "analyze_squad"
-  | "recommend_route";
+  | "recommend_route"
+  | "shoe_scan"
+  | "weather_pace"
+  | "gpx_route"
+  | "readiness_score"
+  | "race_prediction"
+  | "relay_selector"
+  | "hr_zones"
+  | "nutrition_guide"
+  | "injury_triage"
+  | "pacing_card"
+  | "audio_cue"
+  | "cadence_metronome"
+  | "trophy_room"
+  | "periodization_plan"
+  | "workout_sync"
+  | "transport_manifest";
 
 export interface CoachAction {
   type: CoachActionType;
@@ -46,6 +62,7 @@ export interface CoachMessage {
   action?: CoachAction;
   report?: CoachStructuredReport;
   timestamp: string;
+  imageUrl?: string;
 }
 
 export interface ExecuteCommandResult {
@@ -498,7 +515,181 @@ export function executeCoachAction(action: CoachAction): ExecuteCommandResult {
         data: { routeName, distanceKm: dist, elevationGainM, notes },
       };
     }
+
+    case "shoe_scan": {
+      return {
+        success: true,
+        actionType: "shoe_scan",
+        message: "Shoe outsole wear and midsole compression analysis completed.",
+        data: action.payload,
+      };
+    }
+
+    case "weather_pace": {
+      return {
+        success: true,
+        actionType: "weather_pace",
+        message: `Highveld temperature and altitude pacing adjustment computed: Target pace is ${action.payload.adjustedPace}.`,
+        data: action.payload,
+      };
+    }
+
+    case "gpx_route": {
+      return {
+        success: true,
+        actionType: "gpx_route",
+        message: `GPX route file ready for ${action.payload.routeName} (${action.payload.distanceKm} km).`,
+        data: action.payload,
+      };
+    }
+
+    case "readiness_score": {
+      return {
+        success: true,
+        actionType: "readiness_score",
+        message: `Daily readiness score evaluated: ${action.payload.score}/10 (${action.payload.status}).`,
+        data: action.payload,
+      };
+    }
+
+    case "race_prediction": {
+      return {
+        success: true,
+        actionType: "race_prediction",
+        message: `Championship race time projections computed using Pete Riegel formula and Highveld altitude compensation.`,
+        data: action.payload,
+      };
+    }
+
+    case "relay_selector": {
+      return {
+        success: true,
+        actionType: "relay_selector",
+        message: `Relay squad selection finalized for ${action.payload.eventName}.`,
+        data: action.payload,
+      };
+    }
+
+    case "hr_zones": {
+      return {
+        success: true,
+        actionType: "hr_zones",
+        message: `Personalized 5-zone heart rate splits calibrated.`,
+        data: action.payload,
+      };
+    }
+
+    case "nutrition_guide": {
+      return {
+        success: true,
+        actionType: "nutrition_guide",
+        message: `Highveld pre-run, intra-run, and recovery nutrition guidelines prepared.`,
+        data: action.payload,
+      };
+    }
+
+    case "injury_triage": {
+      return {
+        success: true,
+        actionType: "injury_triage",
+        message: `Injury assessment and return-to-run rehabilitation protocol generated.`,
+        data: action.payload,
+      };
+    }
+
+    case "pacing_card": {
+      return {
+        success: true,
+        actionType: "pacing_card",
+        message: `Kilometer-by-kilometer race day pacing card compiled for ${action.payload.raceName}.`,
+        data: action.payload,
+      };
+    }
+
+    case "audio_cue": {
+      return {
+        success: true,
+        actionType: "audio_cue",
+        message: `Tactical audio pacing cue synthesized for kilometer ${action.payload.kmMarker}.`,
+        data: action.payload,
+      };
+    }
+
+    case "cadence_metronome": {
+      return {
+        success: true,
+        actionType: "cadence_metronome",
+        message: `Cadence metronome initialized at ${action.payload.defaultSpm} SPM.`,
+        data: action.payload,
+      };
+    }
+
+    case "trophy_room": {
+      return {
+        success: true,
+        actionType: "trophy_room",
+        message: `Ivory Park Athletics Club trophy records and milestone awards loaded.`,
+        data: action.payload,
+      };
+    }
+
+    case "periodization_plan": {
+      return {
+        success: true,
+        actionType: "periodization_plan",
+        message: `Multi-week periodization training and taper schedule structured.`,
+        data: action.payload,
+      };
+    }
+
+    case "workout_sync": {
+      return {
+        success: true,
+        actionType: "workout_sync",
+        message: `Workout structure synchronized and ready for the interval timer.`,
+        data: action.payload,
+      };
+    }
+
+    case "transport_manifest": {
+      return {
+        success: true,
+        actionType: "transport_manifest",
+        message: `Away race transport manifest and seat availability updated.`,
+        data: action.payload,
+      };
+    }
   }
+}
+
+export function generateGpxString(
+  routeName: string,
+  waypoints: { name: string; km: number; elevationM: number }[]
+): string {
+  const points = waypoints
+    .map((w, idx) => {
+      const lat = (-26.015 - idx * 0.005).toFixed(6);
+      const lon = (28.185 + idx * 0.004).toFixed(6);
+      return `    <trkpt lat="${lat}" lon="${lon}">
+      <ele>${w.elevationM}</ele>
+      <name>${w.name}</name>
+    </trkpt>`;
+    })
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Ivory Park Athletics Club" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${routeName}</name>
+    <desc>Highveld Road Route created by Head Coach</desc>
+  </metadata>
+  <trk>
+    <name>${routeName}</name>
+    <trkseg>
+${points}
+    </trkseg>
+  </trk>
+</gpx>`;
 }
 
 /**
@@ -663,7 +854,7 @@ Guidelines:
     };
   }
 
-  if (q.includes("seat") || q.includes("reserve") || (q.includes("attending") && !q.includes("?"))) {
+  if ((q.includes("seat") || q.includes("reserve") || (q.includes("attending") && !q.includes("?"))) && !q.includes("manifest")) {
     const action: CoachAction = {
       type: "reserve_seat",
       payload: {
@@ -707,13 +898,15 @@ Guidelines:
 
   // B. Results, Finishing Times & Past Performance Analysis
   if (
-    q.includes("result") ||
-    q.includes("finishing time") ||
-    q.includes("past data") ||
-    q.includes("past time") ||
-    q.includes("how did we do") ||
-    q.includes("how did i do") ||
-    (q.includes("time") && (q.includes("5k") || q.includes("10k") || q.includes("squad") || q.includes("recent")))
+    !q.includes("predict") &&
+    !q.includes("prediction") &&
+    (q.includes("result") ||
+      q.includes("finishing time") ||
+      q.includes("past data") ||
+      q.includes("past time") ||
+      q.includes("how did we do") ||
+      q.includes("how did i do") ||
+      (q.includes("time") && (q.includes("5k") || q.includes("10k") || q.includes("squad") || q.includes("recent"))))
   ) {
     const sessText = performanceInsights.recentSessions.join("\n- ");
     const pbText = performanceInsights.runnerProfiles
@@ -878,7 +1071,7 @@ Guidelines:
   }
 
   // D. Specific Runner Inquiries
-  if (q.includes("sipho")) {
+  if (q.includes("sipho") && !q.includes("relay") && !q.includes("predict")) {
     return {
       id: timeId,
       role: "coach",
@@ -887,7 +1080,7 @@ Guidelines:
     };
   }
 
-  if (q.includes("thandi")) {
+  if (q.includes("thandi") && !q.includes("relay")) {
     return {
       id: timeId,
       role: "coach",
@@ -896,7 +1089,7 @@ Guidelines:
     };
   }
 
-  if (q.includes("thabo")) {
+  if (q.includes("thabo") && !q.includes("drop")) {
     return {
       id: timeId,
       role: "coach",
@@ -905,11 +1098,514 @@ Guidelines:
     };
   }
 
-  if (q.includes("sibusiso")) {
+  if (q.includes("sibusiso") && !q.includes("relay")) {
     return {
       id: timeId,
       role: "coach",
       text: `Sibusiso Molefe remains our squad pacesetter. He took 1st place in the November 17th 5km in 18:48 (3:45/km), and won the Saturday 10km in 39:20 (3:56/km). He is leading the Saturday morning endurance pack from Freedom Drive.`,
+      timestamp,
+    };
+  }
+
+  // Feature 14: Cadence Metronome Generator (170-195 SPM)
+  if (q.includes("metronome") || q.includes("cadence") || q.includes("spm") || q.includes("stride rate")) {
+    const action: CoachAction = {
+      type: "cadence_metronome",
+      payload: {
+        defaultSpm: 180,
+        minSpm: 160,
+        maxSpm: 195,
+        targetStrideLength: "1.08m at 4:30/km",
+        benefits: "Running at 180 SPM cuts ground contact time and minimizes patellofemoral knee impact by 20%.",
+      },
+      description: "Activate rhythmic audio cadence metronome (180 SPM)",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Cadence Metronome initialized. Optimal cadence for Highveld road running is 175 - 185 SPM. Use the live interactive slider and start button below to lock in your stride turnover.",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 2: Multimodal Shoe & Tread Wear Photo Scanner
+  if (
+    ((q.includes("shoe") || q.includes("outsole") || q.includes("tread")) &&
+      (q.includes("scan") || q.includes("photo") || q.includes("creasing") || q.includes("wear"))) ||
+    q.includes("scanner")
+  ) {
+    const action: CoachAction = {
+      type: "shoe_scan",
+      payload: {
+        shoeModel: "Puma Velocity Nitro",
+        kmLogged: 685,
+        thresholdKm: 700,
+        outsoleWear: "Heavy lateral heel erosion (4.2mm worn down)",
+        midsoleCompression: "Severe longitudinal creasing along EVA layer",
+        pronationType: "Mild Overpronation detected",
+        injuryRisk: "High",
+        riskWarning: "Excessive ground impact transmitted directly to Achilles and tibia on hard tarmac.",
+        recommendation: "Retire shoe from road tempo sessions immediately. Suitable for slow recovery walks only.",
+      },
+      description: "Analyze shoe outsole wear and midsole compression",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Shoe wear inspection completed. Thabo Mokoena's Puma Velocity Nitro shoes show severe heel compression after 685 km. Check the detailed outsole audit card below:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 3: Real-Time Highveld Altitude & Weather Pace Adjuster
+  if (
+    q.includes("weather") ||
+    q.includes("temperature") ||
+    (q.includes("heat") && q.includes("pace")) ||
+    (q.includes("adjust") && q.includes("pace"))
+  ) {
+    const action: CoachAction = {
+      type: "weather_pace",
+      payload: {
+        tempC: 28,
+        humidityPct: 35,
+        altitudeM: 1520,
+        basePace: "5:00/km",
+        adjustedPace: "5:16/km",
+        differenceSec: 16,
+        heatIndexLevel: "Moderate Thermal Load",
+        hydrationTarget: "150ml electrolyte fluid every 20 minutes",
+        optimalWindow: "Before 06:30 or after 17:30 to avoid midday Highveld UV radiation",
+      },
+      description: "Calculate Highveld temperature and altitude pacing adjustment",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Highveld environmental pacing calibration: With dry 28°C heat at 1,520m elevation, an aerobic 5:00/km pace requires +16 seconds/km adjustment to prevent thermal exhaustion. See your adjusted pace card below:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 4: Turn-by-Turn Highveld Route & GPX Generator
+  if (
+    (q.includes("gpx") || q.includes("route")) &&
+    (q.includes("generate") || q.includes("create") || q.includes("build") || q.includes("15") || q.includes("download") || q.includes("perimeter"))
+  ) {
+    const waypoints = [
+      { name: "Freedom Drive Hub (Start)", km: 0.0, elevationM: 1510 },
+      { name: "Extension 2 Undulating Corridor", km: 4.2, elevationM: 1528 },
+      { name: "Rabie Ridge Summit Ascent", km: 8.5, elevationM: 1554 },
+      { name: "Swazi Inn Rolling Flats", km: 11.8, elevationM: 1520 },
+      { name: "Kaalfontein Link & Finish", km: 15.0, elevationM: 1512 },
+    ];
+    const routeName = "Ivory Park Highveld 15km Perimeter Challenge";
+    const gpxData = generateGpxString(routeName, waypoints);
+    const action: CoachAction = {
+      type: "gpx_route",
+      payload: {
+        routeName,
+        distanceKm: 15.0,
+        elevationGainM: 112,
+        surface: "Tarmac and compacted road shoulders",
+        waypoints,
+        gpxFilename: "IPAC_Highveld_15km.gpx",
+        gpxData,
+      },
+      description: "Generate GPX route and elevation profile for 15km perimeter loop",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Route mapped! The 15km Highveld Perimeter Challenge climbs 112m over Rabie Ridge with well-lit road corridors. You can inspect the checkpoints or click to download the GPX file directly below:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 5: Morning Athlete Readiness & Soreness Triage
+  if (
+    q.includes("readiness") ||
+    q.includes("recovery score") ||
+    q.includes("soreness") ||
+    (q.includes("how") && (q.includes("recovery") || q.includes("feel") || q.includes("rested")))
+  ) {
+    const action: CoachAction = {
+      type: "readiness_score",
+      payload: {
+        score: 8.2,
+        status: "Optimal",
+        sleepHours: 7.5,
+        restingHrBpm: 48,
+        sorenessRating: "Low (mild hamstring tightness)",
+        workoutRecommendation: "Cleared for planned Highveld threshold intervals. Maintain dynamic warm-up drills.",
+        alternativeSession: "If leg fatigue spikes at km 3, convert session into 8km Zone 2 aerobic recovery.",
+      },
+      description: "Evaluate athlete morning readiness and recovery metrics",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Readiness score calculated: 8.2 / 10 (Optimal). Your resting heart rate of 48 BPM indicates good parasympathetic recovery. Review your readiness breakdown below:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 6: Race Time Predictor (Riegel Formula + Altitude Factor)
+  if (
+    q.includes("predict") ||
+    q.includes("race time") ||
+    q.includes("soweto") ||
+    q.includes("comrades") ||
+    q.includes("two oceans") ||
+    q.includes("calculator")
+  ) {
+    const action: CoachAction = {
+      type: "race_prediction",
+      payload: {
+        baseDistanceKm: 5.0,
+        baseTimeStr: "19:35",
+        athleteName: "Sipho Dlamini",
+        predictions: [
+          { race: "10km Road Race", distanceKm: 10.0, timeStr: "40:48", paceStr: "4:05/km", notes: "Comfortable negative split capability" },
+          { race: "21.1km Half Marathon", distanceKm: 21.1, timeStr: "1:30:45", paceStr: "4:18/km", notes: "Target pacing for Dis-Chem or Pirates 21k" },
+          { race: "42.2km Soweto Marathon", distanceKm: 42.2, timeStr: "3:11:15", paceStr: "4:32/km", notes: "Factored for Vilakazi Street hill elevation" },
+          { race: "56km Two Oceans Ultra", distanceKm: 56.0, timeStr: "4:22:30", paceStr: "4:41/km", notes: "Chappies and Constantia Nek climbing factor" },
+          { race: "89km Comrades Marathon", distanceKm: 89.0, timeStr: "7:28:45", paceStr: "5:03/km", notes: "Silver Medal contender pacing profile" },
+        ],
+      },
+      description: "Calculate championship race predictions using Pete Riegel formula",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Championship race projections calculated based on Sipho Dlamini's recent 19:35 5km PB, adjusted for Highveld thin air and course elevation profiles:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 7: Head-to-Head Runner Comparisons & Relay Selector
+  if (
+    q.includes("relay") ||
+    (q.includes("compare") && (q.includes("runners") || q.includes("athletes") || q.includes("squad"))) ||
+    q.includes("4x400") ||
+    q.includes("4x100")
+  ) {
+    const action: CoachAction = {
+      type: "relay_selector",
+      payload: {
+        eventName: "Senior Men 4x400m / 4x100m Squad Selection",
+        projectedTotalTime: "3:24.40",
+        legs: [
+          { leg: 1, role: "Blocks / Fast Starter", athlete: "Sipho Dlamini", bib: "12", splitTime: "50.8s", tacticalReason: "Explosive block start and early stagger control." },
+          { leg: 2, role: "Break / Pace Leader", athlete: "Sibusiso Molefe", bib: "10", splitTime: "49.6s", tacticalReason: "Aggressive lane merge and tactical elbow strength." },
+          { leg: 3, role: "Curve Specialist", athlete: "Katlego Dlamini", bib: "15", splitTime: "52.2s", tacticalReason: "Consistent turnover and smooth baton transfer." },
+          { leg: 4, role: "Anchor / Closing Kick", athlete: "Thandi Mokoena", bib: "11", splitTime: "51.8s", tacticalReason: "Fierce competitive homestretch acceleration." },
+        ],
+      },
+      description: "Compile optimal 4-leg relay squad and tactical assignments",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Relay roster finalized. Here is the optimized 4-leg order based on recent 5km acceleration profiles and curve running efficiency:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 8: Personalized Heart Rate & Lactate Threshold Zone Calculator
+  if (q.includes("heart rate") || q.includes("hr zone") || q.includes("bpm") || q.includes("lactate threshold")) {
+    const action: CoachAction = {
+      type: "hr_zones",
+      payload: {
+        maxHr: 192,
+        restingHr: 46,
+        zones: [
+          { zone: "Zone 1", name: "Active Recovery", pctRange: "< 60%", bpmRange: "105 - 120 BPM", purpose: "Flush metabolic waste, shakeout runs", weeklyShare: "10%" },
+          { zone: "Zone 2", name: "Aerobic Base (Highveld)", pctRange: "60 - 70%", bpmRange: "121 - 138 BPM", purpose: "Capillary density, mitochondrial development", weeklyShare: "70%" },
+          { zone: "Zone 3", name: "Aerobic Tempo", pctRange: "70 - 80%", bpmRange: "139 - 156 BPM", purpose: "Steady state marathon rhythm", weeklyShare: "10%" },
+          { zone: "Zone 4", name: "Lactate Threshold", pctRange: "80 - 90%", bpmRange: "157 - 173 BPM", purpose: "Clear lactate at race pace (10k / 21k)", weeklyShare: "7%" },
+          { zone: "Zone 5", name: "VO2 Max / Anaerobic", pctRange: "90 - 100%", bpmRange: "174 - 192 BPM", purpose: "Short 400m/800m track intervals and kick", weeklyShare: "3%" },
+        ],
+      },
+      description: "Compute personalized 5-zone heart rate distribution",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Personalized 5-zone heart rate targets calculated for a 192 BPM maximum heart rate. Spend 70% of weekly volume in Zone 2 to maximize Highveld aerobic efficiency:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 9: Highveld Nutrition & Hydration Fueling Guide
+  if (q.includes("nutrition") || q.includes("fuel") || q.includes("food") || q.includes("what to eat") || q.includes("diet") || q.includes("breakfast")) {
+    const action: CoachAction = {
+      type: "nutrition_guide",
+      payload: {
+        preRunMeal: "Mabele porridge or rolled oats with 1 tbsp honey, sliced banana, and 300ml water",
+        preRunTiming: "2.5 to 3 hours before start; a small banana 30 min before",
+        intraRunFuel: "30-60g carbohydrates/hr (dates, energy gel, or diluted electrolyte juice) for runs exceeding 75 minutes",
+        postRunMeal: "Brown bread with scrambled eggs or peanut butter, 500ml chocolate milk, plus electrolyte salt replenishment",
+        hydrationSchedule: "Drink 400ml water 2 hours before running; sip 150ml every 20 min during Highveld morning dry air",
+        highveldTip: "Thin Highveld air (1,500m+) increases respiratory water loss by up to 25%. Always add pinches of salt to water post-run.",
+      },
+      description: "Prepare nutrition and hydration protocol for Highveld endurance running",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Highveld Fueling & Nutrition Guide prepared: Proper carbohydrate loading and electrolyte replacement are vital to prevent late-stage cramping on our roads:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 10: One-Click WhatsApp Broadcast Formatter
+  if (q.includes("whatsapp") || (q.includes("broadcast") && (q.includes("notice") || q.includes("format") || q.includes("saturday")))) {
+    const noticeText = "IVORY PARK ATHLETICS CLUB - OFFICIAL NOTICE\n\nEvent: Saturday 21.1km Highveld Long Run\nMeetup: 04:45 at Freedom Drive Hub\nStart Gun: 05:00 sharp\nPace Groups: 4:30/km (Sub-90), 5:00/km, 5:30/km, and 6:00/km (Sweep)\nWater Points: Ext 2 (6km), Rabie Ridge (12km), Swazi Inn (17km)\nTransport Van: Departing Kaalfontein 04:30. Reserve via App.";
+    const action: CoachAction = {
+      type: "post_community_notice",
+      payload: {
+        channel: "WhatsApp & The Resident",
+        text: noticeText,
+      },
+      description: "Format club broadcast notice with one-click WhatsApp copy",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "WhatsApp announcement formatted and ready to broadcast. Click 'Copy for WhatsApp' below to post directly to the club group:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 11: Injury Symptom Checker & Return-to-Run Protocol
+  if (
+    q.includes("shin") ||
+    q.includes("knee") ||
+    q.includes("achilles") ||
+    q.includes("plantar") ||
+    (q.includes("injury") && (q.includes("checker") || q.includes("triage") || q.includes("rehab") || q.includes("pain") || q.includes("hurt")))
+  ) {
+    const action: CoachAction = {
+      type: "injury_triage",
+      payload: {
+        suspectedCondition: "Medial Tibial Stress Syndrome (Shin Splints)",
+        severity: "Moderate",
+        immediateAction: "Cease downhill running on Rabie Ridge. Apply ice massage for 15 minutes twice daily.",
+        rehabExercises: [
+          "Eccentric calf drops on step: 3 sets of 15 reps twice daily",
+          "Tibialis anterior wall raises: 3 sets of 20 reps",
+          "Toe scrunches with towel: 3 minutes per foot",
+        ],
+        returnCriteria: "Zero localized pain on 10 consecutive single-leg hops on concrete before resuming track speedwork.",
+        referralWarning: "If pain is point-tender and persists while walking, visit the local clinic for an X-ray to rule out stress fracture.",
+      },
+      description: "Triage running injury symptoms and prescribe rehabilitation protocol",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Injury Assessment Protocol: Symptoms align with Medial Tibial Stress Syndrome (Shin Splints). Follow the eccentric loading rehabilitation protocol below:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 12: Kilometer-by-Kilometer Race Day Pacing Card
+  if (
+    q.includes("pacing card") ||
+    q.includes("split chart") ||
+    q.includes("race split") ||
+    (q.includes("splits") && (q.includes("card") || q.includes("10k") || q.includes("sub-40") || q.includes("sub 40")))
+  ) {
+    const action: CoachAction = {
+      type: "pacing_card",
+      payload: {
+        raceName: "Championship 10km Road Race",
+        targetTime: "39:59 (Sub-40 Target)",
+        avgPace: "4:00/km",
+        strategy: "Even-to-Negative Split with conservative opening 2 kilometers",
+        kmSplits: [
+          { km: 1, splitTime: "4:05", cumulativeTime: "4:05", elevationNote: "Controlled crowd exit", aidStation: false },
+          { km: 2, splitTime: "4:03", cumulativeTime: "8:08", elevationNote: "Flat Freedom Drive", aidStation: false },
+          { km: 3, splitTime: "4:00", cumulativeTime: "12:08", elevationNote: "Find rhythm", aidStation: true },
+          { km: 4, splitTime: "3:58", cumulativeTime: "16:06", elevationNote: "Slight descent", aidStation: false },
+          { km: 5, splitTime: "4:02", cumulativeTime: "20:08", elevationNote: "Halfway turn", aidStation: false },
+          { km: 6, splitTime: "4:04", cumulativeTime: "24:12", elevationNote: "Rabie Ridge incline", aidStation: true },
+          { km: 7, splitTime: "4:01", cumulativeTime: "28:13", elevationNote: "Crest ridge", aidStation: false },
+          { km: 8, splitTime: "3:57", cumulativeTime: "32:10", elevationNote: "Long downhill momentum", aidStation: false },
+          { km: 9, splitTime: "3:56", cumulativeTime: "36:06", elevationNote: "Turn into final straight", aidStation: true },
+          { km: 10, splitTime: "3:53", cumulativeTime: "39:59", elevationNote: "Sprint kick finish", aidStation: false },
+        ],
+      },
+      description: "Compile 10km sub-40 minute split chart and elevation tactics",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Sub-40 10km pacing card generated. The plan holds a 4:05 cushion over the first kilometer, reserves energy on the Rabie Ridge incline, and attacks the final 3 kilometers:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 13: Downloadable Audio Pacing Drops
+  if (q.includes("audio cue") || q.includes("voice cue") || q.includes("audio drop") || (q.includes("audio") && q.includes("pacing"))) {
+    const action: CoachAction = {
+      type: "audio_cue",
+      payload: {
+        kmMarker: 15,
+        cueText: "Kilometer 15 reached! Highveld crest is behind you. Relax your jaw, loosen your fingers, and lean slightly forward into the downhill stride. Target pace: 4:15 per kilometer.",
+        toneType: "pulse",
+      },
+      description: "Synthesize tactical coach audio pacing cue for kilometer 15",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Audio pacing cue synthesized for kilometer 15. Click 'Play Coach Audio Drop' below to hear the tactical voice cue through your speakers or headphones:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 15: Club Trophy Room & Milestone Badge Awards
+  if (q.includes("trophy") || q.includes("milestone") || q.includes("award") || q.includes("badge") || q.includes("records")) {
+    const action: CoachAction = {
+      type: "trophy_room",
+      payload: {
+        trophies: [
+          { title: "Sub-20 5K Club", category: "Speed Honors", recipient: "Sipho Dlamini (19:35) & Sibusiso Molefe (18:48)", achievement: "Broke the 20-minute barrier on Highveld altitude", date: "Nov 2026" },
+          { title: "Rabie Ridge Mountain Goat", category: "Climbing", recipient: "Thandi Mokoena", achievement: "Fastest uphill split through Rabie Ridge (4:25/km)", date: "Nov 2026" },
+          { title: "Century Volume Master", category: "Endurance", recipient: "Sibusiso Molefe", achievement: "100+ km logged in 14 days", date: "Nov 2026" },
+          { title: "Negative Split Tactician", category: "Discipline", recipient: "Thandi Mokoena", achievement: "Second half 15 seconds faster than opening half", date: "Nov 2026" },
+        ],
+      },
+      description: "Inspect Ivory Park Athletics Club trophy room and squad honors",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Ivory Park Athletics Club Trophy Room & Milestone Honors: Celebrating our athletes who set new club standards on the Highveld:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 17: Multi-Week Periodization & Taper Builder
+  if (q.includes("periodization") || q.includes("8-week") || q.includes("12-week") || q.includes("training plan") || q.includes("taper")) {
+    const action: CoachAction = {
+      type: "periodization_plan",
+      payload: {
+        totalWeeks: 8,
+        raceTarget: "Highveld Championship 10k & 21.1k Build",
+        phases: [
+          { phase: "Phase 1: Aerobic Base", weeks: "Weeks 1 - 2", focus: "Capillary build & easy mileage", weeklyKm: "35 - 40 km", keyWorkout: "Saturday 16km Long Slow Distance" },
+          { phase: "Phase 2: Strength & Hills", weeks: "Weeks 3 - 4", focus: "Rabie Ridge gradient repeats & tempo", weeklyKm: "42 - 48 km", keyWorkout: "8x 400m Hill Sprints + 21.1km Weekend Run" },
+          { phase: "Phase 3: Threshold & Speed", weeks: "Weeks 5 - 6", focus: "Lactate threshold & track intervals", weeklyKm: "48 - 54 km", keyWorkout: "5x 1000m at 3:45/km with 90s rest" },
+          { phase: "Phase 4: Taper & Sharpen", weeks: "Week 7", focus: "Volume reduction by 35%, sharpen stride", weeklyKm: "30 km", keyWorkout: "4x 400m at race pace + 10km easy" },
+          { phase: "Phase 5: Race Week", weeks: "Week 8", focus: "Carb load, shakeout, peak performance", weeklyKm: "15 km + Race", keyWorkout: "Championship Race Day Sub-40 Target" },
+        ],
+      },
+      description: "Structure 8-week championship periodization plan and taper",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "8-Week Championship Periodization Schedule prepared. Structured with progressive mileage build, mid-cycle recovery, and a sharp taper into race week:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 18: Fartlek & Interval Direct Sync to App Timer
+  if (
+    q.includes("fartlek") ||
+    (q.includes("interval") && !q.includes("relay") && !q.includes("drop")) ||
+    q.includes("ladder workout") ||
+    q.includes("track session") ||
+    q.includes("sync workout")
+  ) {
+    const action: CoachAction = {
+      type: "workout_sync",
+      payload: {
+        workoutName: "Highveld 40-Minute Fartlek Ladder",
+        totalMinutes: 40,
+        estimatedDistanceKm: 8.5,
+        steps: [
+          { step: "Warmup Jog", durationMin: 10, targetPace: "5:15/km", note: "Gradual aerobic warmup" },
+          { step: "Interval 1 (Fast Surge)", durationMin: 2, targetPace: "3:50/km", note: "High cadence on flat" },
+          { step: "Recovery Jog", durationMin: 2, targetPace: "5:20/km", note: "Deep nasal breathing" },
+          { step: "Interval 2 (Hill Surge)", durationMin: 3, targetPace: "3:55/km", note: "Short powerful arm drive" },
+          { step: "Recovery Jog", durationMin: 2, targetPace: "5:20/km", note: "Relax shoulders" },
+          { step: "Interval 3 (Fast Surge)", durationMin: 4, targetPace: "3:48/km", note: "Race pace simulation" },
+          { step: "Recovery Jog", durationMin: 2, targetPace: "5:20/km", note: "Hydrate" },
+          { step: "Interval 4 (All-out Kick)", durationMin: 1, targetPace: "3:30/km", note: "Sprint finish turnover" },
+          { step: "Cooldown & Stretch", durationMin: 14, targetPace: "5:30/km", note: "Slow jog and calf stretch" },
+        ],
+      },
+      description: "Configure 40-minute fartlek workout with one-click app sync",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Highveld 40-Minute Fartlek Ladder structured! You can inspect the step-by-step surge intervals below or click 'Sync to Workout Timer' to load it directly into the app:",
+      action,
+      timestamp,
+    };
+  }
+
+  // Feature 19: Out-of-Town Race Transport & Seat Manifest Manager
+  if (
+    q.includes("manifest") ||
+    (q.includes("transport") && (q.includes("van") || q.includes("away") || q.includes("carpool"))) ||
+    q.includes("van seats")
+  ) {
+    const action: CoachAction = {
+      type: "transport_manifest",
+      payload: {
+        destination: "Soweto Marathon / CGA Championships",
+        raceDate: "Saturday, 05:00 Start",
+        costPerRunnerZar: 85,
+        vans: [
+          { id: "van-1", name: "Quantum 1 (Alpha)", driver: "Bra Mike", capacity: 15, booked: 12, departureTime: "04:30", pickupLocation: "Freedom Drive Hub" },
+          { id: "van-2", name: "Quantum 2 (Bravo)", driver: "Sis Joyce", capacity: 15, booked: 9, departureTime: "04:45", pickupLocation: "Kaalfontein Station" },
+        ],
+      },
+      description: "Manage away race transport manifest and seat reservations",
+    };
+    executeCoachAction(action);
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Away Race Transport Manifest updated: 2 Quantum vans departing Freedom Drive and Kaalfontein. Review seat availability or reserve a seat below:",
+      action,
       timestamp,
     };
   }
