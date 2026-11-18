@@ -5,6 +5,7 @@ import {
   saveGeminiApiKey,
   type CoachAction,
   type CoachMessage,
+  type CoachStructuredReport,
 } from "../lib/geminiCoach";
 import { startAlarmLoop, say, beep, vibrate } from "../lib/sound";
 import type { Member } from "../lib/club";
@@ -190,6 +191,75 @@ function ActionCard({
   );
 }
 
+function StructuredReportView({ report }: { report: CoachStructuredReport }) {
+  return (
+    <div className="ipac-report-container">
+      <div className="ipac-report-header">
+        <div className="ipac-report-title">{report.title}</div>
+        {report.subtitle && <div className="ipac-report-sub">{report.subtitle}</div>}
+      </div>
+      <div className="ipac-report-list">
+        {report.items.map((item, idx) => {
+          const statusClass =
+            item.status === "drop"
+              ? "ipac-stat-card-drop"
+              : item.status === "pb"
+              ? "ipac-stat-card-pb"
+              : item.status === "warning"
+              ? "ipac-stat-card-warning"
+              : "ipac-stat-card-steady";
+
+          return (
+            <div key={`${item.name}-${idx}`} className={`ipac-runner-stat-card ${statusClass}`}>
+              <div className="ipac-stat-card-top">
+                <div className="ipac-stat-runner-name">
+                  <span className="ipac-stat-bullet" aria-hidden="true">•</span>
+                  <b>{item.name}</b>
+                  {item.bib && <span className="ipac-stat-bib">#{item.bib}</span>}
+                </div>
+                <span className={`ipac-stat-badge ipac-stat-badge-${item.status}`}>
+                  {item.statusLabel}
+                </span>
+              </div>
+              <div className="ipac-stat-metrics">
+                <div className="ipac-stat-metric">
+                  <span className="ipac-stat-metric-label">Finishing Time</span>
+                  <span className="ipac-stat-metric-val ipac-stat-time">{item.timeStr}</span>
+                </div>
+                <div className="ipac-stat-metric">
+                  <span className="ipac-stat-metric-label">Avg Pace</span>
+                  <span className="ipac-stat-metric-val ipac-stat-pace">{item.paceStr}</span>
+                </div>
+                {item.distanceKm !== undefined && (
+                  <div className="ipac-stat-metric">
+                    <span className="ipac-stat-metric-label">Distance</span>
+                    <span className="ipac-stat-metric-val">{item.distanceKm} km</span>
+                  </div>
+                )}
+              </div>
+              {item.details && (
+                <div className="ipac-stat-details">
+                  <span className="ipac-stat-detail-icon" aria-hidden="true">↳</span> {item.details}
+                </div>
+              )}
+              {item.shoeInfo && (
+                <div className="ipac-stat-shoe">
+                  Gear: {item.shoeInfo}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {report.summaryNote && (
+        <div className="ipac-report-summary-note">
+          {report.summaryNote}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AICoachHub({
   onClose,
   members,
@@ -312,9 +382,9 @@ export default function AICoachHub({
           <div className="ipac-coach-title-wrap">
             <div className="ipac-coach-badge">
               <span className="ipac-coach-status-dot" />
-              <span>{apiKey ? "Gemini 1.5/2.0 Live" : "Offline Coach Engine"}</span>
+              <span>{apiKey ? "Live Cloud AI" : "Local Coach Engine"}</span>
             </div>
-            <h2>Gemini Head Coach &amp; Founder</h2>
+            <h2>Head Coach &amp; Founder</h2>
             <p className="ipac-hint" style={{ margin: 0 }}>
               Ivory Park Athletics Club • Autonomous Squad Management
             </p>
@@ -324,7 +394,7 @@ export default function AICoachHub({
               type="button"
               className="ipac-btn ipac-btn-quiet"
               style={{ fontSize: "0.8rem", padding: "6px 10px" }}
-              title="Google AI Studio Settings"
+              title="Cloud AI Settings"
               onClick={() => setShowKeyDrawer((v) => !v)}
             >
               {showKeyDrawer ? "Hide Key" : "API Key"}
@@ -345,14 +415,14 @@ export default function AICoachHub({
         {showKeyDrawer && (
           <div className="ipac-coach-key-drawer">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-              <label htmlFor="gemini-key-input" style={{ fontSize: "0.85rem", fontWeight: 700 }}>
-                Google AI Studio API Key (Free Tier)
+              <label htmlFor="coach-key-input" style={{ fontSize: "0.85rem", fontWeight: 700 }}>
+                Cloud AI Engine Key (Free Tier)
               </label>
-              <small style={{ color: "#94a3b8" }}>Gemini 1.5 &amp; 2.0 Flash</small>
+              <small style={{ color: "#94a3b8" }}>Free Cloud Intelligence</small>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <input
-                id="gemini-key-input"
+                id="coach-key-input"
                 type="password"
                 className="ipac-input"
                 placeholder="AIzaSy..."
@@ -379,7 +449,7 @@ export default function AICoachHub({
               )}
             </div>
             <p className="ipac-hint" style={{ fontSize: "0.75rem", margin: "6px 0 0" }}>
-              A key enables deep reasoning with Gemini 1.5/2.0 Flash at zero cost via Google AI Studio. Without a key, all actions run 100% offline using instant heuristic pattern matching.
+              A key enables high-level strategic reasoning at zero cost via cloud AI. Without a key, all coach actions run 100% offline using instant heuristic pattern matching.
             </p>
           </div>
         )}
@@ -407,10 +477,12 @@ export default function AICoachHub({
               className={`ipac-coach-msg ${m.role === "coach" ? "ipac-coach-msg-coach" : "ipac-coach-msg-user"}`}
             >
               <div className="ipac-coach-msg-header">
-                <b>{m.role === "coach" ? "Head Coach (Gemini)" : "You"}</b>
+                <b>{m.role === "coach" ? "Head Coach & Founder" : "You"}</b>
                 <span className="ipac-coach-msg-time">{m.timestamp}</span>
               </div>
               <div className="ipac-coach-msg-body">{m.text}</div>
+
+              {m.report && <StructuredReportView report={m.report} />}
 
               {m.action && (
                 <ActionCard
@@ -428,7 +500,7 @@ export default function AICoachHub({
           {loading && (
             <div className="ipac-coach-msg ipac-coach-msg-coach">
               <div className="ipac-coach-msg-header">
-                <b>Head Coach (Gemini)</b>
+                <b>Head Coach & Founder</b>
               </div>
               <div className="ipac-coach-msg-body ipac-coach-thinking">
                 Consulting training log and executing command...

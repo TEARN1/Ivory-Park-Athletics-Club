@@ -170,6 +170,17 @@
 
 * { box-sizing: border-box; }
 
+/* Global Invisible Scrollbars with Native Smooth Momentum Scrolling */
+html, body, *, *::before, *::after {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 body {
   margin: 0;
   background-color: var(--color-bg);
@@ -3074,6 +3085,7 @@ body.has-fullscreen-map .ipac-main {
   color: #0f172a;
 }
 .ipac-coach-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -3108,6 +3120,7 @@ body.has-fullscreen-map .ipac-main {
   box-shadow: 0 0 6px #0284c7;
 }
 .ipac-coach-key-drawer {
+  flex-shrink: 0;
   background: rgba(241, 245, 249, 0.95);
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 12px;
@@ -3116,11 +3129,14 @@ body.has-fullscreen-map .ipac-main {
   color: #0f172a;
 }
 .ipac-coach-presets {
+  flex-shrink: 0;
   display: flex;
+  align-items: center;
   overflow-x: auto;
   gap: 8px;
-  padding: 8px 4px 14px;
-  scrollbar-width: thin;
+  min-height: 48px;
+  padding: 8px 4px 10px;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 .ipac-coach-chip {
@@ -3149,7 +3165,7 @@ body.has-fullscreen-map .ipac-main {
   padding: 10px 2px;
   min-height: 240px;
   max-height: 48vh;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .ipac-coach-msg {
   border-radius: 14px;
@@ -3240,6 +3256,7 @@ body.has-fullscreen-map .ipac-main {
   letter-spacing: 0.5px;
 }
 .ipac-coach-input-form {
+  flex-shrink: 0;
   display: flex;
   gap: 8px;
   margin-top: 8px;
@@ -3314,4 +3331,241 @@ body.has-fullscreen-map .ipac-main {
 }
 :root[data-theme="dark"] .ipac-coach-input-form {
   border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Structured Report View & Color-Coded Runner Cards */
+.ipac-report-container {
+  margin: 10px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ipac-report-header {
+  padding-bottom: 4px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.12);
+}
+:root[data-theme="dark"] .ipac-report-header {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+.ipac-report-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: inherit;
+}
+.ipac-report-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+:root[data-theme="dark"] .ipac-report-sub {
+  color: #94a3b8;
+}
+.ipac-report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ipac-runner-stat-card {
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.ipac-stat-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ipac-stat-runner-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+}
+.ipac-stat-bullet {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.ipac-stat-bib {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  font-family: monospace;
+}
+.ipac-stat-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.ipac-stat-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.03);
+}
+:root[data-theme="dark"] .ipac-stat-metrics {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ipac-stat-metric {
+  display: flex;
+  flex-direction: column;
+}
+.ipac-stat-metric-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.75;
+}
+.ipac-stat-metric-val {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+.ipac-stat-time {
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 800;
+}
+.ipac-stat-pace {
+  font-family: monospace;
+}
+.ipac-stat-details {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  margin-top: 4px;
+}
+.ipac-stat-detail-icon {
+  opacity: 0.7;
+}
+.ipac-stat-shoe {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  margin-top: 3px;
+  font-style: italic;
+}
+.ipac-report-summary-note {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  color: #475569;
+}
+:root[data-theme="dark"] .ipac-report-summary-note {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+/* 1. PACE DROP: White/Blue to Red Gradient (Light & Dark Themes) */
+.ipac-stat-card-drop {
+  background: linear-gradient(135deg, #f0f9ff 0%, #fee2e2 45%, #fecdd3 100%);
+  border: 1.5px solid #ef4444;
+  color: #7f1d1d;
+  box-shadow: 0 3px 12px rgba(239, 68, 68, 0.12);
+}
+.ipac-stat-badge-drop {
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.35);
+}
+.ipac-stat-card-drop .ipac-stat-bullet {
+  color: #dc2626;
+}
+:root[data-theme="dark"] .ipac-stat-card-drop {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(88, 12, 22, 0.7) 45%, rgba(159, 18, 57, 0.85) 100%);
+  border: 1.5px solid #ff4a52;
+  color: #ffe4e6;
+  box-shadow: 0 3px 12px rgba(255, 74, 82, 0.25);
+}
+:root[data-theme="dark"] .ipac-stat-badge-drop {
+  background: #ff4a52;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 74, 82, 0.5);
+}
+:root[data-theme="dark"] .ipac-stat-card-drop .ipac-stat-bullet {
+  color: #ff4a52;
+}
+
+/* 2. PERSONAL BEST (PB): Highveld Emerald Green */
+.ipac-stat-card-pb {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1.5px solid #22c55e;
+  color: #14532d;
+  box-shadow: 0 3px 10px rgba(34, 197, 94, 0.12);
+}
+.ipac-stat-badge-pb {
+  background: #16a34a;
+  color: #ffffff;
+}
+.ipac-stat-card-pb .ipac-stat-bullet {
+  color: #16a34a;
+}
+:root[data-theme="dark"] .ipac-stat-card-pb {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(20, 83, 45, 0.75) 100%);
+  border: 1.5px solid #4ade80;
+  color: #dcfce7;
+  box-shadow: 0 3px 12px rgba(74, 222, 128, 0.18);
+}
+:root[data-theme="dark"] .ipac-stat-badge-pb {
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 900;
+}
+:root[data-theme="dark"] .ipac-stat-card-pb .ipac-stat-bullet {
+  color: #4ade80;
+}
+
+/* 3. WARNING (Gear Wear / High Mileage): Amber Alert */
+.ipac-stat-card-warning {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1.5px solid #f59e0b;
+  color: #78350f;
+}
+.ipac-stat-badge-warning {
+  background: #d97706;
+  color: #ffffff;
+}
+.ipac-stat-card-warning .ipac-stat-bullet {
+  color: #d97706;
+}
+:root[data-theme="dark"] .ipac-stat-card-warning {
+  background: linear-gradient(135deg, rgba(69, 26, 3, 0.6) 0%, rgba(120, 53, 15, 0.75) 100%);
+  border: 1.5px solid #fbbf24;
+  color: #fef3c7;
+}
+:root[data-theme="dark"] .ipac-stat-badge-warning {
+  background: #f59e0b;
+  color: #451a03;
+  font-weight: 900;
+}
+
+/* 4. STEADY / BASELINE: Cool Metallic Silver/Slate */
+.ipac-stat-card-steady {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px solid #cbd5e1;
+  color: #1e293b;
+}
+.ipac-stat-badge-steady {
+  background: #64748b;
+  color: #ffffff;
+}
+.ipac-stat-card-steady .ipac-stat-bullet {
+  color: #64748b;
+}
+:root[data-theme="dark"] .ipac-stat-card-steady {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  color: #f1f5f9;
+}
+:root[data-theme="dark"] .ipac-stat-badge-steady {
+  background: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
 }

@@ -389,13 +389,13 @@ export default function App() {
             </button>
           </div>
           <button
-            className="ipac-themebtn"
-            style={{ fontWeight: 800, fontSize: "0.76rem", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "8px", padding: "0 6px" }}
-            aria-label="Open AI Head Coach and Founder"
-            title="Gemini AI Head Coach & Founder"
+            className="ipac-themebtn ipac-coach-head-btn"
+            style={{ fontWeight: 800, fontSize: "0.76rem", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.45)", borderRadius: "8px", padding: "0 8px" }}
+            aria-label="Open Head Coach and Founder"
+            title="Head Coach & Founder"
             onClick={() => setShowAICoach(true)}
           >
-            AI
+            Coach
           </button>
           <button className="ipac-themebtn" aria-label="Take app tour / Help" title="Interactive App Tour" onClick={() => setShowTour(true)}>{Icons.help}</button>
           <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
@@ -615,8 +615,8 @@ export default function App() {
                 setShowAICoach(true);
               }}
             >
-              <span className="ipac-sd-icon" style={{ color: "#38bdf8", fontWeight: 900 }}>AI</span>
-              <span className="ipac-sd-label">Head Coach AI</span>
+              <span className="ipac-sd-icon" style={{ color: "#38bdf8", fontWeight: 900 }}>COACH</span>
+              <span className="ipac-sd-label">Head Coach</span>
             </button>
             <button
               type="button"

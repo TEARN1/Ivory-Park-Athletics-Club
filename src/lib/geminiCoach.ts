@@ -19,11 +19,32 @@ export interface CoachAction {
   description: string;
 }
 
+export interface RunnerStatCard {
+  name: string;
+  bib?: string;
+  distanceKm?: number;
+  timeStr: string;
+  paceStr: string;
+  status: "pb" | "drop" | "steady" | "warning";
+  statusLabel: string;
+  details?: string;
+  shoeInfo?: string;
+}
+
+export interface CoachStructuredReport {
+  title: string;
+  subtitle?: string;
+  type: "results" | "pace_drop" | "squad_audit";
+  items: RunnerStatCard[];
+  summaryNote?: string;
+}
+
 export interface CoachMessage {
   id: string;
   role: "user" | "coach";
   text: string;
   action?: CoachAction;
+  report?: CoachStructuredReport;
   timestamp: string;
 }
 
@@ -346,7 +367,7 @@ export function executeCoachAction(action: CoachAction): ExecuteCommandResult {
         season: "summer",
         distanceKm: action.payload.distanceKm ? Number(action.payload.distanceKm) : 21.1,
         meetupPoint: action.payload.meetupPoint || "Freedom Drive Hub",
-        notes: action.payload.notes || "Scheduled via Gemini Head Coach.",
+        notes: action.payload.notes || "Scheduled by Head Coach.",
       };
 
       const existingIdx = schedule.findIndex((s) => s.day.toLowerCase() === validDay.toLowerCase());
@@ -699,10 +720,86 @@ Guidelines:
       .map((p) => `${p.name}: ${p.pbs.join(", ") || "Consistent training"}`)
       .join("\n- ");
 
+    const report: CoachStructuredReport = {
+      title: "Squad Finishing Times & Past Performance",
+      subtitle: "Highveld Road Sessions - Freedom Drive & Township Corridors",
+      type: "results",
+      items: [
+        {
+          name: "Sipho Dlamini",
+          bib: "12",
+          distanceKm: 5.0,
+          timeStr: "19:35",
+          paceStr: "3:55/km",
+          status: "pb",
+          statusLabel: "NEW 5KM PB (-7s)",
+          details: "Negative split (9:48 / 9:47). Strong closing kick.",
+          shoeInfo: "Nike Zoom Rival (280 km)",
+        },
+        {
+          name: "Thandi Mokoena",
+          bib: "11",
+          distanceKm: 5.0,
+          timeStr: "22:15",
+          paceStr: "4:27/km",
+          status: "pb",
+          statusLabel: "NEW 5KM PB (-15s)",
+          details: "Breakthrough speed acceleration on Freedom Drive.",
+          shoeInfo: "Asics Novablast 3 (310 km)",
+        },
+        {
+          name: "Sibusiso Molefe",
+          bib: "10",
+          distanceKm: 5.0,
+          timeStr: "18:48",
+          paceStr: "3:45/km",
+          status: "steady",
+          statusLabel: "1ST PLACE (PACE LEADER)",
+          details: "Even kilometer splits with high cadence.",
+          shoeInfo: "Nike Pegasus 40 (420 km)",
+        },
+        {
+          name: "Katlego Dlamini",
+          bib: "15",
+          distanceKm: 5.0,
+          timeStr: "20:20",
+          paceStr: "4:04/km",
+          status: "steady",
+          statusLabel: "STEADY (4:04/KM)",
+          details: "Consistent aerobic maintenance.",
+          shoeInfo: "Saucony Triumph (510 km)",
+        },
+        {
+          name: "Thabo Mokoena",
+          bib: "24",
+          distanceKm: 10.0,
+          timeStr: "45:15",
+          paceStr: "4:31/km",
+          status: "drop",
+          statusLabel: "PACE DROP (+33s/km)",
+          details: "First 5km at 4:15/km, faded to 4:48/km on Rabie Ridge hill.",
+          shoeInfo: "Puma Velocity Nitro (685 km - foam compressed)",
+        },
+        {
+          name: "Lerato Khumalo",
+          bib: "18",
+          distanceKm: 5.0,
+          timeStr: "25:10",
+          paceStr: "5:02/km",
+          status: "steady",
+          statusLabel: "STEADY ENDURANCE",
+          details: "Reliable veteran pace baseline.",
+          shoeInfo: "Brooks Ghost 15 (490 km)",
+        },
+      ],
+      summaryNote: "Sipho Dlamini and Thandi Mokoena achieved personal bests on the latest 5km run.",
+    };
+
     return {
       id: timeId,
       role: "coach",
-      text: `Here is the verified finishing data from our recent sessions:\n\nRecent Sessions:\n- ${sessText}\n\nSquad Personal Bests:\n- ${pbText}\n\nSipho Dlamini and Thandi Mokoena both clocked personal bests on the latest 5km run. Which runner's splits or pacing would you like to review?`,
+      text: `Here is the verified finishing data from our recent sessions:\n\nRecent Sessions:\n- ${sessText}\n\nSquad Personal Bests:\n- ${pbText}\n\nSipho Dlamini and Thandi Mokoena both clocked personal bests on the latest 5km run. Review the detailed runner performance cards below:`,
+      report,
       timestamp,
     };
   }
@@ -718,10 +815,64 @@ Guidelines:
     q.includes("tired") ||
     q.includes("fatigue")
   ) {
+    const report: CoachStructuredReport = {
+      title: "Pace Drop & Highveld Fatigue Analysis",
+      subtitle: "Segment Splits, Grade Reaction & Shoe Wear",
+      type: "pace_drop",
+      items: [
+        {
+          name: "Thabo Mokoena",
+          bib: "24",
+          distanceKm: 10.0,
+          timeStr: "45:15",
+          paceStr: "4:31/km",
+          status: "drop",
+          statusLabel: "CRITICAL PACE DROP (+33s/km)",
+          details: "Split: First 5km 4:15/km -> Second 5km collapsed to 4:48/km on Rabie Ridge hill.",
+          shoeInfo: "Puma Velocity Nitro: 685 km logged. EVA foam compressed, excessive road impact.",
+        },
+        {
+          name: "Sipho Dlamini",
+          bib: "12",
+          distanceKm: 5.0,
+          timeStr: "19:35",
+          paceStr: "3:55/km",
+          status: "pb",
+          statusLabel: "NEGATIVE SPLIT (NO FADE)",
+          details: "First 2.5km in 9:48, second 2.5km in 9:47. Zero pace fade.",
+          shoeInfo: "Nike Zoom Rival: 280 km - responsive cushion.",
+        },
+        {
+          name: "Thandi Mokoena",
+          bib: "11",
+          distanceKm: 5.0,
+          timeStr: "22:15",
+          paceStr: "4:27/km",
+          status: "pb",
+          statusLabel: "FAST CLOSING SPLIT",
+          details: "Final kilometer accelerated from 4:32/km to 4:18/km.",
+          shoeInfo: "Asics Novablast 3: 310 km - high bounce.",
+        },
+        {
+          name: "Sibusiso Molefe",
+          bib: "10",
+          distanceKm: 10.0,
+          timeStr: "39:20",
+          paceStr: "3:56/km",
+          status: "steady",
+          statusLabel: "UNIFORM CADENCE",
+          details: "Even kilometer pacing with +/- 3s tolerance.",
+          shoeInfo: "Nike Pegasus 40: 420 km - good condition.",
+        },
+      ],
+      summaryNote: "Action recommendation: Keep Thabo in the 4:40/km pace group and retire his 685km shoes before knee strain escalates.",
+    };
+
     return {
       id: timeId,
       role: "coach",
-      text: `Reviewing our split files and recent pace drop patterns:\n\n1. Thabo Mokoena (Bib 24): Showed the most noticeable pace fade during Saturday's 10km run. He opened through Swazi Inn at 4:15/km, but dropped to 4:48/km on the Rabie Ridge ascent, losing 33 seconds per km in the second half to finish in 45:15. His Puma Velocity Nitro shoes have logged 685 km of foam compression, contributing to leg fatigue.\n\n2. Sipho Dlamini (Bib 12): Maintained textbook pacing across his 5km time trial (first 2.5km in 9:48, second 2.5km in 9:47), executing a negative split for a new 19:35 PB.\n\n3. Thandi Mokoena (Bib 11): Improved her closing kick on Freedom Drive, finishing in 22:15 (4:27/km), 15 seconds faster than last week.\n\nFor Thabo, I recommend keeping him in the 4:40/km group for Wednesday and retiring those worn shoes before knee strain develops.`,
+      text: `Reviewing our split files and recent pace drop patterns:\n\n1. Thabo Mokoena (Bib 24): Showed the most noticeable pace fade during Saturday's 10km run. He opened through Swazi Inn at 4:15/km, but dropped to 4:48/km on the Rabie Ridge ascent, losing 33 seconds per km in the second half to finish in 45:15. His Puma Velocity Nitro shoes have logged 685 km of foam compression, contributing to leg fatigue.\n\n2. Sipho Dlamini (Bib 12): Maintained textbook pacing across his 5km time trial (first 2.5km in 9:48, second 2.5km in 9:47), executing a negative split for a new 19:35 PB.\n\n3. Thandi Mokoena (Bib 11): Improved her closing kick on Freedom Drive, finishing in 22:15 (4:27/km), 15 seconds faster than last week.\n\nFor Thabo, I recommend keeping him in the 4:40/km group for Wednesday and retiring those worn shoes before knee strain develops. Check the visual pace drop breakdown below:`,
+      report,
       timestamp,
     };
   }
