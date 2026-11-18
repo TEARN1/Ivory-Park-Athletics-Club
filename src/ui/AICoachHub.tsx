@@ -254,7 +254,7 @@ export default function AICoachHub({
     if (!q || loading) return;
 
     const userMsg: CoachMessage = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: "user",
       text: q,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),

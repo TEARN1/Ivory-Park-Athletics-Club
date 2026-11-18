@@ -496,7 +496,7 @@ export async function processCoachQuery(
   }
 ): Promise<CoachMessage> {
   const q = query.trim().toLowerCase();
-  const timeId = Date.now().toString();
+  const timeId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
   const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const effectiveMembers = getEffectiveMembers(context.members);

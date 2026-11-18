@@ -2855,7 +2855,7 @@ body.has-fullscreen-map .ipac-main {
   position: fixed;
   bottom: 74px;
   right: 18px;
-  z-index: 999;
+  z-index: 15;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -3119,7 +3119,7 @@ body.has-fullscreen-map .ipac-main {
   display: flex;
   overflow-x: auto;
   gap: 8px;
-  padding: 10px 2px;
+  padding: 8px 4px 14px;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
