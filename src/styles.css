@@ -3063,3 +3063,182 @@ body.has-fullscreen-map .ipac-main {
   margin: 6px 0;
   font-family: monospace;
 }
+
+
+/* AI Head Coach & Founder Hub */
+.ipac-coach-hub-sheet {
+  max-width: 620px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.ipac-coach-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.ipac-coach-title-wrap h2 {
+  margin: 4px 0 2px;
+  font-size: 1.25rem;
+  letter-spacing: -0.3px;
+}
+.ipac-coach-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 99px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+}
+.ipac-coach-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+}
+.ipac-coach-key-drawer {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 10px 0 6px;
+}
+.ipac-coach-presets {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 10px 0;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.ipac-coach-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: inherit;
+  transition: all 0.15s ease;
+}
+.ipac-coach-chip:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+.ipac-coach-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 2px;
+  min-height: 240px;
+  max-height: 48vh;
+  scrollbar-width: thin;
+}
+.ipac-coach-msg {
+  border-radius: 14px;
+  padding: 10px 14px;
+  max-width: 92%;
+  word-break: break-word;
+}
+.ipac-coach-msg-coach {
+  align-self: flex-start;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.ipac-coach-msg-user {
+  align-self: flex-end;
+  background: var(--primary, #3b82f6);
+  color: #ffffff;
+}
+.ipac-coach-msg-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.ipac-coach-msg-user .ipac-coach-msg-header {
+  color: rgba(255, 255, 255, 0.8);
+}
+.ipac-coach-msg-body {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.ipac-coach-thinking {
+  font-style: italic;
+  color: #94a3b8;
+}
+.ipac-coach-action-card {
+  margin-top: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 10px;
+  padding: 10px;
+}
+.ipac-coach-action-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #38bdf8;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.ipac-coach-alarm-time {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #39ff14;
+  font-family: monospace;
+}
+.ipac-coach-qr-wrap {
+  display: inline-block;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.ipac-coach-qr-wrap svg {
+  display: block;
+  width: 140px;
+  height: 140px;
+}
+.ipac-coach-quote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid #38bdf8;
+  font-style: italic;
+  color: #e2e8f0;
+}
+.ipac-coach-status-confirmed {
+  display: inline-block;
+  background: #16a34a;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.ipac-coach-input-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.ipac-coach-text-input {
+  flex: 1;
+}

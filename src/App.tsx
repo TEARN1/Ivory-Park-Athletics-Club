@@ -25,6 +25,8 @@ import Today from "./tabs/Today";
 import Demo from "./tabs/Demo";
 import TeamDispatch from "./tabs/TeamDispatch";
 import TourGuide from "./ui/TourGuide";
+import AICoachHub from "./ui/AICoachHub";
+import { loadClubSchedule } from "./lib/schedule";
 import { isTourCompleted } from "./lib/tour";
 import { Confirm, Icons } from "./ui";
 
@@ -80,6 +82,7 @@ export default function App() {
   const [toast, setToast] = useState<{ id: number; msg: string; undo?: () => void } | null>(null);
   const [showInstall, setShowInstall] = useState(false), [deferredPrompt, setDeferredPrompt] = useState<any>(null), [copiedAppUrl, setCopiedAppUrl] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [showAICoach, setShowAICoach] = useState(false);
   const [activeAlarm, setActiveAlarm] = useState<CoachAlarm | null>(null);
   const alarmStopFn = useRef<(() => void) | null>(null);
   const ref = useRef<S.Session | null>(null), tid = useRef<ReturnType<typeof setTimeout>>();
@@ -385,6 +388,15 @@ export default function App() {
               Coach
             </button>
           </div>
+          <button
+            className="ipac-themebtn"
+            style={{ fontWeight: 800, fontSize: "0.76rem", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "8px", padding: "0 6px" }}
+            aria-label="Open AI Head Coach and Founder"
+            title="Gemini AI Head Coach & Founder"
+            onClick={() => setShowAICoach(true)}
+          >
+            AI
+          </button>
           <button className="ipac-themebtn" aria-label="Take app tour / Help" title="Interactive App Tour" onClick={() => setShowTour(true)}>{Icons.help}</button>
           <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
           <button className="ipac-themebtn" aria-label={isNight ? "Switch to day theme" : "Switch to night theme"} onClick={() => setPrefs({ ...prefs, mode: isNight ? "light" : "dark" })}>{isNight ? Icons.sun : Icons.moon}</button>
@@ -600,6 +612,18 @@ export default function App() {
               role="menuitem"
               onClick={() => {
                 setSpeedDialOpen(false);
+                setShowAICoach(true);
+              }}
+            >
+              <span className="ipac-sd-icon" style={{ color: "#38bdf8", fontWeight: 900 }}>AI</span>
+              <span className="ipac-sd-label">Head Coach AI</span>
+            </button>
+            <button
+              type="button"
+              className="ipac-speed-dial-item"
+              role="menuitem"
+              onClick={() => {
+                setSpeedDialOpen(false);
                 vibrate([40, 40]);
                 say("Split timestamp recorded");
                 showToast(`Split recorded at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`);
@@ -739,6 +763,18 @@ export default function App() {
         <TourGuide
           onClose={() => setShowTour(false)}
           onNavigateTab={(t) => go(t)}
+        />
+      )}
+
+      {showAICoach && (
+        <AICoachHub
+          onClose={() => setShowAICoach(false)}
+          members={club.members}
+          schedule={loadClubSchedule()}
+          roleMode={roleMode}
+          onTriggerAlarmPreview={() => triggerWakeUp(loadCoachAlarm())}
+          onNavigateTab={(t) => go(t)}
+          showToast={showToast}
         />
       )}
     </div>
