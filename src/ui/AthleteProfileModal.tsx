@@ -25,7 +25,7 @@ export default function AthleteProfileModal({
 }: AthleteProfileModalProps) {
   const [tab, setTab] = useState<"signin" | "register" | "profile">(currentAthlete ? "profile" : "signin");
   const [selectedProfileId, setSelectedProfileId] = useState<string>(
-    currentAthlete ? currentAthlete.id : "profile-sipho-dlamini"
+    currentAthlete ? currentAthlete.id : "profile-asemahle-nkwali"
   );
   const [pinInput, setPinInput] = useState<string>("");
   const [err, setErr] = useState<string>("");
@@ -253,9 +253,21 @@ export default function AthleteProfileModal({
                           Bib {p.bib}
                         </span>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: "0.92rem" }}>{p.name}</div>
+                          <div style={{ fontWeight: 700, fontSize: "0.92rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                            <span>{p.name}</span>
+                            {p.titleNote && (
+                              <span style={{ fontSize: "0.7rem", color: "#38bdf8", background: "rgba(56, 189, 248, 0.15)", padding: "1px 6px", borderRadius: "4px", fontWeight: 600 }}>
+                                {p.titleNote}
+                              </span>
+                            )}
+                            {p.contributionPaid && (
+                              <span style={{ fontSize: "0.7rem", color: "#10b981", background: "rgba(16, 185, 129, 0.15)", padding: "1px 6px", borderRadius: "4px", fontWeight: 600 }}>
+                                Subs: {p.contributionPaid}
+                              </span>
+                            )}
+                          </div>
                           <div className="ipac-hint" style={{ fontSize: "0.75rem" }}>
-                            {p.section} • 5k PB: {p.best5k || "-"}
+                            {p.section} • {p.best4k ? `4km: ${p.best4k}` : p.best6k ? `6km: ${p.best6k}` : `5km PB: ${p.best5k || "-"}`}
                           </div>
                         </div>
                       </div>

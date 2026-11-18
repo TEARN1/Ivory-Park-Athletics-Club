@@ -94,12 +94,235 @@ export function saveGeminiApiKey(key: string): void {
 /** Default representative athletes of Ivory Park Athletics Club */
 export const DEFAULT_IPAC_MEMBERS: Member[] = [
   {
-    id: "ipac-mem-sibusiso",
-    name: "Sibusiso Molefe",
+    id: "ipac-mem-siyavuya",
+    name: "Siyavuya Thomas",
+    bib: "1",
+    gender: "M",
+    birthYear: 1980,
+    licenseNumber: "CGA-2026-1001",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 255,
+    notes: [{ id: "n-coach", at: 1704067200000, text: "The Original Coach & Founder of Ivory Park Athletics Club." }],
+    plan: [],
+  },
+  {
+    id: "ipac-mem-asemahle",
+    name: "Asemahle Nkwali",
+    bib: "4",
+    gender: "M",
+    birthYear: 1998,
+    licenseNumber: "CGA-2026-1004",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 288,
+    notes: [{ id: "n-it", at: 1704067200000, text: "Me, The IT of the team. R550 subs contributed." }],
+    plan: [],
+    shoes: [{ id: "sh-asemahle", model: "Nike Pegasus 40", km: 180 }],
+  },
+  {
+    id: "ipac-mem-george",
+    name: "George Mmonwa",
+    bib: "2",
+    gender: "M",
+    birthYear: 1993,
+    licenseNumber: "CGA-2026-1002",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 220,
+    notes: [{ id: "n-gm", at: 1704067200000, text: "Club 5km Champion (18:21, 3:40/km)." }],
+    plan: [],
+    shoes: [{ id: "sh-george", model: "Nike Vaporfly 3", km: 140 }],
+  },
+  {
+    id: "ipac-mem-sibusekile",
+    name: "Sibusekile Skhosana",
+    bib: "3",
+    gender: "M",
+    birthYear: 1995,
+    licenseNumber: "CGA-2026-1003",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 223,
+    notes: [{ id: "n-ss", at: 1704067200000, text: "5km PB: 18:35 (3:43/km)." }],
+    plan: [],
+    shoes: [{ id: "sh-sibu", model: "Puma Deviate Nitro 2", km: 160 }],
+  },
+  {
+    id: "ipac-mem-bennet",
+    name: "Bennet Molefe",
+    bib: "5",
+    gender: "M",
+    birthYear: 1992,
+    licenseNumber: "CGA-2026-1005",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 223,
+    notes: [{ id: "n-bm", at: 1704067200000, text: "5km PB: 18:37 (3:43/km)." }],
+    plan: [],
+    shoes: [{ id: "sh-bennet", model: "Asics Novablast 4", km: 190 }],
+  },
+  {
+    id: "ipac-mem-jan",
+    name: "Jan Diale",
+    bib: "6",
+    gender: "M",
+    birthYear: 1990,
+    licenseNumber: "CGA-2026-1006",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 226,
+    notes: [{ id: "n-jd", at: 1704067200000, text: "5km PB: 18:52 (3:46/km)." }],
+    plan: [],
+    shoes: [{ id: "sh-jan", model: "Saucony Endorphin Pro", km: 220 }],
+  },
+  {
+    id: "ipac-mem-somara",
+    name: "Somara Mashamaite",
+    bib: "8",
+    gender: "M",
+    birthYear: 1991,
+    licenseNumber: "CGA-2026-1008",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 228,
+    notes: [{ id: "n-sm", at: 1704067200000, text: "5km PB: 19:00 (3:48/km)." }],
+    plan: [],
+    shoes: [{ id: "sh-somara", model: "Nike Zoom Rival", km: 250 }],
+  },
+  {
+    id: "ipac-mem-lympson",
+    name: "Lympson Maifo",
+    bib: "7",
+    gender: "M",
+    birthYear: 1989,
+    licenseNumber: "CGA-2026-1007",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 248,
+    notes: [{ id: "n-lm", at: 1704067200000, text: "Club Timekeeper and 5km runner (20:42, 4:08/km)." }],
+    plan: [],
+    shoes: [{ id: "sh-lympson", model: "Adidas Boston 12", km: 210 }],
+  },
+  {
+    id: "ipac-mem-neo",
+    name: "Neo Mafa",
     bib: "10",
     gender: "M",
-    birthYear: 1988,
+    birthYear: 1997,
     licenseNumber: "CGA-2026-1010",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 226,
+    notes: [{ id: "n-nm", at: 1704067200000, text: "Monday 4km Winner (15:04) & 5km (22:48)." }],
+    plan: [],
+    shoes: [{ id: "sh-neo", model: "Nike Pegasus 40", km: 210 }],
+  },
+  {
+    id: "ipac-mem-oscar",
+    name: "Oscar Notshweleka",
+    bib: "13",
+    gender: "M",
+    birthYear: 1994,
+    licenseNumber: "CGA-2026-1013",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 223,
+    notes: [{ id: "n-on", at: 1704067200000, text: "Monday 6km Winner (22:21, 3:43/km)." }],
+    plan: [],
+    shoes: [{ id: "sh-oscar", model: "Puma Velocity Nitro", km: 290 }],
+  },
+  {
+    id: "ipac-mem-sam-matlou",
+    name: "Sam Matlou",
+    bib: "14",
+    gender: "M",
+    birthYear: 1995,
+    licenseNumber: "CGA-2026-1014",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 268,
+    notes: [{ id: "n-smat", at: 1704067200000, text: "5km Time Trial 1st Place (22:20)." }],
+    plan: [],
+    shoes: [{ id: "sh-smat", model: "Saucony Triumph", km: 340 }],
+  },
+  {
+    id: "ipac-mem-sibusiso-msibi",
+    name: "Sibusiso Msibi",
+    bib: "15",
+    gender: "M",
+    birthYear: 1996,
+    licenseNumber: "CGA-2026-1015",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 268,
+    notes: [{ id: "n-smsi", at: 1704067200000, text: "5km Time Trial 2nd Place (22:21)." }],
+    plan: [],
+    shoes: [{ id: "sh-smsi", model: "Brooks Ghost 15", km: 320 }],
+  },
+  {
+    id: "ipac-mem-siyabanga",
+    name: "Siyabanga Ndaba",
+    bib: "16",
+    gender: "M",
+    birthYear: 1997,
+    licenseNumber: "CGA-2026-1016",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 281,
+    notes: [{ id: "n-snd", at: 1704067200000, text: "5km Time Trial (23:26)." }],
+    plan: [],
+    shoes: [{ id: "sh-snd", model: "Asics Gel-Cumulus", km: 280 }],
+  },
+  {
+    id: "ipac-mem-gift",
+    name: "Gift Molefe",
+    bib: "17",
+    gender: "M",
+    birthYear: 1998,
+    licenseNumber: "CGA-2026-1017",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 289,
+    notes: [{ id: "n-gm", at: 1704067200000, text: "5km Time Trial (24:09)." }],
+    plan: [],
+    shoes: [{ id: "sh-gm", model: "Nike Pegasus 39", km: 390 }],
+  },
+  {
+    id: "ipac-mem-khutso",
+    name: "Khutso Masekwameng",
+    bib: "26",
+    gender: "M",
+    birthYear: 1994,
+    licenseNumber: "CGA-2026-1026",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 323,
+    notes: [{ id: "n-km", at: 1704067200000, text: "5km Time Trial (26:58)." }],
+    plan: [],
+    shoes: [{ id: "sh-km", model: "New Balance 1080", km: 420 }],
+  },
+  {
+    id: "ipac-mem-kingsley",
+    name: "Kingsley Mogadime",
+    bib: "19",
+    gender: "M",
+    birthYear: 1991,
+    licenseNumber: "CGA-2026-1019",
+    active: true,
+    joinedAt: 1704067200000,
+    targetPaceSec: 270,
+    notes: [{ id: "n-kmog", at: 1704067200000, text: "Monday 4km 2nd (18:01) & 5km (32:22)." }],
+    plan: [],
+    shoes: [{ id: "sh-kmog", model: "Nike Zoom Fly 5", km: 310 }],
+  },
+  {
+    id: "ipac-mem-sibusiso",
+    name: "Sibusiso Molefe",
+    bib: "9",
+    gender: "M",
+    birthYear: 1988,
+    licenseNumber: "CGA-2026-1009",
     active: true,
     joinedAt: 1704067200000,
     targetPaceSec: 225,
@@ -158,10 +381,10 @@ export const DEFAULT_IPAC_MEMBERS: Member[] = [
   {
     id: "ipac-mem-katlego",
     name: "Katlego Dlamini",
-    bib: "15",
+    bib: "21",
     gender: "M",
     birthYear: 1996,
-    licenseNumber: "CGA-2026-1015",
+    licenseNumber: "CGA-2026-1021",
     active: true,
     joinedAt: 1704067200000,
     targetPaceSec: 245,
@@ -189,6 +412,88 @@ export const DEFAULT_IPAC_MEMBERS: Member[] = [
 
 /** Default representative sessions with past finishing times and splits */
 export const DEFAULT_IPAC_HISTORY: Session[] = [
+  {
+    id: "ipac-sess-monday-0911",
+    date: "2026-11-09",
+    distanceKm: 4.0,
+    mode: "race",
+    runners: [
+      { id: "r-neo", name: "Neo Mafa", bib: "10", memberId: "ipac-mem-neo" },
+      { id: "r-kingsley", name: "Kingsley Mogadime", bib: "19", memberId: "ipac-mem-kingsley" },
+      { id: "r-asemahle", name: "Asemahle Nkwali", bib: "4", memberId: "ipac-mem-asemahle" },
+      { id: "r-seopela", name: "Seopela Mokiri", bib: "35", memberId: "ipac-mem-seopela" },
+      { id: "r-oscar", name: "Oscar Notshweleka", bib: "13", memberId: "ipac-mem-oscar" },
+    ],
+    finishes: {
+      "r-neo": 15 * 60 * 1000 + 4 * 1000, // 15:04 (3:46/km) - 4km 1st
+      "r-kingsley": 18 * 60 * 1000 + 1 * 1000, // 18:01 (4:30/km) - 4km 2nd
+      "r-asemahle": 19 * 60 * 1000 + 12 * 1000, // 19:12 (4:48/km) - 4km 3rd (Team IT)
+      "r-seopela": 21 * 60 * 1000 + 42 * 1000, // 21:42 (5:25/km) - 4km 4th
+      "r-oscar": 22 * 60 * 1000 + 21 * 1000, // 22:21 (3:43/km) - 6km 1st
+    },
+  },
+  {
+    id: "ipac-sess-championship-5k",
+    date: "2026-11-05",
+    distanceKm: 5.0,
+    mode: "race",
+    runners: [
+      { id: "r-george", name: "George Mmonwa", bib: "2", memberId: "ipac-mem-george" },
+      { id: "r-sibusekile", name: "Sibusekile Skhosana", bib: "3", memberId: "ipac-mem-sibusekile" },
+      { id: "r-bennet", name: "Bennet Molefe", bib: "5", memberId: "ipac-mem-bennet" },
+      { id: "r-jan", name: "Jan Diale", bib: "6", memberId: "ipac-mem-jan" },
+      { id: "r-somara", name: "Somara Mashamaite", bib: "8", memberId: "ipac-mem-somara" },
+      { id: "r-phogole", name: "Phogole", bib: "12", memberId: "ipac-mem-phogole" },
+      { id: "r-lympson", name: "Lympson Maifo", bib: "7", memberId: "ipac-mem-lympson" },
+      { id: "r-norman", name: "Moseamedi Norman", bib: "23", memberId: "ipac-mem-norman" },
+      { id: "r-amelia", name: "Amelia Masola", bib: "25", memberId: "ipac-mem-amelia" },
+      { id: "r-floyd", name: "Floyd Mudau", bib: "27", memberId: "ipac-mem-floyd" },
+      { id: "r-johannes", name: "Johannes Maifo", bib: "28", memberId: "ipac-mem-johannes" },
+      { id: "r-ezekiel", name: "Ezekiel Tshabalala", bib: "29", memberId: "ipac-mem-ezekiel" },
+      { id: "r-kingsley-5k", name: "Kingsley Mogadime", bib: "19", memberId: "ipac-mem-kingsley" },
+      { id: "r-dee", name: "Dee Sekgomane", bib: "34", memberId: "ipac-mem-dee" },
+      { id: "r-john", name: "John Moshoeshoe", bib: "36", memberId: "ipac-mem-john" },
+    ],
+    finishes: {
+      "r-george": 18 * 60 * 1000 + 21 * 1000, // 18:21 (3:40/km)
+      "r-sibusekile": 18 * 60 * 1000 + 35 * 1000, // 18:35 (3:43/km)
+      "r-bennet": 18 * 60 * 1000 + 37 * 1000, // 18:37 (3:43/km)
+      "r-jan": 18 * 60 * 1000 + 52 * 1000, // 18:52 (3:46/km)
+      "r-somara": 19 * 60 * 1000, // 19:00 (3:48/km)
+      "r-phogole": 19 * 60 * 1000 + 56 * 1000, // 19:56 (3:59/km)
+      "r-lympson": 20 * 60 * 1000 + 42 * 1000, // 20:42 (4:08/km)
+      "r-norman": 23 * 60 * 1000 + 52 * 1000, // 23:52 (4:46/km)
+      "r-amelia": 24 * 60 * 1000 + 41 * 1000, // 24:41 (4:56/km)
+      "r-floyd": 24 * 60 * 1000 + 42 * 1000, // 24:42 (4:56/km)
+      "r-johannes": 28 * 60 * 1000 + 41 * 1000, // 28:41 (5:44/km)
+      "r-ezekiel": 30 * 60 * 1000 + 13 * 1000, // 30:13 (6:02/km)
+      "r-kingsley-5k": 32 * 60 * 1000 + 22 * 1000, // 32:22 (6:28/km)
+      "r-dee": 32 * 60 * 1000 + 46 * 1000, // 32:46 (6:33/km)
+      "r-john": 33 * 60 * 1000 + 2 * 1000, // 33:02 (6:36/km)
+    },
+  },
+  {
+    id: "ipac-sess-squad-5k",
+    date: "2026-11-02",
+    distanceKm: 5.0,
+    mode: "race",
+    runners: [
+      { id: "r-sam-matlou", name: "Sam Matlou", bib: "14", memberId: "ipac-mem-sam-matlou" },
+      { id: "r-sibusiso-msibi", name: "Sibusiso Msibi", bib: "15", memberId: "ipac-mem-sibusiso-msibi" },
+      { id: "r-neo-5k", name: "Neo Mafa", bib: "10", memberId: "ipac-mem-neo" },
+      { id: "r-siyabanga", name: "Siyabanga Ndaba", bib: "16", memberId: "ipac-mem-siyabanga" },
+      { id: "r-gift", name: "Gift Molefe", bib: "17", memberId: "ipac-mem-gift" },
+      { id: "r-khutso", name: "Khutso Masekwameng", bib: "26", memberId: "ipac-mem-khutso" },
+    ],
+    finishes: {
+      "r-sam-matlou": 22 * 60 * 1000 + 20 * 1000, // 22:20 (4:28/km)
+      "r-sibusiso-msibi": 22 * 60 * 1000 + 21 * 1000, // 22:21 (4:28/km)
+      "r-neo-5k": 22 * 60 * 1000 + 48 * 1000, // 22:48 (4:33/km)
+      "r-siyabanga": 23 * 60 * 1000 + 26 * 1000, // 23:26 (4:41/km)
+      "r-gift": 24 * 60 * 1000 + 9 * 1000, // 24:09 (4:49/km)
+      "r-khutso": 26 * 60 * 1000 + 58 * 1000, // 26:58 (5:23/km)
+    },
+  },
   {
     id: "ipac-sess-001",
     date: "2026-11-10",
@@ -814,6 +1119,157 @@ Guidelines:
       id: timeId,
       role: "coach",
       text: `Sanibonani ${a.name}! Reviewing your private athlete file (Bib ${a.bib || "-"} • ${a.section}):\n\n- Division: ${a.ageGroup}\n- Personal Bests: ${pbDetails || "Consistent training"}\n- Current Footwear: ${shoeDetails}\n\nYour training sessions and private coach chats are saved to your profile and synced with The Resident & The Gruvs unified club database. Keep your stride smooth on our Highveld roads!`,
+      timestamp,
+    };
+  }
+
+  // 0B. Ivory Park AC Real Club Leadership & Historical Results Queries
+
+  // Coach Siyavuya Thomas ("The Original Coach")
+  if (q.includes("siyavuya") || q.includes("original coach")) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Siyavuya Thomas is The Original Coach and Founder of Ivory Park Athletics Club (IPAC). Coach Siyavuya established our squad's foundational discipline, training philosophies, and Highveld road development from the start line.`,
+      timestamp,
+    };
+  }
+
+  // Asemahle Nkwali ("Me, The IT of the team")
+  if (q.includes("asemahle") || q.includes("nkwali") || q.includes("it of the team") || q.includes("the it") || q.includes("team it")) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Asemahle Nkwali is our Team IT Lead and active runner (Bib 4). On Monday's 09/11/2026 course, Asemahle placed 3rd in the 4km with a time of 19:12 (pace 4:48/km). He has also contributed R550 toward the club's transport and subs fund.`,
+      timestamp,
+    };
+  }
+
+  // Timekeeper Lympson Maifo
+  if (q.includes("lympson") || q.includes("timekeeper") || q.includes("time keeper")) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Lympson Maifo is Ivory Park Athletics Club's official Timekeeper and a competitive runner (Bib 7). He officiated the Monday 09/11/2026 course and recorded a strong 5km road time of 20:42 (pace 4:08/km).`,
+      timestamp,
+    };
+  }
+
+  // Monday Course Results 09/11/2026 (4km & 6km)
+  if (
+    q.includes("monday") ||
+    q.includes("09/11") ||
+    q.includes("9/11") ||
+    (q.includes("course") && (q.includes("results") || q.includes("times") || q.includes("4km") || q.includes("6km")))
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Monday Course Results (09/11/2026) - Official Timekeeper: Lympson Maifo:\n\n4km Course:\n1. Neo Mafa: 15:04 (Pace 3:46/km)\n2. Kingsley Mogadime: 18:01 (Pace 4:30/km)\n3. Asemahle Nkwali: 19:12 (Pace 4:48/km)\n4. Seopela Mokiri: 21:42 (Pace 5:25/km)\n\n6km Course:\n1. Oscar Notshweleka: 22:21 (Pace 3:43/km)\n\nExcellent effort across the squad on the township course!`,
+      timestamp,
+    };
+  }
+
+  // Club Contributions / Subs / Transport Money (R200, R550)
+  if (
+    q.includes("contribution") ||
+    q.includes("subs") ||
+    q.includes("funds") ||
+    q.includes("fees") ||
+    q.includes("money") ||
+    q.includes("r200") ||
+    q.includes("r550") ||
+    q.includes("phasha") ||
+    q.includes("chaba") ||
+    q.includes("maphoru") ||
+    q.includes("kganyago")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Ivory Park Athletics Club - Transport & Member Contributions Ledger:\n\n1. Joseph Phasha: R200\n2. Mpho Chaba: R200\n3. Evidence Maphoru: R200\n4. Asemahle Nkwali: R550 (Team IT Lead)\n5. Wendy Kganyago: R200\n\nTotal Collected: R1,350 dedicated to squad minibus transport, race entries, and logistics.`,
+      timestamp,
+    };
+  }
+
+  // 5km Squad Time Trial (Sam Matlou 22:20)
+  if (
+    q.includes("time trial") ||
+    q.includes("sam matlou") ||
+    q.includes("matlou") ||
+    q.includes("msibi") ||
+    q.includes("siyabanga") ||
+    q.includes("gift molefe") ||
+    q.includes("khutso")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `5km Squad Time Trial Standings:\n1. Sam Matlou: 22:20 (Pace 4:28/km)\n2. Sibusiso Msibi: 22:21 (Pace 4:28/km)\n3. Neo Mafa: 22:48 (Pace 4:33/km)\n4. Siyabanga Ndaba: 23:26 (Pace 4:41/km)\n5. Gift Molefe: 24:09 (Pace 4:49/km)\n6. Khutso Masekwameng: 26:58 (Pace 5:23/km)`,
+      timestamp,
+    };
+  }
+
+  // 5km Road Race Championship (George Mmonwa 18:21)
+  if (
+    !q.includes("predict") &&
+    (q.includes("george") ||
+      q.includes("mmonwa") ||
+      q.includes("18:21") ||
+      q.includes("sibusekile") ||
+      q.includes("bennet") ||
+      q.includes("jan diale") ||
+      q.includes("somara") ||
+      (q.includes("5km") &&
+        (q.includes("championship") ||
+          q.includes("champion") ||
+          q.includes("road race") ||
+          q.includes("who won") ||
+          q.includes("winner") ||
+          q.includes("standing") ||
+          q.includes("leaderboard"))) ||
+      (q.includes("who won") && (q.includes("5k") || q.includes("race") || q.includes("championship"))) ||
+      (q.includes("road race") && (q.includes("5k") || q.includes("result") || q.includes("who won"))))
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `5km Road Race Championship Leaderboard:\n1. George Mmonwa: 18:21 (Pace 3:40/km) - Club Champion\n2. Sibusekile Skhosana: 18:35 (Pace 3:43/km)\n3. Bennet Molefe: 18:37 (Pace 3:43/km)\n4. Jan Diale: 18:52 (Pace 3:46/km)\n5. Somara Mashamaite: 19:00 (Pace 3:48/km)\n6. Phogole: 19:56 (Pace 3:59/km)\n7. Lympson Maifo: 20:42 (Pace 4:08/km)\n8. Moseamedi Norman: 23:52\n9. Amelia Masola: 24:41\n10. Floyd Mudau: 24:42\n11. Johannes Maifo: 28:41\n12. Ezekiel Tshabalala: 30:13\n13. Kingsley Mogadime: 32:22\n14. Dee Sekgomane: 32:46\n15. John Moshoeshoe: 33:02`,
+      timestamp,
+    };
+  }
+
+  // Other Registered Club Members
+  if (
+    q.includes("donald") ||
+    q.includes("mathipa") ||
+    q.includes("sam motaung") ||
+    q.includes("motaung") ||
+    q.includes("koloi") ||
+    q.includes("kanyane") ||
+    q.includes("mmanoko") ||
+    q.includes("mokobodi") ||
+    q.includes("rosemary") ||
+    q.includes("rakgalakane") ||
+    q.includes("wilson") ||
+    q.includes("moloto") ||
+    q.includes("ruphat") ||
+    q.includes("rapholo")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `That is one of our dedicated Ivory Park Athletics Club squad members! They train consistently with our team across Freedom Drive, Swazi Inn, and Rabie Ridge routes, supporting club initiatives and representing IPAC with pride.`,
+      timestamp,
+    };
+  }
+
+  // Oscar Notshweleka (6km in 22:21)
+  if (q.includes("oscar") || q.includes("notshweleka")) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Oscar Notshweleka took 1st place in Monday's 09/11/2026 6km course, crossing the line in 22:21 (pace 3:43/km). A decisive victory on the Highveld!`,
       timestamp,
     };
   }
@@ -1697,7 +2153,7 @@ Guidelines:
     };
   }
 
-  // G. Casual Chat / "I wanna talk" / "Hey Coach" / Normal Human Dialogue
+  // G. Casual Chat / "I wanna talk" / "Hey Coach" / Normal Human Dialogue / African & Highveld Greetings
   if (
     q === "i wanna talk" ||
     q.includes("wanna talk") ||
@@ -1705,16 +2161,30 @@ Guidelines:
     q.includes("let's talk") ||
     q.includes("hey coach") ||
     q.includes("hello coach") ||
+    q.includes("hi coach") ||
+    q.includes("morning coach") ||
+    q.includes("sawubona") ||
+    q.includes("sanibonani") ||
+    q.includes("dumela") ||
+    q.includes("molweni") ||
     q.includes("how are you") ||
     q === "hi" ||
     q === "hello" ||
     q === "coach"
   ) {
     if (context.athlete) {
+      const isAsemahle = context.athlete.name.toLowerCase().includes("asemahle");
+      const isCoach = context.athlete.name.toLowerCase().includes("siyavuya");
+      let greeting = `Sanibonani ${context.athlete.name}!`;
+      if (isAsemahle) {
+        greeting = `Sanibonani Asemahle! Good to have our Team IT Lead on the line.`;
+      } else if (isCoach) {
+        greeting = `Sanibonani Coach Siyavuya! The Original Coach of Ivory Park AC.`;
+      }
       return {
         id: timeId,
         role: "coach",
-        text: `Sanibonani ${context.athlete.name}! I am right here with you on your private coaching channel. What is on your mind? We can chat about how your body is holding up, review your personal targets (Bib ${context.athlete.bib || "-"} • ${context.athlete.section}), analyze your pacing, or plan out our weekend miles. How are your legs feeling after the last run?`,
+        text: `${greeting} I am right here with you on your private coaching channel. What is on your mind? We can chat about how your body is holding up, review your personal targets (Bib ${context.athlete.bib || "-"} • ${context.athlete.section}), analyze your pacing, or plan out our weekend miles. How are your legs feeling after the last run?`,
         timestamp,
       };
     }
@@ -1745,6 +2215,20 @@ Guidelines:
   }
 
   // H. Thoughtful, natural coaching fallback
+  if (context.athlete) {
+    const isAsemahle = context.athlete.name.toLowerCase().includes("asemahle");
+    const isCoach = context.athlete.name.toLowerCase().includes("siyavuya");
+    let nameTitle = context.athlete.name;
+    if (isAsemahle) nameTitle = "Asemahle (Team IT Lead)";
+    else if (isCoach) nameTitle = "Coach Siyavuya (The Original Coach)";
+    return {
+      id: timeId,
+      role: "coach",
+      text: `I hear you, ${nameTitle}! Your private athlete stats and coach channel are active (Bib ${context.athlete.bib || "-"} • ${context.athlete.section}). We can analyze your pacing, look into recovery or shoe mileage, review upcoming squad sessions, or discuss training tips. What would you like to focus on?`,
+      timestamp,
+    };
+  }
+
   return {
     id: timeId,
     role: "coach",

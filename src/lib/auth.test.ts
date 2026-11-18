@@ -102,4 +102,25 @@ describe("Athlete Authentication & Profile Management", () => {
     expect(reply.text).toContain("Puma Deviate Nitro");
     expect(reply.text).toContain("The Resident & The Gruvs");
   });
+
+  it("loads Asemahle Nkwali and Siyavuya Thomas in club profiles with roles and contributions", () => {
+    const profiles = listClubProfiles();
+    const asemahle = profiles.find((p) => p.name === "Asemahle Nkwali");
+    expect(asemahle).toBeDefined();
+    expect(asemahle?.bib).toBe("4");
+    expect(asemahle?.titleNote).toBe("Me, The IT of the team");
+    expect(asemahle?.contributionPaid).toBe("R550");
+    expect(asemahle?.best4k).toBe("19:12");
+
+    const coach = profiles.find((p) => p.name === "Siyavuya Thomas");
+    expect(coach).toBeDefined();
+    expect(coach?.bib).toBe("1");
+    expect(coach?.titleNote).toBe("The Original Coach");
+    expect(coach?.role).toBe("coach");
+
+    const timekeeper = profiles.find((p) => p.name === "Lympson Maifo");
+    expect(timekeeper).toBeDefined();
+    expect(timekeeper?.titleNote).toBe("Time keeper");
+    expect(timekeeper?.best5k).toBe("20:42");
+  });
 });

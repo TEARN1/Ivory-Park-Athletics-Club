@@ -293,4 +293,136 @@ describe("geminiCoach engine", () => {
     expect(res.action?.type).toBe("injury_triage");
     expect(res.action?.payload.suspectedCondition).toContain("Shin Splints");
   });
+
+  describe("Authentic Ivory Park Athletics Club Squad Queries", () => {
+    it("answers inquiry about Siyavuya Thomas (The Original Coach)", async () => {
+      const res = await processCoachQuery("Who is Siyavuya Thomas?", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Siyavuya Thomas is The Original Coach and Founder");
+      expect(res.text).toContain("Ivory Park Athletics Club");
+    });
+
+    it("answers inquiry about Asemahle Nkwali (Team IT Lead)", async () => {
+      const res = await processCoachQuery("Tell me about Asemahle Nkwali and his 4km race", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Asemahle Nkwali is our Team IT Lead");
+      expect(res.text).toContain("19:12");
+      expect(res.text).toContain("R550");
+    });
+
+    it("answers inquiry about Timekeeper Lympson Maifo", async () => {
+      const res = await processCoachQuery("Who is our timekeeper Lympson Maifo?", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Lympson Maifo is Ivory Park Athletics Club's official Timekeeper");
+      expect(res.text).toContain("20:42");
+    });
+
+    it("provides Monday course results for 09/11/2026", async () => {
+      const res = await processCoachQuery("What were the Monday course results on 09/11/2026?", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Monday Course Results (09/11/2026)");
+      expect(res.text).toContain("Neo Mafa: 15:04");
+      expect(res.text).toContain("Kingsley Mogadime: 18:01");
+      expect(res.text).toContain("Asemahle Nkwali: 19:12");
+      expect(res.text).toContain("Seopela Mokiri: 21:42");
+      expect(res.text).toContain("Oscar Notshweleka: 22:21");
+      expect(res.text).toContain("Lympson Maifo");
+    });
+
+    it("provides member transport and contributions ledger", async () => {
+      const res = await processCoachQuery("Show me the club contributions and transport subs ledger", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Joseph Phasha: R200");
+      expect(res.text).toContain("Mpho Chaba: R200");
+      expect(res.text).toContain("Evidence Maphoru: R200");
+      expect(res.text).toContain("Asemahle Nkwali: R550");
+      expect(res.text).toContain("Wendy Kganyago: R200");
+      expect(res.text).toContain("Total Collected: R1,350");
+    });
+
+    it("provides 5km road championship leaderboard with George Mmonwa 18:21", async () => {
+      const res = await processCoachQuery("Who won the 5km road race championship?", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("George Mmonwa: 18:21");
+      expect(res.text).toContain("Club Champion");
+      expect(res.text).toContain("Sibusekile Skhosana: 18:35");
+      expect(res.text).toContain("Bennet Molefe: 18:37");
+      expect(res.text).toContain("Jan Diale: 18:52");
+    });
+
+    it("recognizes other registered squad members such as Donald Mathipa", async () => {
+      const res = await processCoachQuery("Tell me about Donald Mathipa", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Ivory Park Athletics Club squad members");
+    });
+
+    it("provides 5km squad time trial results for Sam Matlou and Sibusiso Msibi", async () => {
+      const res = await processCoachQuery("Show the 5km squad time trial times for Sam Matlou and Msibi", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Sam Matlou: 22:20");
+      expect(res.text).toContain("Sibusiso Msibi: 22:21");
+      expect(res.text).toContain("Neo Mafa: 22:48");
+      expect(res.text).toContain("Siyabanga Ndaba: 23:26");
+      expect(res.text).toContain("Gift Molefe: 24:09");
+      expect(res.text).toContain("Khutso Masekwameng: 26:58");
+    });
+
+    it("answers inquiry about Oscar Notshweleka in the 6km course", async () => {
+      const res = await processCoachQuery("How did Oscar Notshweleka perform?", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Oscar Notshweleka");
+      expect(res.text).toContain("22:21");
+    });
+
+    it("personalizes greeting when Asemahle Nkwali is authenticated", async () => {
+      const res = await processCoachQuery("Sawubona coach", {
+        members: [],
+        schedule: loadClubSchedule(),
+        roleMode: "athlete",
+        athlete: {
+          id: "profile-asemahle-nkwali",
+          name: "Asemahle Nkwali",
+          bib: "4",
+          phone: "078-555-0404",
+          pin: "0404",
+          role: "athlete",
+          ageGroup: "Senior (20-39)",
+          gender: "M",
+          section: "Freedom Drive Hub",
+          best4k: "19:12",
+          targetPace: "4:48/km",
+          createdAt: 1731900000000,
+          updatedAt: 1731900000000,
+        },
+      });
+      expect(res.text).toContain("Sanibonani Asemahle! Good to have our Team IT Lead on the line.");
+    });
+  });
 });
