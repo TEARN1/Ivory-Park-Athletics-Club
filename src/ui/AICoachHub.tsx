@@ -7,7 +7,7 @@ import {
   type CoachMessage,
   type CoachStructuredReport,
 } from "../lib/geminiCoach";
-import { startAlarmLoop, say, beep, vibrate } from "../lib/sound";
+import { startAlarmLoop, say, stopSpeaking, beep, vibrate } from "../lib/sound";
 import type { Member } from "../lib/club";
 import type { ClubScheduleDay } from "../lib/schedule";
 import type { Session } from "../lib/session";
@@ -771,6 +771,10 @@ export default function AICoachHub({
   const [metronomeSpm, setMetronomeSpm] = useState<number | null>(null);
   const [selectedSpm, setSelectedSpm] = useState<number>(180);
 
+  const [isLiveCall, setIsLiveCall] = useState(false);
+  const isLiveCallRef = useRef(false);
+  const [callStatus, setCallStatus] = useState<"speaking" | "listening" | "thinking">("listening");
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stopAlarmRef = useRef<(() => void) | null>(null);
   const metronomeTimerRef = useRef<any>(null);
@@ -779,6 +783,14 @@ export default function AICoachHub({
   const [messages, setMessages] = useState<CoachMessage[]>(() =>
     loadAthleteChatHistory(currentAthlete || null)
   );
+
+  // Clean up voice call if component unmounts
+  useEffect(() => {
+    return () => {
+      isLiveCallRef.current = false;
+      stopSpeaking();
+    };
+  }, []);
 
   // Sync chat history if athlete profile changes
   useEffect(() => {
@@ -796,6 +808,32 @@ export default function AICoachHub({
     const fresh = clearAthleteChatHistory(currentAthlete || null);
     setMessages(fresh);
     showToast("Private coaching chat history cleared");
+  };
+
+  const handleStartCall = () => {
+    setIsLiveCall(true);
+    isLiveCallRef.current = true;
+    setCallStatus("speaking");
+    beep(880, 80);
+    const greeting = currentAthlete
+      ? `Sanibonani ${currentAthlete.name}! Coach Siyavuya here on the line. What is on your mind?`
+      : "Sanibonani! Coach Siyavuya here on the line. What is on your mind?";
+    say(greeting, () => {
+      if (isLiveCallRef.current) {
+        setCallStatus("listening");
+        startVoiceListening();
+      }
+    });
+    showToast("Live Voice Call connected with Coach Siyavuya");
+  };
+
+  const handleEndCall = () => {
+    setIsLiveCall(false);
+    isLiveCallRef.current = false;
+    stopSpeaking();
+    setListening(false);
+    beep(440, 100);
+    showToast("Voice call ended");
   };
 
   useEffect(() => {
@@ -862,19 +900,31 @@ export default function AICoachHub({
 
       recognition.onstart = () => {
         setListening(true);
+        if (isLiveCallRef.current) setCallStatus("listening");
         beep(880, 50);
       };
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setInputVal(transcript);
         setListening(false);
+        if (isLiveCallRef.current) setCallStatus("thinking");
         handleSend(transcript);
       };
       recognition.onerror = () => {
         setListening(false);
+        if (isLiveCallRef.current) {
+          setTimeout(() => {
+            if (isLiveCallRef.current) startVoiceListening();
+          }, 1200);
+        }
       };
       recognition.onend = () => {
         setListening(false);
+        if (isLiveCallRef.current && callStatus === "listening") {
+          setTimeout(() => {
+            if (isLiveCallRef.current) startVoiceListening();
+          }, 600);
+        }
       };
       recognition.start();
     } catch {
@@ -944,8 +994,16 @@ export default function AICoachHub({
       setMessages((prev) => [...prev, response]);
       beep(880, 70);
 
-      // Speak key confirmation if voice enabled and brief
-      if (voiceEnabled && response.text.length < 120) {
+      // Speak response: in Live Call, speak and auto-listen on completion; otherwise speak if voice enabled
+      if (isLiveCallRef.current) {
+        setCallStatus("speaking");
+        say(response.text, () => {
+          if (isLiveCallRef.current) {
+            setCallStatus("listening");
+            startVoiceListening();
+          }
+        });
+      } else if (voiceEnabled) {
         say(response.text);
       }
     } catch {
@@ -1057,6 +1115,28 @@ export default function AICoachHub({
           <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
             <button
               type="button"
+              className={`ipac-btn ${isLiveCall ? "ipac-btn-danger" : "ipac-btn-primary"}`}
+              style={{
+                fontSize: "0.8rem",
+                padding: "6px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: 700,
+                background: isLiveCall ? "#ef4444" : "#10b981",
+                borderColor: isLiveCall ? "#ef4444" : "#10b981",
+                color: "#ffffff",
+              }}
+              title={isLiveCall ? "End live voice call" : "Start continuous hands-free voice call with Coach"}
+              onClick={isLiveCall ? handleEndCall : handleStartCall}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+              <span>{isLiveCall ? "End Call" : "Live Call"}</span>
+            </button>
+            <button
+              type="button"
               className="ipac-btn ipac-btn-quiet"
               style={{ fontSize: "0.8rem", padding: "6px 10px" }}
               title="Cloud AI Settings"
@@ -1079,6 +1159,52 @@ export default function AICoachHub({
             </button>
           </div>
         </div>
+
+        {/* Active Live Voice Call Overlay / Banner */}
+        {isLiveCall && (
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%)",
+              borderBottom: "1px solid rgba(16, 185, 129, 0.4)",
+              padding: "10px 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span
+                className="ipac-coach-status-dot"
+                style={{
+                  background: callStatus === "speaking" ? "#10b981" : callStatus === "listening" ? "#38bdf8" : "#f59e0b",
+                  width: "12px",
+                  height: "12px",
+                }}
+              />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "0.92rem" }}>
+                  {callStatus === "speaking"
+                    ? "Coach Siyavuya is speaking..."
+                    : callStatus === "listening"
+                    ? "Listening to you... (Speak now)"
+                    : "Coach is thinking..."}
+                </div>
+                <div className="ipac-hint" style={{ fontSize: "0.74rem", margin: 0 }}>
+                  Hands-free continuous conversation active. Speak naturally, no typing.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ipac-btn ipac-btn-danger"
+              style={{ fontSize: "0.78rem", padding: "5px 12px", fontWeight: 700 }}
+              onClick={handleEndCall}
+            >
+              End Call
+            </button>
+          </div>
+        )}
 
         {/* API Key Drawer */}
         {showKeyDrawer && (
@@ -1140,11 +1266,11 @@ export default function AICoachHub({
             </div>
             {apiKey ? (
               <div style={{ marginTop: "6px", fontSize: "0.78rem", color: "#10b981", fontWeight: 600 }}>
-                Active Key: {apiKey.slice(0, 6)}...{apiKey.slice(-4)} (Gemini Cloud Connected)
+                Active Club Key: {apiKey.slice(0, 6)}...{apiKey.slice(-4)} (Managed by Team IT Asemahle • Shared with all squad athletes)
               </div>
             ) : (
               <p className="ipac-hint" style={{ fontSize: "0.75rem", margin: "6px 0 0" }}>
-                Paste your key and tap <strong>Save Key</strong>. Once saved, the badge turns green with Live Cloud AI enabled.
+                Team IT Setup: As Team IT Lead, when you save this key once, all squad athletes automatically get Live Cloud AI conversation on this app without needing their own key.
               </p>
             )}
           </div>
@@ -1258,6 +1384,20 @@ export default function AICoachHub({
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
               <circle cx="12" cy="13" r="4" />
+            </svg>
+          </button>
+
+          {/* Hands-Free Live Voice Call Button */}
+          <button
+            type="button"
+            className={`ipac-btn ipac-btn-quiet ipac-coach-tool-btn ${isLiveCall ? "ipac-btn-danger" : ""}`}
+            style={isLiveCall ? { background: "#ef4444", color: "#ffffff" } : undefined}
+            title={isLiveCall ? "End live voice call" : "Start hands-free continuous voice call with Coach"}
+            aria-label={isLiveCall ? "End live voice call" : "Start live voice call"}
+            onClick={isLiveCall ? handleEndCall : handleStartCall}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
             </svg>
           </button>
 

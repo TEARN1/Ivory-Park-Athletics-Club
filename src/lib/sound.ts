@@ -26,15 +26,35 @@ export function beep(freq = 880, ms = 160, vol = 0.35) {
   }
 }
 
-export function say(text: string) {
+export function say(text: string, onEnd?: () => void) {
   try {
-    if (!("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(text);
+    if (!("speechSynthesis" in window)) {
+      onEnd?.();
+      return;
+    }
+    speechSynthesis.cancel();
+    // Clean markdown asterisks and hash symbols before speaking
+    const clean = text.replace(/[*#_`]/g, "").replace(/\n+/g, ". ");
+    const u = new SpeechSynthesisUtterance(clean);
     u.lang = "en-ZA";
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    if (onEnd) {
+      u.onend = () => onEnd();
+      u.onerror = () => onEnd();
+    }
     speechSynthesis.speak(u);
   } catch {
-    /* no voice */
+    onEnd?.();
   }
+}
+
+export function stopSpeaking() {
+  try {
+    if ("speechSynthesis" in window) {
+      speechSynthesis.cancel();
+    }
+  } catch {}
 }
 
 /** Spoken time: 312000 -> "5 minutes 12 seconds". */
