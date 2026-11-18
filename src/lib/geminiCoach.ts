@@ -1012,6 +1012,7 @@ export async function processCoachQuery(
     roleMode: "coach" | "athlete";
     apiKey?: string;
     athlete?: AthleteProfile | null;
+    chatHistory?: CoachMessage[];
   }
 ): Promise<CoachMessage> {
   const q = query.trim().toLowerCase();
@@ -1022,12 +1023,17 @@ export async function processCoachQuery(
   const effectiveHistory = getEffectiveHistory(context.history);
   const performanceInsights = analyzeSquadPerformance(effectiveMembers, effectiveHistory);
 
-  // 1. If Gemini API key is present, attempt live Google AI Studio call
+  // 1. If Gemini API key is present, attempt live Google AI Studio call with multi-turn history
   const apiKey = context.apiKey || loadGeminiApiKey();
   if (apiKey) {
     try {
+      const activeUserDesc = context.athlete
+        ? `Speaking with: ${context.athlete.name} (Bib ${context.athlete.bib || "-"}, ${context.athlete.ageGroup}, ${context.athlete.section}${context.athlete.titleNote ? ", " + context.athlete.titleNote : ""})`
+        : `Speaking with: Coach / Club Administrator`;
+
       const systemPrompt = `You are the Head Coach and Founder of Ivory Park Athletics Club (IPAC) in Midrand, South Africa.
 You speak warmly, authentically, and conversationally like a dedicated, wise South African running coach.
+${activeUserDesc}
 You know our squad deeply (${effectiveMembers.map((m) => m.name).join(", ")}).
 Our squad trains on Highveld roads (1,520m elevation).
 Recent squad results:
@@ -1038,31 +1044,62 @@ ${performanceInsights.runnerProfiles.map((p) => `- ${p.name}: ${p.pbs.join(", ")
 Guidelines:
 - Talk like a real, caring coach and founder, NOT like an AI assistant.
 - NEVER list out your capabilities or tools unless the user specifically asks "what can you do?".
+- Maintain smooth, continuous conversational flow from previous messages in this chat.
 - When the user chats casually ("I wanna talk", "hey coach", "how are you"), engage warmly, ask about their legs, breathing, training, or recovery.
 - When asked about results, finishing times, pace drops, or runner progress, cite the real names, finishing times, paces, and dates accurately.
 - Keep responses concise, authoritative, disciplined, encouraging, with ZERO emojis.`;
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      const priorTurns = (context.chatHistory || [])
+        .filter((m) => m.role === "user" || m.role === "coach")
+        .slice(-10)
+        .map((m) => ({
+          role: m.role === "coach" ? "model" : "user",
+          parts: [{ text: m.text }],
+        }));
+
+      // Ensure proper alternating turns for Gemini API
+      const contents = [
+        ...priorTurns,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  {
-                    text: `${systemPrompt}\n\nSchedule Context: ${JSON.stringify(
-                      context.schedule
-                    )}\nUser message: ${query}`,
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
+          role: "user",
+          parts: [{ text: query }],
+        },
+      ];
+
+      const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      let res = await fetch(modelUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: `${systemPrompt}\n\nSchedule Context: ${JSON.stringify(context.schedule)}` }],
+          },
+          contents,
+        }),
+      });
+
+      if (!res.ok) {
+        // Fallback to gemini-1.5-flash if 2.5 is unavailable for the key
+        res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    {
+                      text: `${systemPrompt}\n\nSchedule Context: ${JSON.stringify(context.schedule)}\nUser message: ${query}`,
+                    },
+                  ],
+                },
+              ],
+            }),
+          }
+        );
+      }
 
       if (res.ok) {
         const data = await res.json();
@@ -2149,6 +2186,62 @@ Guidelines:
       id: timeId,
       role: "coach",
       text: `Tomorrow is a scheduled active recovery day. Next official team session is Wednesday: 5km Time Trial at 17:00 at Freedom Drive Hub. Would you like me to reserve your attendance?`,
+      timestamp,
+    };
+  }
+
+  // Fatigue, Heavy Legs, Recovery & Soreness
+  if (
+    q.includes("tired") ||
+    q.includes("heavy legs") ||
+    q.includes("fatigue") ||
+    q.includes("exhaust") ||
+    q.includes("sore") ||
+    q.includes("hurting") ||
+    q.includes("stiff") ||
+    q.includes("burnout")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Listen to your body. Active recovery and deep sleep are where your aerobic fitness and muscular strength actually consolidate. If your legs feel heavy after tackling the Rabie Ridge ascent or Freedom Drive miles, dial back tomorrow to easy strides or complete rest. Hydrate with electrolytes, roll out the calves and hamstrings, and ensure you are getting at least 8 hours of sleep. How are your joints and tendons feeling?`,
+      timestamp,
+    };
+  }
+
+  // Speed Improvement, Getting Faster & Pacing Advice
+  if (
+    q.includes("faster") ||
+    q.includes("improve speed") ||
+    q.includes("speed up") ||
+    q.includes("get quicker") ||
+    q.includes("drop time") ||
+    q.includes("speedwork") ||
+    q.includes("running tips") ||
+    q.includes("advice")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Building authentic Highveld speed requires a disciplined balance of aerobic endurance and turnover:\n\n1. 80/20 Pacing Rule: Keep 80% of your weekly volume strictly at an easy conversational pace to build mitochondrial density.\n2. Weekly Quality Workout: Dedicate one session to structured intervals (such as 6 x 800m repeats or a 20-minute threshold tempo).\n3. Highveld Hill Strides: Run 4 to 6 short 60m hill accelerations up Rabie Ridge to strengthen the glutes and drive knee lift without excessive joint pounding.\n\nWhat target distance or pace are you working toward right now?`,
+      timestamp,
+    };
+  }
+
+  // Motivation & Encouragement
+  if (
+    q.includes("motivation") ||
+    q.includes("discourag") ||
+    q.includes("hard run") ||
+    q.includes("tough day") ||
+    q.includes("struggl") ||
+    q.includes("give up") ||
+    q.includes("mindset")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Every athlete on our squad has days where the Highveld dust feels thick and the pace feels heavy. But remember: discipline on difficult mornings is what creates champions when race day arrives at Soweto, Two Oceans, and Comrades. You don't have to break records every workout; you just need to show up, honor your form, and trust the process. The entire Ivory Park AC squad is running right beside you.`,
       timestamp,
     };
   }

@@ -938,6 +938,7 @@ export default function AICoachHub({
         roleMode,
         apiKey,
         athlete: currentAthlete || null,
+        chatHistory: messages,
       });
 
       setMessages((prev) => [...prev, response]);
