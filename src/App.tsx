@@ -291,31 +291,6 @@ export default function App() {
     if (JSON.stringify(a.session.finishes) !== JSON.stringify(cur0.finishes) || a.session.startedAt !== cur0.startedAt || a.session.runners.length !== cur0.runners.length) { ref.current = a.session; setS(a.session); }
   }, [live.state?.timing, sharing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!s) return <p className="ipac-loading">Loading…</p>;
-  // Compute from a ref so async callbacks (GPS, polling) never use a stale session.
-  const act = (fn: (x: S.Session) => S.Session) => { try { const n = fn(ref.current!); ref.current = n; setS(n); setErr(""); } catch (e) { setErr((e as Error).message); } };
-  const onEnd = async (ended: S.Session) => { act(() => ended); await archive(ended); setHistory(await loadHistory()); setPending(await pendingCount()); flushOutbox().then((r) => setPending(r.pending)); };
-  const onSaveMember = (r: S.Runner) => {
-    try {
-      if (!r.name.trim()) throw new Error("Add a name first (Edit), then save the runner to the club");
-      const m = C.findMemberByName(club.members, r.name) ?? C.newMember(r.name, { bib: r.bib || undefined });
-      if (!club.members.includes(m)) setClub({ ...club, members: [...club.members, m] });
-      act((x) => ({ ...x, runners: x.runners.map((y) => (y.id === r.id ? { ...y, memberId: m.id } : y)) }));
-      showToast(`${m.name} saved to the club`);
-    } catch (e) { setErr((e as Error).message); }
-  };
-  const onNew = (keep: boolean) => { if (sharing) live.send({ type: "timing", action: { type: "reset" } }); const n = S.nextSession(s, keep); ref.current = n; setS(n); setTab("session"); setSheet(false); window.scrollTo(0, 0); };
-  const go = (t: Tab) => {
-    setTab(t);
-    setSheet(false);
-    setSpeedDialOpen(false);
-    try { window.location.hash = `#${t}`; } catch {}
-    window.scrollTo(0, 0);
-  };
-  const startRace = () => { setSheet(false); if (!s.runners.length) return; if (prefs.sound.countdownSec > 0) setCountdown(prefs.sound.countdownSec); else { if (prefs.sound.beeps) beep(1200, 600); startNow(); go("session"); } };
-  const announce = (kind: "finishes" | "laps", text: string) => { if (prefs.sound.beeps) beep(1000, 90, 0.25); if (prefs.sound.voice && prefs.sound[kind]) say(text); };
-  const joinPanel = (bare?: boolean) => <JoinPanel s={s} act={act} cfg={cfg} bare={bare} />;
-
   // Deep-Link Hash Routing
   useEffect(() => {
     const handleHash = () => {
@@ -353,6 +328,31 @@ export default function App() {
       );
     }
   }, [showSos]);
+
+  if (!s) return <p className="ipac-loading">Loading…</p>;
+  // Compute from a ref so async callbacks (GPS, polling) never use a stale session.
+  const act = (fn: (x: S.Session) => S.Session) => { try { const n = fn(ref.current!); ref.current = n; setS(n); setErr(""); } catch (e) { setErr((e as Error).message); } };
+  const onEnd = async (ended: S.Session) => { act(() => ended); await archive(ended); setHistory(await loadHistory()); setPending(await pendingCount()); flushOutbox().then((r) => setPending(r.pending)); };
+  const onSaveMember = (r: S.Runner) => {
+    try {
+      if (!r.name.trim()) throw new Error("Add a name first (Edit), then save the runner to the club");
+      const m = C.findMemberByName(club.members, r.name) ?? C.newMember(r.name, { bib: r.bib || undefined });
+      if (!club.members.includes(m)) setClub({ ...club, members: [...club.members, m] });
+      act((x) => ({ ...x, runners: x.runners.map((y) => (y.id === r.id ? { ...y, memberId: m.id } : y)) }));
+      showToast(`${m.name} saved to the club`);
+    } catch (e) { setErr((e as Error).message); }
+  };
+  const onNew = (keep: boolean) => { if (sharing) live.send({ type: "timing", action: { type: "reset" } }); const n = S.nextSession(s, keep); ref.current = n; setS(n); setTab("session"); setSheet(false); window.scrollTo(0, 0); };
+  const go = (t: Tab) => {
+    setTab(t);
+    setSheet(false);
+    setSpeedDialOpen(false);
+    try { window.location.hash = `#${t}`; } catch {}
+    window.scrollTo(0, 0);
+  };
+  const startRace = () => { setSheet(false); if (!s.runners.length) return; if (prefs.sound.countdownSec > 0) setCountdown(prefs.sound.countdownSec); else { if (prefs.sound.beeps) beep(1200, 600); startNow(); go("session"); } };
+  const announce = (kind: "finishes" | "laps", text: string) => { if (prefs.sound.beeps) beep(1000, 90, 0.25); if (prefs.sound.voice && prefs.sound[kind]) say(text); };
+  const joinPanel = (bare?: boolean) => <JoinPanel s={s} act={act} cfg={cfg} bare={bare} />;
 
   const athleteTestLink = typeof window !== "undefined" && (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1"))
     ? "https://tearn1.github.io/Ivory-Park-Athletics-Club/"
