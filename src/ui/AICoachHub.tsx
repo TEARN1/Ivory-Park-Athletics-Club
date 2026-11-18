@@ -964,11 +964,16 @@ export default function AICoachHub({
   };
 
   const handleSaveKey = () => {
-    const trimmed = apiKeyInput.trim();
+    let trimmed = apiKeyInput.trim();
+    // Strip accidental wrapping quotes from copy-pasting
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+      trimmed = trimmed.slice(1, -1).trim();
+    }
     saveGeminiApiKey(trimmed);
     setApiKey(trimmed);
+    setApiKeyInput(trimmed);
     setShowKeyDrawer(false);
-    showToast(trimmed ? "Google AI Studio API Key saved" : "API Key cleared; using offline engine");
+    showToast(trimmed ? "Gemini API Key saved! Live Cloud AI active." : "API Key cleared; using offline engine");
   };
 
   return (
@@ -978,8 +983,8 @@ export default function AICoachHub({
         <div className="ipac-coach-header">
           <div className="ipac-coach-title-wrap">
             <div className="ipac-coach-badge">
-              <span className="ipac-coach-status-dot" />
-              <span>{apiKey ? "Live Cloud AI" : "Local Coach Engine"}</span>
+              <span className="ipac-coach-status-dot" style={{ background: apiKey ? "#10b981" : "#38bdf8" }} />
+              <span>{apiKey ? "Live Cloud AI (Gemini Flash Active)" : "Local Coach Engine"}</span>
             </div>
             <h2>Head Coach &amp; Founder</h2>
             <p className="ipac-hint" style={{ margin: 0 }}>
@@ -1089,13 +1094,34 @@ export default function AICoachHub({
                 id="coach-key-input"
                 type="password"
                 className="ipac-input"
-                placeholder="AIzaSy..."
+                placeholder="Paste AIzaSy... here"
                 value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setApiKeyInput(val);
+                  const clean = val.trim().replace(/^["']|["']$/g, "");
+                  if (clean.startsWith("AIza") && clean.length >= 35) {
+                    saveGeminiApiKey(clean);
+                    setApiKey(clean);
+                    showToast("Gemini API Key detected & saved! Live Cloud AI active.");
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSaveKey();
+                  }
+                }}
+                onBlur={() => {
+                  const clean = apiKeyInput.trim().replace(/^["']|["']$/g, "");
+                  if (clean.length > 20 && clean !== apiKey) {
+                    handleSaveKey();
+                  }
+                }}
                 style={{ flex: 1, fontFamily: "monospace", fontSize: "0.85rem" }}
               />
               <button type="button" className="ipac-btn ipac-btn-primary" onClick={handleSaveKey}>
-                Save
+                Save Key
               </button>
               {apiKey && (
                 <button
@@ -1112,9 +1138,15 @@ export default function AICoachHub({
                 </button>
               )}
             </div>
-            <p className="ipac-hint" style={{ fontSize: "0.75rem", margin: "6px 0 0" }}>
-              A key enables high-level strategic reasoning at zero cost via cloud AI. Without a key, all coach actions run 100% offline using instant heuristic pattern matching.
-            </p>
+            {apiKey ? (
+              <div style={{ marginTop: "6px", fontSize: "0.78rem", color: "#10b981", fontWeight: 600 }}>
+                Active Key: {apiKey.slice(0, 6)}...{apiKey.slice(-4)} (Gemini Cloud Connected)
+              </div>
+            ) : (
+              <p className="ipac-hint" style={{ fontSize: "0.75rem", margin: "6px 0 0" }}>
+                Paste your key and tap <strong>Save Key</strong>. Once saved, the badge turns green with Live Cloud AI enabled.
+              </p>
+            )}
           </div>
         )}
 

@@ -1066,7 +1066,7 @@ Guidelines:
         },
       ];
 
-      const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
       let res = await fetch(modelUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1079,7 +1079,7 @@ Guidelines:
       });
 
       if (!res.ok) {
-        // Fallback to gemini-1.5-flash if 2.5 is unavailable for the key
+        // Fallback to gemini-1.5-flash if 2.0 is unavailable for the key
         res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
           {
