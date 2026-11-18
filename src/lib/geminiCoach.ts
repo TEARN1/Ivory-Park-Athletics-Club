@@ -338,11 +338,22 @@ Always respond authoritatively, concisely, with zero emojis, disciplined, encour
   }
 
   if (q.includes("resident") || q.includes("grooves") || q.includes("post") || q.includes("announce")) {
+    const colonIdx = query.indexOf(":");
+    let noticeText = colonIdx >= 0 ? query.substring(colonIdx + 1).trim() : "";
+    if (!noticeText) {
+      noticeText = query
+        .replace(/^(post|announce|broadcast)\s+(a\s+)?(notice|update|message)?\s*(to|on)?\s*(the\s+resident(\s+and|\s*&)?\s*(the\s+)?grooves)?/i, "")
+        .replace(/^(to|on)\s*(the\s+resident(\s+and|\s*&)?\s*(the\s+)?grooves)/i, "")
+        .trim();
+    }
+    if (!noticeText) {
+      noticeText = "Saturday Long Run 05:00 sharp from Freedom Drive Hub.";
+    }
     const action: CoachAction = {
       type: "post_community_notice",
       payload: {
         channel: "The Resident & The Grooves",
-        text: `Official Notice: ${query.replace(/post|on|the|resident|grooves|announce|to/gi, "").trim() || "Saturday Long Run 05:00 sharp from Freedom Drive."}`,
+        text: `Official Notice: ${noticeText}`,
       },
       description: "Broadcast community notice to The Resident & The Grooves",
     };
