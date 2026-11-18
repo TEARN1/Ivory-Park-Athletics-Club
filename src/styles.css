@@ -392,12 +392,18 @@ h2 {
    LAYOUT & METALLIC GLASS CARDS (Metal White / Platinum)
    ========================================================================== */
 .ipac-main {
-  max-width: 600px;
+  max-width: min(100%, 780px);
   margin: 0 auto;
-  padding: 16px var(--gutter-r) 190px var(--gutter);
+  padding: 18px var(--gutter-r) 130px var(--gutter);
   display: grid;
   gap: 16px;
   align-content: start;
+}
+@media (max-width: 500px) {
+  .ipac-main {
+    padding: 12px var(--gutter-r) 120px var(--gutter);
+    gap: 12px;
+  }
 }
 .ipac-main > div:not([hidden]) {
   display: grid;
@@ -631,7 +637,9 @@ input:not([type=checkbox]), select, textarea {
   padding: 10px 14px;
   border-radius: 14px;
   border: 1px solid var(--color-line);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(245, 248, 255, 0.65) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(245, 248, 255, 0.85) 100%);
+  color: var(--color-fg);
+  font-weight: 600;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: inset 0 2px 4px rgba(20, 22, 43, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
@@ -641,8 +649,18 @@ input:not([type=checkbox]), select, textarea {
 :root[data-theme="dark"] input:not([type=checkbox]),
 :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea {
-  background: linear-gradient(135deg, rgba(18, 21, 52, 0.75) 0%, rgba(12, 14, 38, 0.85) 100%);
+  background: linear-gradient(135deg, rgba(18, 21, 52, 0.85) 0%, rgba(12, 14, 38, 0.92) 100%);
+  color: #f1f5f9;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+select option {
+  background: #ffffff;
+  color: #121429;
+}
+:root[data-theme="dark"] select option {
+  background: #121534;
+  color: #f1f5f9;
 }
 
 input:not([type=checkbox]):focus, select:focus, textarea:focus {
@@ -669,15 +687,21 @@ input[type=checkbox] {
   border-radius: 99px;
   font-family: var(--font-display);
   font-size: 1.25rem;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(235, 240, 255, 0.55) 100%);
+  font-weight: 700;
+  color: var(--color-navy);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(235, 240, 255, 0.75) 100%);
   border: 1px solid var(--color-glass-border);
   box-shadow: var(--metal-bevel), 0 2px 6px rgba(20, 22, 43, 0.05);
 }
+:root[data-theme="dark"] .ipac-chip {
+  background: linear-gradient(135deg, rgba(32, 38, 88, 0.75) 0%, rgba(18, 22, 56, 0.85) 100%);
+  color: #c7d2fe;
+}
 .ipac-chip[aria-pressed=true] {
-  background: linear-gradient(135deg, #3d46c4 0%, #262c8e 50%, #1a1e64 100%);
-  border: 1px solid rgba(190, 200, 255, 0.6);
-  box-shadow: var(--metal-blue-bevel), 0 4px 14px rgba(32, 36, 115, 0.4);
-  color: #fff;
+  background: linear-gradient(135deg, #3d46c4 0%, #262c8e 50%, #1a1e64 100%) !important;
+  border: 1px solid rgba(190, 200, 255, 0.6) !important;
+  box-shadow: var(--metal-blue-bevel), 0 4px 14px rgba(32, 36, 115, 0.4) !important;
+  color: #ffffff !important;
 }
 .ipac-other {
   display: flex;
@@ -1344,11 +1368,32 @@ input[type=checkbox] {
 /* Appearance Switcher */
 .ipac-label { margin: 10px 0 6px; font-weight: 700; color: var(--color-muted); font-size: .9rem; text-transform: uppercase; letter-spacing: .06em; }
 .ipac-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ipac-seg button {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(235, 240, 255, 0.8) 100%);
+  color: var(--color-navy);
+  font-weight: 700;
+  border: 1px solid var(--color-line);
+  box-shadow: var(--metal-bevel), 0 2px 6px rgba(20, 22, 43, 0.05);
+}
+:root[data-theme="dark"] .ipac-seg button {
+  background: linear-gradient(135deg, rgba(32, 38, 88, 0.75) 0%, rgba(18, 22, 56, 0.85) 100%);
+  color: #c7d2fe;
+  border-color: rgba(163, 169, 255, 0.25);
+}
 .ipac-seg button[aria-pressed=true], .ipac-swatch[aria-pressed=true] {
-  background: linear-gradient(135deg, #3d46c4 0%, #262c8e 100%);
-  border-color: rgba(190, 200, 255, 0.6);
-  box-shadow: var(--metal-blue-bevel), 0 4px 12px rgba(32, 36, 115, 0.35);
-  color: #fff;
+  background: linear-gradient(135deg, #3d46c4 0%, #262c8e 100%) !important;
+  border-color: rgba(190, 200, 255, 0.6) !important;
+  box-shadow: var(--metal-blue-bevel), 0 4px 12px rgba(32, 36, 115, 0.35) !important;
+  color: #ffffff !important;
+}
+.ipac-seg-route {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+@media (max-width: 540px) {
+  .ipac-seg-route {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 .ipac-swatches {
   display: grid;
@@ -1567,7 +1612,7 @@ input[type=checkbox] {
   position: relative;
   width: 100% !important;
   max-width: 100% !important;
-  height: clamp(260px, 46vh, 420px) !important;
+  height: clamp(300px, 52vh, 520px) !important;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--color-glass-border);
@@ -1636,8 +1681,10 @@ input[type=checkbox] {
 
 .ipac-map-engine-pill {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  top: auto;
+  right: auto;
   z-index: 10;
   background: rgba(14, 18, 52, 0.78);
   backdrop-filter: blur(12px);
@@ -1743,8 +1790,10 @@ body.has-fullscreen-map .ipac-main {
 }
 
 .ipac-mapwrap.fullscreen .ipac-map-engine-pill {
-  top: max(14px, env(safe-area-inset-top, 14px));
-  right: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom, 14px));
+  left: 14px;
+  top: auto;
+  right: auto;
 }
 
 /* Route Direction Animation & Markers */
@@ -1961,23 +2010,24 @@ body.has-fullscreen-map .ipac-main {
   -webkit-overflow-scrolling: touch;
   margin-top: 10px;
   border-radius: 12px;
+  scrollbar-width: thin;
 }
 .ipac-tk-table {
   width: 100%;
-  min-width: 580px;
+  min-width: 500px;
   border-collapse: collapse;
-  font-size: 0.82rem;
+  font-size: 0.80rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .ipac-tk-table th {
   background: rgba(42, 48, 144, 0.12);
   color: var(--color-navy);
-  padding: 8px 10px;
+  padding: 6px 8px;
   text-align: left;
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 0.72rem;
+  font-size: 0.70rem;
   letter-spacing: 0.05em;
   border-bottom: 2px solid var(--color-navy);
 }
@@ -1987,7 +2037,7 @@ body.has-fullscreen-map .ipac-main {
   border-bottom-color: #6366f1;
 }
 .ipac-tk-table td {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-bottom: 1px solid rgba(127, 127, 160, 0.18);
 }
 .ipac-tk-rank {
@@ -2141,20 +2191,21 @@ body.has-fullscreen-map .ipac-main {
   border-radius: 99px;
 }
 
-/* Minimalist Map Control Button (Exit Fullscreen / Recenter) */
+/* Minimalist Map Control Button */
 .ipac-map-ctrl-btn {
-  background: rgba(14, 18, 52, 0.82);
+  background: rgba(14, 18, 52, 0.85);
   backdrop-filter: blur(14px);
-  border: 1px solid rgba(163, 169, 255, 0.3);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(163, 169, 255, 0.32);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
   color: #ffffff;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   border-radius: 99px;
-  min-height: 32px;
-  max-height: 36px;
+  min-height: 28px;
+  max-height: 32px;
   height: auto !important;
-  padding: 4px 12px;
+  padding: 3px 10px;
   cursor: pointer;
   white-space: nowrap;
   display: inline-flex;
@@ -2167,9 +2218,89 @@ body.has-fullscreen-map .ipac-main {
   transform: scale(1.02);
 }
 
-.ipac-floating-actions {
+/* Top-Right Map Actions: Non-Occluding Bar */
+.ipac-map-top-actions {
   position: absolute;
   top: max(10px, env(safe-area-inset-top, 10px));
+  right: max(10px, env(safe-area-inset-right, 10px));
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+@media (max-width: 520px) {
+  .ipac-map-layer-selector {
+    top: 8px;
+    left: 8px;
+    gap: 2px;
+  }
+  .ipac-map-layer-btn {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+  .ipac-map-top-actions {
+    top: 44px;
+    right: 8px;
+    gap: 4px;
+  }
+  .ipac-map-ctrl-btn {
+    font-size: 0.70rem;
+    padding: 2px 8px;
+    min-height: 26px;
+    max-height: 28px;
+  }
+}
+
+/* Bottom-Right Floating Navigation Dock (+, -, Find Me, Track) */
+.ipac-map-nav-dock {
+  position: absolute;
+  bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  right: max(10px, env(safe-area-inset-right, 10px));
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+}
+.ipac-map-dock-btn {
+  background: rgba(14, 18, 52, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(163, 169, 255, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.82rem;
+  border-radius: 99px;
+  min-width: 36px;
+  min-height: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+.ipac-map-dock-btn:hover {
+  background: rgba(28, 34, 85, 0.98);
+  transform: scale(1.06);
+}
+.ipac-map-dock-btn:active {
+  transform: scale(0.94);
+}
+.ipac-map-dock-btn.ipac-gps-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.ipac-floating-actions {
+  position: absolute;
+  bottom: max(12px, env(safe-area-inset-bottom, 12px));
   right: max(10px, env(safe-area-inset-right, 10px));
   bottom: auto !important;
   left: auto !important;
@@ -2188,7 +2319,7 @@ body.has-fullscreen-map .ipac-main {
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-top: 14px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(240, 244, 255, 0.6) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 244, 255, 0.7) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-glass-border);
@@ -2197,9 +2328,11 @@ body.has-fullscreen-map .ipac-main {
   box-shadow: var(--metal-bevel), 0 4px 14px rgba(20, 22, 43, 0.05);
   text-align: center;
 }
-:root[data-theme="dark"] .ipac-hud {
-  background: linear-gradient(135deg, rgba(24, 28, 72, 0.8) 0%, rgba(14, 16, 44, 0.88) 100%);
-  border-color: rgba(163, 169, 255, 0.22);
+:root[data-theme="dark"] .ipac-hud,
+:root:not([data-theme="light"]) .ipac-hud {
+  background: linear-gradient(135deg, rgba(20, 24, 60, 0.9) 0%, rgba(12, 14, 38, 0.95) 100%);
+  border-color: rgba(163, 169, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 .ipac-hud-item { display: grid; gap: 2px; }
 @media (max-width: 520px) {
@@ -2216,15 +2349,21 @@ body.has-fullscreen-map .ipac-main {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-:root[data-theme="dark"] .ipac-hud-label { color: #9da3d4; }
+:root[data-theme="dark"] .ipac-hud-label,
+:root:not([data-theme="light"]) .ipac-hud-label { color: #a5b4fc; }
 .ipac-hud-val {
   font-family: var(--font-display);
   font-size: 1.55rem;
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  color: var(--color-fg);
 }
-.ipac-hud-highlight { color: var(--color-accent); }
+:root[data-theme="dark"] .ipac-hud-val,
+:root:not([data-theme="light"]) .ipac-hud-val {
+  color: #f1f5f9;
+}
+.ipac-hud-highlight { color: var(--color-accent) !important; }
 
 /* Relative Runner Gaps (Who is in front & behind) */
 .ipac-gaps-card {
@@ -2838,27 +2977,47 @@ body.has-fullscreen-map .ipac-main {
 /* Role Switcher Pill in Header */
 .ipac-role-switch {
   display: inline-flex;
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  align-items: center;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 20px;
   padding: 2px;
   gap: 2px;
+  flex-shrink: 0;
 }
 .ipac-role-btn {
   background: transparent;
   border: none;
-  color: var(--color-fg);
-  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.74rem;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
+  line-height: 1.2;
 }
 .ipac-role-btn.active {
-  background: var(--color-navy);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  background: #ffffff;
+  color: var(--color-navy);
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.ipac-role-short { display: none; }
+.ipac-coach-head-short { display: none; }
+@media (max-width: 480px) {
+  .ipac-role-full { display: none; }
+  .ipac-role-short { display: inline; }
+  .ipac-coach-head-full { display: none; }
+  .ipac-coach-head-short { display: inline; }
+  .ipac-coach-head-btn {
+    min-width: 30px !important;
+    width: 30px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
 }
 
 /* Floating Quick Speed Dial Button */
@@ -3010,7 +3169,8 @@ body.has-fullscreen-map .ipac-main {
   display: flex;
   flex-direction: column;
 }
-.ipac-hud-val {
+.ipac-hud-grid .ipac-hud-val,
+.ipac-hud-overlay .ipac-hud-val {
   font-size: clamp(1.6rem, 6vw, 2.4rem);
   font-weight: 800;
   color: #ffffff;

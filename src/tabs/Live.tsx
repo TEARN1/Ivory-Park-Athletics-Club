@@ -487,20 +487,20 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
       </section>
 
       {/* ====================================================================
-          2. TARGET RACE PACER & DYNAMIC SPLIT CALCULATOR
+          2. TARGET RACE PACER & DYNAMIC SPLIT CALCULATOR (COLLAPSIBLE DRAWER)
           ==================================================================== */}
-      <section className="ipac-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+      <details className="ipac-card" style={{ marginTop: "14px" }}>
+        <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", listStyle: "none" }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: "1.15rem" }}>Race Target Pacer &amp; Split Calculator</h3>
-            <p className="ipac-hint" style={{ margin: 0 }}>
-              Set your target finish time or required pace to generate exact km split targets.
+            <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Race Target Pacer &amp; Split Calculator</h3>
+            <p className="ipac-hint" style={{ margin: "2px 0 0", fontSize: "0.82rem" }}>
+              Target: {(targetDistM / 1000).toFixed(0)} km @ {targetPaceStr} /km ({targetTimeStr}) · Tap to configure
             </p>
           </div>
-          <span className="ipac-rank-badge" style={{ fontSize: "0.9rem", padding: "3px 12px" }}>
+          <span className="ipac-rank-badge" style={{ fontSize: "0.85rem", padding: "3px 10px" }}>
             {targetPaceStr} /km
           </span>
-        </div>
+        </summary>
 
         <div className="ipac-form" style={{ marginTop: "12px" }}>
           <div className="ipac-chips" role="group" aria-label="Race Distance">
@@ -578,7 +578,7 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
             </table>
           </div>
         </details>
-      </section>
+      </details>
 
       {/* ====================================================================
           3. SIMULTANEOUS MULTI-RUNNER TIMEKEEPER RACE BOARD
@@ -672,34 +672,40 @@ export default function Live({ s, act, cfg, running, live, join, setJoin, trail,
           4. COMMUNITY BROADCAST & EVENT ALERTS CARD
           ==================================================================== */}
       <section className="ipac-card ipac-broadcast-card">
-        <h3 style={{ margin: 0, fontSize: "1.15rem" }}>Broadcast Run to Community</h3>
-        <p className="ipac-hint" style={{ margin: "2px 0 10px" }}>
-          Alert Ivory Park runners and sports enthusiasts across The Gruvs, The Resident, and WhatsApp.
-        </p>
-        <div className="ipac-row2">
-          <button
-            type="button"
-            className="ipac-btn ipac-btn-primary"
-            onClick={() => {
-              const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-              window.open(url, "_blank");
-            }}
-          >
-            Share on WhatsApp Groups
-          </button>
-          <button
-            type="button"
-            className="ipac-btn ipac-btn-outline"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(shareText);
-                setCopiedShare(true);
-                setTimeout(() => setCopiedShare(false), 2500);
-              } catch {}
-            }}
-          >
-            {copiedShare ? "Schedule Copied" : "Copy Schedule Text"}
-          </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Broadcast Live Run to Squad</h3>
+            <p className="ipac-hint" style={{ margin: "2px 0 0", fontSize: "0.82rem" }}>
+              Alert Ivory Park runners across The Gruvs, The Resident, and WhatsApp groups.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="ipac-btn ipac-btn-primary"
+              style={{ minHeight: "36px", padding: "4px 14px", fontSize: "0.85rem" }}
+              onClick={() => {
+                const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                window.open(url, "_blank");
+              }}
+            >
+              WhatsApp Squad
+            </button>
+            <button
+              type="button"
+              className="ipac-btn ipac-btn-outline"
+              style={{ minHeight: "36px", padding: "4px 14px", fontSize: "0.85rem" }}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(shareText);
+                  setCopiedShare(true);
+                  setTimeout(() => setCopiedShare(false), 2500);
+                } catch {}
+              }}
+            >
+              {copiedShare ? "Copied" : "Copy Alert"}
+            </button>
+          </div>
         </div>
       </section>
     </>

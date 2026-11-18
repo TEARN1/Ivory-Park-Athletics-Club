@@ -562,9 +562,9 @@ export default function ClubMap({
     <div className={`ipac-mapwrap ${fullscreen ? "fullscreen" : ""}`}>
       <div ref={box} className="ipac-mlmap" role="region" aria-label={label} />
       
-      {/* Zero-API-Key Map Source Badge & GPS Accuracy Pill */}
+      {/* Zero-API-Key Map Source Badge & GPS Accuracy Pill (Bottom-Left) */}
       <div className="ipac-map-engine-pill">
-        Zero API Key · Free OpenStreetMap {userLoc ? `· Live GPS (±${userLoc.accuracy}m)` : ""}
+        Free OpenStreetMap {userLoc ? `· Live GPS (±${userLoc.accuracy}m)` : ""}
       </div>
 
       {/* Geolocation Request Notice if not yet granted */}
@@ -577,12 +577,12 @@ export default function ClubMap({
 
       {/* Screenshot status toast */}
       {screenshotMsg && (
-        <div className="ipac-map-loc-pill" style={{ top: "42px", background: "rgba(42, 48, 144, 0.95)", color: "#fff" }} role="status">
+        <div className="ipac-map-loc-pill" style={{ top: "44px", background: "rgba(42, 48, 144, 0.95)", color: "#fff" }} role="status">
           {screenshotMsg}
         </div>
       )}
 
-      {/* Basemap Style Switcher */}
+      {/* Top-Left: Basemap Style Switcher */}
       <div className="ipac-map-layer-selector" role="group" aria-label="Map Basemap Style">
         {(["streets", "dark", "topo", "satellite"] as const).map((l) => (
           <button
@@ -592,56 +592,13 @@ export default function ClubMap({
             aria-pressed={layer === l}
             onClick={() => setLayer(l)}
           >
-            {l === "streets" ? "OSM Street" : l === "dark" ? "Night" : l === "topo" ? "Topo" : "Satellite Hybrid"}
+            {l === "streets" ? "Street" : l === "dark" ? "Night" : l === "topo" ? "Topo" : "Satellite"}
           </button>
         ))}
       </div>
 
-      {floatingContent}
-
-      <div className="ipac-floating-actions">
-        <button
-          type="button"
-          className="ipac-map-ctrl-btn ipac-zoom-btn"
-          onClick={() => map.current?.zoomIn({ duration: 250 })}
-          aria-label="Zoom in single touch"
-          title="Zoom In"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          className="ipac-map-ctrl-btn ipac-zoom-btn"
-          onClick={() => map.current?.zoomOut({ duration: 250 })}
-          aria-label="Zoom out single touch"
-          title="Zoom Out"
-        >
-          -
-        </button>
-        <button
-          type="button"
-          className="ipac-map-ctrl-btn"
-          onClick={() => {
-            if (userLoc && map.current) {
-              map.current.flyTo({ center: [userLoc.lon, userLoc.lat], zoom: 17, duration: 600 });
-            } else {
-              requestLocation();
-            }
-          }}
-          title="Recenter camera on your current GPS position"
-          aria-label="My Location"
-        >
-          {userLoc ? "My Location" : "Find Me"}
-        </button>
-        <button
-          type="button"
-          className="ipac-map-ctrl-btn"
-          onClick={takeScreenshot}
-          title="Export high-resolution map snapshot"
-          aria-label="Map Screenshot"
-        >
-          Screenshot
-        </button>
+      {/* Top-Right: Map Utility Actions (Milestones, Screenshot Export, Fullscreen) */}
+      <div className="ipac-map-top-actions">
         {line && line.length > 2 && (
           <button
             type="button"
@@ -650,13 +607,71 @@ export default function ClubMap({
             onClick={() => setShowMilestones((v) => !v)}
             title="Toggle 1-km milestone split badges"
           >
-            {showMilestones ? "1K: On" : "1K: Off"}
+            {showMilestones ? "1K On" : "1K Off"}
           </button>
         )}
-        {center && (
+        <button
+          type="button"
+          className="ipac-map-ctrl-btn"
+          onClick={takeScreenshot}
+          title="Export high-resolution map snapshot"
+          aria-label="Map Screenshot"
+        >
+          Export
+        </button>
+        {onToggleFullscreen && (
           <button
             type="button"
             className="ipac-map-ctrl-btn"
+            onClick={onToggleFullscreen}
+            aria-label={fullscreen ? "Exit full screen map" : "Full screen map"}
+          >
+            {fullscreen ? "Exit" : "Expand"}
+          </button>
+        )}
+      </div>
+
+      {floatingContent}
+
+      {/* Bottom-Right: Floating Navigation Dock (+, -, Find Me, Track) */}
+      <div className="ipac-map-nav-dock">
+        <button
+          type="button"
+          className="ipac-map-dock-btn ipac-zoom-btn"
+          onClick={() => map.current?.zoomIn({ duration: 250 })}
+          aria-label="Zoom in single touch"
+          title="Zoom In"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className="ipac-map-dock-btn ipac-zoom-btn"
+          onClick={() => map.current?.zoomOut({ duration: 250 })}
+          aria-label="Zoom out single touch"
+          title="Zoom Out"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          className="ipac-map-dock-btn ipac-gps-btn"
+          onClick={() => {
+            if (userLoc && map.current) {
+              map.current.flyTo({ center: [userLoc.lon, userLoc.lat], zoom: 17, duration: 600 });
+            } else {
+              requestLocation();
+            }
+          }}
+          title="Recenter camera on your current GPS position"
+          aria-label="Find Me"
+        >
+          {userLoc ? "GPS" : "Find"}
+        </button>
+        {center && (
+          <button
+            type="button"
+            className="ipac-map-dock-btn"
             aria-pressed={follow}
             onClick={() => {
               setFollow((v) => !v);
@@ -666,17 +681,7 @@ export default function ClubMap({
             }}
             title="Auto-center camera on runner GPS"
           >
-            {follow ? "Follow: On" : "Follow: Off"}
-          </button>
-        )}
-        {onToggleFullscreen && (
-          <button
-            type="button"
-            className="ipac-map-ctrl-btn"
-            onClick={onToggleFullscreen}
-            aria-label={fullscreen ? "Exit full screen map" : "Full screen map"}
-          >
-            {fullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            {follow ? "Track" : "Free"}
           </button>
         )}
       </div>

@@ -373,8 +373,10 @@ export default function App() {
                 try { localStorage.setItem("ipac_role_mode", "athlete"); } catch {}
                 showToast("Athlete Mode: In-run timing and streamlined navigation");
               }}
+              title="Athlete Mode: In-run timing and navigation"
             >
-              Athlete
+              <span className="ipac-role-full">Athlete</span>
+              <span className="ipac-role-short">Ath</span>
             </button>
             <button
               type="button"
@@ -384,18 +386,21 @@ export default function App() {
                 try { localStorage.setItem("ipac_role_mode", "coach"); } catch {}
                 showToast("Coach Mode: Full race clock, fleet dispatch and admin");
               }}
+              title="Coach Mode: Full race clock and dispatch"
             >
-              Coach
+              <span className="ipac-role-full">Coach</span>
+              <span className="ipac-role-short">Coach</span>
             </button>
           </div>
           <button
             className="ipac-themebtn ipac-coach-head-btn"
             style={{ fontWeight: 800, fontSize: "0.76rem", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.45)", borderRadius: "8px", padding: "0 8px" }}
             aria-label="Open Head Coach and Founder"
-            title="Head Coach & Founder"
+            title="Head Coach & Founder AI Hub"
             onClick={() => setShowAICoach(true)}
           >
-            Coach
+            <span className="ipac-coach-head-full">AI Coach</span>
+            <span className="ipac-coach-head-short">AI</span>
           </button>
           <button className="ipac-themebtn" aria-label="Take app tour / Help" title="Interactive App Tour" onClick={() => setShowTour(true)}>{Icons.help}</button>
           <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
