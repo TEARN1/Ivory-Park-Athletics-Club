@@ -1354,7 +1354,16 @@ Guidelines:
   }
 
   // Feature 9: Highveld Nutrition & Hydration Fueling Guide
-  if (q.includes("nutrition") || q.includes("fuel") || q.includes("food") || q.includes("what to eat") || q.includes("diet") || q.includes("breakfast")) {
+  if (
+    q.includes("nutrition") ||
+    q.includes("fuel") ||
+    q.includes("food") ||
+    q.includes("diet") ||
+    q.includes("breakfast") ||
+    q.includes("hydration") ||
+    q.includes("carbs") ||
+    /\b(eat|eating|eats|meal|meals)\b/i.test(query)
+  ) {
     const action: CoachAction = {
       type: "nutrition_guide",
       payload: {
