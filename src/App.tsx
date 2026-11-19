@@ -27,6 +27,7 @@ import TeamDispatch from "./tabs/TeamDispatch";
 import TourGuide from "./ui/TourGuide";
 import AICoachHub from "./ui/AICoachHub";
 import AthleteProfileModal from "./ui/AthleteProfileModal";
+import HeaderMenu from "./ui/HeaderMenu";
 import { getCurrentAthlete, type AthleteProfile } from "./lib/auth";
 import { loadClubSchedule } from "./lib/schedule";
 import { isTourCompleted } from "./lib/tour";
@@ -368,35 +369,8 @@ export default function App() {
         <img className="ipac-logo" src={logo} alt="Ivory Park Athletics Club logo" />
         <div className="ipac-title"><h1>Ivory Park Athletics Club</h1><p>{s.date} · {s.distanceKm} km</p></div>
         <div className="ipac-head-actions">
-          <div className="ipac-role-switch" role="group" aria-label="Role selector">
-            <button
-              type="button"
-              className={`ipac-role-btn ${roleMode === "athlete" ? "active" : ""}`}
-              onClick={() => {
-                setRoleMode("athlete");
-                try { localStorage.setItem("ipac_role_mode", "athlete"); } catch {}
-                showToast("Athlete Mode: In-run timing and streamlined navigation");
-              }}
-              title="Athlete Mode: In-run timing and navigation"
-            >
-              <span className="ipac-role-full">Athlete</span>
-              <span className="ipac-role-short">Ath</span>
-            </button>
-            <button
-              type="button"
-              className={`ipac-role-btn ${roleMode === "coach" ? "active" : ""}`}
-              onClick={() => {
-                setRoleMode("coach");
-                try { localStorage.setItem("ipac_role_mode", "coach"); } catch {}
-                showToast("Coach Mode: Full race clock, fleet dispatch and admin");
-              }}
-              title="Coach Mode: Full race clock and dispatch"
-            >
-              <span className="ipac-role-full">Coach</span>
-              <span className="ipac-role-short">Coach</span>
-            </button>
-          </div>
           <button
+            type="button"
             className="ipac-themebtn ipac-coach-head-btn"
             style={{ fontWeight: 800, fontSize: "0.76rem", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.45)", borderRadius: "8px", padding: "0 8px" }}
             aria-label="Open Head Coach and Founder"
@@ -407,6 +381,7 @@ export default function App() {
             <span className="ipac-coach-head-short">AI</span>
           </button>
           <button
+            type="button"
             className="ipac-themebtn ipac-profile-head-btn"
             style={{
               fontWeight: 700,
@@ -427,9 +402,21 @@ export default function App() {
               {currentAthlete ? `B${currentAthlete.bib}` : "ID"}
             </span>
           </button>
-          <button className="ipac-themebtn" aria-label="Take app tour / Help" title="Interactive App Tour" onClick={() => setShowTour(true)}>{Icons.help}</button>
-          <button className="ipac-themebtn" aria-label="Download app / Scan QR code" title="Get App / Scan QR code" onClick={() => setShowInstall(true)}>{Icons.download}</button>
-          <button className="ipac-themebtn" aria-label={isNight ? "Switch to day theme" : "Switch to night theme"} onClick={() => setPrefs({ ...prefs, mode: isNight ? "light" : "dark" })}>{isNight ? Icons.sun : Icons.moon}</button>
+          <HeaderMenu
+            roleMode={roleMode}
+            onRoleModeChange={(mode) => {
+              setRoleMode(mode);
+              try { localStorage.setItem("ipac_role_mode", mode); } catch {}
+            }}
+            currentAthlete={currentAthlete}
+            onOpenProfile={() => setShowAthleteProfileModal(true)}
+            onOpenAICoach={() => setShowAICoach(true)}
+            onOpenTour={() => setShowTour(true)}
+            onOpenInstall={() => setShowInstall(true)}
+            isNight={isNight}
+            onToggleTheme={() => setPrefs({ ...prefs, mode: isNight ? "light" : "dark" })}
+            showToast={showToast}
+          />
         </div>
       </div>
         <button className={`ipac-status ipac-status-${ph}`} aria-haspopup="dialog" aria-label={`Session status: ${PHASE_LABEL[ph]}. Open options`} onClick={() => setSheet(true)}>

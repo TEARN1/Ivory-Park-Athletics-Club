@@ -2456,6 +2456,51 @@ body.has-fullscreen-map .ipac-main {
   gap: 8px;
 }
 
+/* Header Dropdown Menu & Hamburger */
+.ipac-header-menu-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ipac-hamburger-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ipac-hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  transform: translateY(-1px);
+}
+
+.ipac-header-dropdown {
+  animation: ipacFadeInDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top right;
+}
+
+.ipac-dropdown-item {
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.ipac-dropdown-item:hover,
+.ipac-dropdown-item:focus-visible {
+  background: rgba(255, 255, 255, 0.1) !important;
+  outline: none;
+}
+
+@keyframes ipacFadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Install Modal Sheet */
 .ipac-install-sheet {
   max-width: 480px;
