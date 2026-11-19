@@ -14,6 +14,8 @@ import {
   type MileageTarget,
 } from "../lib/schedule";
 import { DEFAULT_VEHICLES } from "../lib/transport";
+import { authenticateWithBiometrics } from "../lib/biometrics";
+import { say } from "../lib/sound";
 
 /** Runner landing: pick the run that is open today, track weekly mileage, view schedule, and request transport. */
 export default function Today({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; server: string } | null }) {
@@ -48,13 +50,36 @@ function TodayRun({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; se
     tick(); const t = setInterval(tick, 4000); return () => { live = false; clearInterval(t); };
   }, [joined]);
 
-  const join = async (p: Program) => {
+  const join = async (p: Program, customName?: string) => {
+    const targetName = (customName || name).trim();
+    if (!targetName) return;
     setBusy(p.code); setErr("");
     try {
-      const r = await joinProgram(server, p.code, name, await deviceId());
-      const j: Joined = { server, code: p.code, joinerId: r.joinerId, name: name.trim(), date: p.date, distanceKm: p.distanceKm };
-      await saveJoined(j); await kvSet("myName", name.trim()); setMe({ bib: r.bib, open: true }); setJoined(j);
+      const r = await joinProgram(server, p.code, targetName, await deviceId());
+      const j: Joined = { server, code: p.code, joinerId: r.joinerId, name: targetName, date: p.date, distanceKm: p.distanceKm };
+      await saveJoined(j); await kvSet("myName", targetName); setMe({ bib: r.bib, open: true }); setJoined(j);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(""); }
+  };
+
+  const handleBiometricCheckIn = async () => {
+    setErr("");
+    try {
+      const auth = await authenticateWithBiometrics();
+      if (!auth.ok || !auth.athlete) {
+        setErr(auth.message || "Biometric scan not recognized");
+        return;
+      }
+      setName(auth.athlete.name);
+      say(`Welcome ${auth.athlete.name.split(" ")[0]}`);
+      if (programs && programs.length > 0) {
+        const targetProg = programs.find((p) => p.open !== false) || programs[0];
+        if (targetProg && targetProg.open !== false) {
+          await join(targetProg, auth.athlete.name);
+        }
+      }
+    } catch (e) {
+      setErr((e as Error).message);
+    }
   };
 
   if (joined) return (
@@ -73,6 +98,20 @@ function TodayRun({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; se
       {server ? (
         <>
           {deepLink && <p className="ipac-hint">Joining through {new URL(server).host}</p>}
+          <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+            <button
+              type="button"
+              className="ipac-btn ipac-btn-outline"
+              onClick={handleBiometricCheckIn}
+              style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", padding: "6px 12px" }}
+              title="1-Touch Biometric Athlete Identification"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3" />
+              </svg>
+              <span>Biometric 1-Touch Check-In</span>
+            </button>
+          </div>
           <label className="ipac-namefield">Your name<input aria-label="Your name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Naledi" /></label>
           {programs === null ? <p className="ipac-hint">Looking for today's run…</p> : programs.length === 0 ? <p className="ipac-empty">No run is open for joining today. Ask your coach to open it, then check again.</p> : (
             <ul className="ipac-programs">{programs.map((p) => (

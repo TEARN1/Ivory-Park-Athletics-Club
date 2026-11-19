@@ -20,6 +20,9 @@ export interface AthleteProfile {
   titleNote?: string; // e.g. "The Original Coach", "Me, The IT of the team", "Time keeper"
   contributionPaid?: string; // e.g. "R550", "R200"
   emergencyContact?: { name: string; phone: string };
+  biometricsEnrolled?: boolean;
+  biometricCredentialId?: string;
+  facePhotoUrl?: string;
   createdAt: number;
   updatedAt: number;
 }

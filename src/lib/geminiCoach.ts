@@ -1160,6 +1160,23 @@ Guidelines:
     };
   }
 
+  // 0A. Biometric Athlete Identification Queries
+  if (
+    q.includes("biometric") ||
+    q.includes("fingerprint") ||
+    q.includes("face id") ||
+    q.includes("face recognition") ||
+    q.includes("identify athlete") ||
+    q.includes("passkey")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: `Ivory Park Athletics Club supports biometric athlete identification across the app:\n\n1. 1-Touch Sign In: Tap the Profile pill in the top header and choose "Touch Fingerprint / Face" to verify your identity instantly via hardware WebAuthn passkeys with zero PIN entry.\n2. Camera Facial Scanner: Use "Scan Face with Camera" to visually identify runners on the roster.\n3. Start-Line Biometric Check-In: On the Today tab, tap "Biometric 1-Touch Check-In" to enter today's training run with your fingerprint.\n4. Finish Line Biometric Tap: In Run & HUD, timekeepers can tap "Biometric Finish" to log finish times automatically.\n5. Privacy & Zero Data Leak: Biometric credentials remain 100% on your device's secure hardware enclave and are never uploaded or stored on external servers.`,
+      timestamp,
+    };
+  }
+
   // 0B. Ivory Park AC Real Club Leadership & Historical Results Queries
 
   // Coach Siyavuya Thomas ("The Original Coach")

@@ -7,6 +7,7 @@ import { playStarterHorn, playWhistleBlast, spokenTime } from "../lib/sound";
 import { loadHistory } from "../lib/store";
 import * as W from "../lib/workout";
 import { Confirm, download } from "../ui";
+import { authenticateWithBiometrics } from "../lib/biometrics";
 
 type Act = (f: (x: S.Session) => S.Session) => void;
 export interface SessionProps {
@@ -536,18 +537,45 @@ function BibKeypad({ s, act, toast, announce }: Pick<SessionProps, "s" | "act" |
     } catch (x) { setErr((x as Error).message); }
   };
 
+  const handleBiometricFinish = async () => {
+    try {
+      const auth = await authenticateWithBiometrics();
+      if (!auth.ok || !auth.athlete) {
+        setErr(auth.message || "Biometric sensor not recognized");
+        return;
+      }
+      finishBib(auth.athlete.bib);
+    } catch (x) {
+      setErr((x as Error).message);
+    }
+  };
+
   return (
     <div className="ipac-card" style={{ padding: "12px", margin: "12px 0" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
         <h3 style={{ margin: 0, fontSize: "0.95rem" }}>Rapid-Tap Bib Finish</h3>
-        <button
-          type="button"
-          className="ipac-btn ipac-btn-quiet"
-          onClick={() => setShowNumpad((v) => !v)}
-          style={{ fontSize: "0.85rem", padding: "4px 8px" }}
-        >
-          {showNumpad ? "Hide Keypad" : "Show 0-9 Keypad"}
-        </button>
+        <div style={{ display: "flex", gap: "6px" }}>
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-outline"
+            onClick={handleBiometricFinish}
+            style={{ fontSize: "0.82rem", padding: "4px 8px", display: "flex", alignItems: "center", gap: "4px" }}
+            title="Identify and finish athlete using biometrics"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3" />
+            </svg>
+            <span>Biometric Finish</span>
+          </button>
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-quiet"
+            onClick={() => setShowNumpad((v) => !v)}
+            style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+          >
+            {showNumpad ? "Hide Keypad" : "Show 0-9 Keypad"}
+          </button>
+        </div>
       </div>
 
       <form className="ipac-keypad" onSubmit={(e) => { e.preventDefault(); if (bib.trim()) finishBib(bib); }}>
