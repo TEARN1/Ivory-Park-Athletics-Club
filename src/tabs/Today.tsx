@@ -94,24 +94,31 @@ function TodayRun({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; se
 
   return (
     <section className="ipac-card">
-      <h2>Today at Ivory Park AC</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <h2 style={{ margin: 0 }}>Today at Ivory Park AC</h2>
+        <span style={{ fontSize: "0.74rem", background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: "8px", fontWeight: 700 }}>
+          Biometrics Active
+        </span>
+      </div>
+
+      <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="ipac-btn ipac-btn-hero"
+          onClick={handleBiometricCheckIn}
+          style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", padding: "8px 14px" }}
+          title="1-Touch Biometric Athlete Identification"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3" />
+          </svg>
+          <span>Biometric 1-Touch Check-In</span>
+        </button>
+      </div>
+
       {server ? (
         <>
           {deepLink && <p className="ipac-hint">Joining through {new URL(server).host}</p>}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-            <button
-              type="button"
-              className="ipac-btn ipac-btn-outline"
-              onClick={handleBiometricCheckIn}
-              style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", padding: "6px 12px" }}
-              title="1-Touch Biometric Athlete Identification"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3" />
-              </svg>
-              <span>Biometric 1-Touch Check-In</span>
-            </button>
-          </div>
           <label className="ipac-namefield">Your name<input aria-label="Your name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Naledi" /></label>
           {programs === null ? <p className="ipac-hint">Looking for today's run…</p> : programs.length === 0 ? <p className="ipac-empty">No run is open for joining today. Ask your coach to open it, then check again.</p> : (
             <ul className="ipac-programs">{programs.map((p) => (
@@ -123,7 +130,25 @@ function TodayRun({ cfg, deepLink }: { cfg: Config; deepLink: { code: string; se
           <button className="ipac-btn ipac-btn-quiet" onClick={refresh}>Check again</button>
         </>
       ) : (
-        <p className="ipac-hint">All timing and session tracking runs 100% offline. Connect to coach Wi-Fi or scan a join QR code to participate in live telemetry.</p>
+        <div>
+          <label className="ipac-namefield">
+            Your name
+            <input
+              aria-label="Your name"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                kvSet("myName", e.target.value.trim());
+              }}
+              placeholder="e.g. Naledi"
+            />
+          </label>
+          <p className="ipac-hint" style={{ marginTop: "6px" }}>
+            All timing and session tracking runs 100% offline on this device. Tap Biometric 1-Touch Check-In or enter your name above.
+          </p>
+          {err && <p role="alert" className="ipac-err">{err}</p>}
+        </div>
       )}
     </section>
   );
