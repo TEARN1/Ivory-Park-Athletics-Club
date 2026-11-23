@@ -32,6 +32,33 @@ describe("http", () => {
     const guests = (await (await fetch(`${base}/guests`, { headers: auth })).json()) as any[];
     expect((await fetch(`${base}/guests/${guests[0].id}`, { method: "DELETE", headers: auth })).status).toBe(200);
   });
+  it("manages club AI configuration catering for everyone", async () => {
+    expect((await fetch(`${base}/club/ai-config`)).status).toBe(200);
+    expect(await (await fetch(`${base}/club/ai-config`)).json()).toBe(null);
+
+    // POST requires coach authorization
+    expect((await fetch(`${base}/club/ai-config`, { method: "POST", body: JSON.stringify({ apiKey: "AIzaTest" }) })).status).toBe(401);
+
+    const postRes = await fetch(`${base}/club/ai-config`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({
+        apiKey: "AIzaTestClubWideKey",
+        defaultDailyLimit: 25,
+        updatedBy: "Coach Siyavuya Thomas",
+      }),
+    });
+    expect(postRes.status).toBe(200);
+    const body = (await postRes.json()) as any;
+    expect(body.ok).toBe(true);
+    expect(body.config.apiKey).toBe("AIzaTestClubWideKey");
+    expect(body.config.defaultDailyLimit).toBe(25);
+
+    const getRes = await fetch(`${base}/club/ai-config`);
+    expect(getRes.status).toBe(200);
+    const config = (await getRes.json()) as any;
+    expect(config.apiKey).toBe("AIzaTestClubWideKey");
+  });
 });
 describe("live relay", () => {
   it("runners cannot open a room; Pass Over then Take moves the beacon", async () => {

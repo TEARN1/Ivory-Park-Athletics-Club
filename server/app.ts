@@ -10,7 +10,15 @@ import { renderClubPage, renderResultsPage, sanitizeBundle, type PublicBundle } 
 export interface Options { coachToken?: string; dataFile?: string; allowedOrigin?: string }
 interface Joiner { id: string; deviceId: string; name: string; bib: string | null; at: number }
 interface Program { code: string; date: string; distanceKm: number; open: boolean; createdAt: number; joiners: Joiner[] }
-interface Db { public?: PublicBundle; rsvps: Record<string, Rsvp[]>; programs: Program[]; sessions: any[]; guests: { id: string; name: string; contact: string; consentAt: number }[]; notices: { id: string; text: string; at: number }[] }
+interface Db {
+  public?: PublicBundle;
+  rsvps: Record<string, Rsvp[]>;
+  programs: Program[];
+  sessions: any[];
+  guests: { id: string; name: string; contact: string; consentAt: number }[];
+  notices: { id: string; text: string; at: number }[];
+  aiConfig?: { apiKey?: string; apiUrl?: string; defaultDailyLimit?: number; updatedAt: number; updatedBy?: string };
+}
 interface Client { ws: WebSocket; room: string; runnerId?: string; coach: boolean; deviceTag: string }
 interface Pos { runnerId: string; lat: number; lon: number; at: number }
 interface Room { relay: RelayState; startedAt?: number; clients: Set<Client>; beacon?: Pos; positions: Map<string, Pos>; timing: SharedTiming }
@@ -120,7 +128,7 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
       if (path === "/notices" && req.method === "GET") return reply(res, 200, db.notices.slice(-20));
       const pm = path.match(/^\/programs(?:\/([A-Z0-9]{4,8}))?(?:\/([a-z]+))?$/);
       const programCoach = !!pm && ((req.method === "POST" && (!pm[1] || pm[2] === "close" || pm[2] === "assign")) || pm[2] === "joiners");
-      const needCoach = programCoach || (path === "/public" && req.method === "POST") || (!!em && em[2] === "rsvps") || ["/sync", "/sessions"].includes(path) || (path === "/notices" && req.method === "POST") || (path === "/guests" && req.method === "GET") || path.startsWith("/guests/");
+      const needCoach = programCoach || (path === "/public" && req.method === "POST") || (path === "/club/ai-config" && req.method === "POST") || (!!em && em[2] === "rsvps") || ["/sync", "/sessions"].includes(path) || (path === "/notices" && req.method === "POST") || (path === "/guests" && req.method === "GET") || path.startsWith("/guests/");
       if (needCoach && !opts.coachToken) return reply(res, 503, { error: "Coach token not configured on the server" });
       if (needCoach && !coach) return reply(res, 401, { error: "Coach token required" });
 
@@ -148,6 +156,19 @@ export function createApp(opts: Options): { server: Server; close: () => Promise
         const n = { id: randomUUID(), text, at: Date.now() }; db.notices.push(n); db.notices = db.notices.slice(-100); persist();
         rooms.forEach((r) => broadcast(r, { type: "notice", notice: n })); wss.clients.forEach((c) => send(c, { type: "notice", notice: n }));
         return reply(res, 201, n);
+      }
+      if (path === "/club/ai-config" && req.method === "GET") return reply(res, 200, db.aiConfig ?? null);
+      if (path === "/club/ai-config" && req.method === "POST") {
+        const b = await readJson(req);
+        db.aiConfig = {
+          apiKey: clean(b.apiKey, 200),
+          apiUrl: clean(b.apiUrl, 300),
+          defaultDailyLimit: Number(b.defaultDailyLimit) || 20,
+          updatedAt: Date.now(),
+          updatedBy: clean(b.updatedBy, 100) || "Club Admin",
+        };
+        persist();
+        return reply(res, 200, { ok: true, config: db.aiConfig });
       }
       reply(res, 404, { error: "Not found" });
     } catch (e) { reply(res, 400, { error: (e as Error).message }); }

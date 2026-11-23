@@ -9,6 +9,19 @@ import {
   type CoachStructuredReport,
   type KeyValidationResult,
 } from "../lib/geminiCoach";
+import {
+  loadClubAiConfig,
+  saveClubAiConfig,
+  getProfileAiShare,
+  getSquadAiShareRoster,
+  resetSquadAiShares,
+  resetSingleAthleteShare,
+  isProfileAdmin,
+  syncClubAiConfigToCloud,
+  fetchClubAiConfigFromCloud,
+  type ProfileAiShare,
+  type ClubAiConfig,
+} from "../lib/aiQuota";
 import { startAlarmLoop, say, stopSpeaking, beep, vibrate } from "../lib/sound";
 import type { Member } from "../lib/club";
 import type { ClubScheduleDay } from "../lib/schedule";
@@ -771,8 +784,24 @@ export default function AICoachHub({
   onNavigateTab,
   showToast,
 }: AICoachHubProps) {
-  const [apiKey, setApiKey] = useState(() => loadGeminiApiKey());
-  const [apiKeyInput, setApiKeyInput] = useState(() => loadGeminiApiKey());
+  const [clubAiConfig, setClubAiConfig] = useState<ClubAiConfig>(() => loadClubAiConfig());
+  const [profileShare, setProfileShare] = useState<ProfileAiShare>(() => getProfileAiShare(currentAthlete || null));
+  const [squadRoster, setSquadRoster] = useState<ProfileAiShare[]>(() => getSquadAiShareRoster());
+  const [showSquadRoster, setShowSquadRoster] = useState(false);
+  const [dailyLimitInput, setDailyLimitInput] = useState<number>(() => loadClubAiConfig().defaultDailyLimit);
+  const [syncingCloud, setSyncingCloud] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  const isAdmin = isProfileAdmin(currentAthlete || null);
+
+  const [apiKey, setApiKey] = useState(() => {
+    const cfg = loadClubAiConfig();
+    return cfg.apiKey || cfg.apiUrl || loadGeminiApiKey();
+  });
+  const [apiKeyInput, setApiKeyInput] = useState(() => {
+    const cfg = loadClubAiConfig();
+    return cfg.apiKey || cfg.apiUrl || loadGeminiApiKey();
+  });
   const [keyTesting, setKeyTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ valid: boolean; message: string } | null>(null);
   const [lastCloudError, setLastCloudError] = useState<string | null>(null);
@@ -799,10 +828,33 @@ export default function AICoachHub({
     loadAthleteChatHistory(currentAthlete || null)
   );
 
+  // Sync profile share and cloud config on load and profile change
+  useEffect(() => {
+    setProfileShare(getProfileAiShare(currentAthlete || null));
+  }, [currentAthlete?.id]);
+
+  useEffect(() => {
+    fetchClubAiConfigFromCloud().then((remoteCfg) => {
+      if (remoteCfg) {
+        setClubAiConfig(remoteCfg);
+        const val = remoteCfg.apiKey || remoteCfg.apiUrl || "";
+        if (val) {
+          setApiKey(val);
+          setApiKeyInput(val);
+        }
+        if (remoteCfg.defaultDailyLimit) {
+          setDailyLimitInput(remoteCfg.defaultDailyLimit);
+        }
+        setProfileShare(getProfileAiShare(currentAthlete || null));
+        setSquadRoster(getSquadAiShareRoster());
+      }
+    });
+  }, []);
+
   const handleTestKey = async () => {
     let clean = apiKeyInput.trim().replace(/^["']|["']$/g, "");
     if (!clean) {
-      setTestResult({ valid: false, message: "Please enter an API key to test." });
+      setTestResult({ valid: false, message: "Please enter an API key or API link to test." });
       return;
     }
     setKeyTesting(true);
@@ -812,22 +864,26 @@ export default function AICoachHub({
       if (res.valid) {
         setTestResult({
           valid: true,
-          message: `Connected successfully to Google AI Studio (${res.model || "Gemini Flash"})!`,
+          message: `Connected successfully (${res.model || "Gemini Flash"})!`,
         });
-        saveGeminiApiKey(clean);
+        saveGeminiApiKey(clean, currentAthlete);
         setApiKey(clean);
+        const updatedCfg = loadClubAiConfig();
+        setClubAiConfig(updatedCfg);
+        setProfileShare(getProfileAiShare(currentAthlete || null));
+        setSquadRoster(getSquadAiShareRoster());
         setLastCloudError(null);
-        showToast("Gemini API key validated! Live Cloud AI active.");
+        showToast("Club AI connection validated & saved for squad!");
       } else {
         setTestResult({
           valid: false,
-          message: res.error || "Failed to validate key with Google Gemini API.",
+          message: res.error || "Failed to validate key or endpoint link.",
         });
       }
     } catch (err: any) {
       setTestResult({
         valid: false,
-        message: err?.message || "Network error when reaching Google AI Studio.",
+        message: err?.message || "Network error when reaching AI endpoint.",
       });
     } finally {
       setKeyTesting(false);
@@ -1048,6 +1104,13 @@ export default function AICoachHub({
         setLastCloudError(null);
       }
 
+      if (response.quotaShare) {
+        setProfileShare(response.quotaShare);
+        setSquadRoster(getSquadAiShareRoster());
+      } else {
+        setProfileShare(getProfileAiShare(currentAthlete || null));
+      }
+
       setMessages((prev) => [...prev, response]);
       beep(880, 70);
 
@@ -1084,11 +1147,42 @@ export default function AICoachHub({
     if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
       trimmed = trimmed.slice(1, -1).trim();
     }
-    saveGeminiApiKey(trimmed);
+    const isUrl = trimmed.startsWith("http://") || trimmed.startsWith("https://");
+    const updated = saveClubAiConfig({
+      apiKey: isUrl ? "" : trimmed,
+      apiUrl: isUrl ? trimmed : "",
+      defaultDailyLimit: Number(dailyLimitInput) || 20,
+    }, currentAthlete);
+
+    setClubAiConfig(updated);
     setApiKey(trimmed);
     setApiKeyInput(trimmed);
+    setProfileShare(getProfileAiShare(currentAthlete || null));
+    setSquadRoster(getSquadAiShareRoster());
     setShowKeyDrawer(false);
-    showToast(trimmed ? "Gemini API Key saved! Live Cloud AI active." : "API Key cleared; using offline engine");
+    showToast(
+      trimmed
+        ? `Club AI ${isUrl ? "API Link" : "Key"} saved & synced! Daily share: ${updated.defaultDailyLimit} per athlete.`
+        : "Club AI cleared; operating on offline Highveld engine"
+    );
+  };
+
+  const handleSyncToCloud = async () => {
+    setSyncingCloud(true);
+    setSyncNotice(null);
+    try {
+      const res = await syncClubAiConfigToCloud(clubAiConfig);
+      if (res.ok) {
+        setSyncNotice("Synced club AI configuration to cloud successfully.");
+        showToast("Club AI config synced across all squad devices.");
+      } else {
+        setSyncNotice(res.message || "Cloud sync notice: running local cache.");
+      }
+    } catch (err: any) {
+      setSyncNotice(err?.message || "Cloud sync error");
+    } finally {
+      setSyncingCloud(false);
+    }
   };
 
   return (
@@ -1131,6 +1225,37 @@ export default function AICoachHub({
                 >
                   Private Chat: {currentAthlete.name} (Bib {currentAthlete.bib})
                 </span>
+                {isAdmin ? (
+                  <span
+                    style={{
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      background: "rgba(59, 130, 246, 0.15)",
+                      color: "#60a5fa",
+                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                    }}
+                    title="Club Admin: Unlimited Cloud Inquiries"
+                  >
+                    Admin Share: Unlimited
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      background: profileShare.remaining > 0 ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                      color: profileShare.remaining > 0 ? "#10b981" : "#f59e0b",
+                      border: `1px solid ${profileShare.remaining > 0 ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                    }}
+                    title={`Your daily cloud allocation: ${profileShare.usedToday} used, ${profileShare.remaining} left today`}
+                  >
+                    Daily Share: {profileShare.usedToday} / {profileShare.dailyLimit} inquiries used ({profileShare.remaining} left)
+                  </span>
+                )}
                 {onOpenProfileModal && (
                   <button
                     type="button"
@@ -1166,7 +1291,21 @@ export default function AICoachHub({
                   gap: "6px",
                 }}
               >
-                <span>Guest mode. Sign in to save private chats with The Gruvs & Resident DB.</span>
+                <span>Guest mode. Sign in to save private chats with The Gruvs &amp; Resident DB.</span>
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    padding: "2px 6px",
+                    borderRadius: "8px",
+                    background: "rgba(245, 158, 11, 0.15)",
+                    color: "#f59e0b",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                  }}
+                  title="Guest runner daily cloud share"
+                >
+                  Guest Share: {profileShare.usedToday} / {profileShare.dailyLimit} used ({profileShare.remaining} left)
+                </span>
                 {onOpenProfileModal && (
                   <button
                     type="button"
@@ -1279,16 +1418,37 @@ export default function AICoachHub({
           <div className="ipac-coach-key-drawer">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
               <label htmlFor="coach-key-input" style={{ fontSize: "0.85rem", fontWeight: 700 }}>
-                Cloud AI Engine Key (Google AI Studio Free Tier)
+                Club AI Key or Custom API Link
               </label>
-              <small style={{ color: "#94a3b8" }}>Free Cloud Intelligence</small>
+              <small style={{ color: "#94a3b8" }}>Google AI Studio / Custom Gateway</small>
             </div>
+
+            {isAdmin ? (
+              <div
+                style={{
+                  fontSize: "0.76rem",
+                  color: "#60a5fa",
+                  marginBottom: "8px",
+                  background: "rgba(59, 130, 246, 0.1)",
+                  padding: "5px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(59, 130, 246, 0.25)",
+                }}
+              >
+                <b>Admin Configuration:</b> As Club Admin, saving this key or link syncs it club-wide so it caters for all squad athletes, each receiving their own daily share.
+              </div>
+            ) : (
+              <div style={{ fontSize: "0.76rem", color: "#94a3b8", marginBottom: "8px" }}>
+                Managed centrally by Coach Siyavuya Thomas and Team IT Lead Asemahle Nkwali. All squad members share this club key with separate daily quotas.
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <input
                 id="coach-key-input"
-                type="password"
+                type="text"
                 className="ipac-input"
-                placeholder="Paste AIzaSy... here"
+                placeholder="Paste AIzaSy... or https://custom-gateway/..."
                 value={apiKeyInput}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -1296,7 +1456,7 @@ export default function AICoachHub({
                   setTestResult(null);
                   const clean = val.trim().replace(/^["']|["']$/g, "");
                   if (clean.startsWith("AIza") && clean.length >= 35) {
-                    saveGeminiApiKey(clean);
+                    saveGeminiApiKey(clean, currentAthlete);
                     setApiKey(clean);
                     setLastCloudError(null);
                     showToast("Gemini API Key detected & saved! Live Cloud AI active.");
@@ -1305,12 +1465,6 @@ export default function AICoachHub({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    handleSaveKey();
-                  }
-                }}
-                onBlur={() => {
-                  const clean = apiKeyInput.trim().replace(/^["']|["']$/g, "");
-                  if (clean.length > 20 && clean !== apiKey) {
                     handleSaveKey();
                   }
                 }}
@@ -1323,10 +1477,10 @@ export default function AICoachHub({
                 onClick={handleTestKey}
                 style={{ fontSize: "0.82rem" }}
               >
-                {keyTesting ? "Testing..." : "Test Key"}
+                {keyTesting ? "Testing..." : "Test Connection"}
               </button>
               <button type="button" className="ipac-btn ipac-btn-primary" onClick={handleSaveKey} style={{ fontSize: "0.82rem" }}>
-                Save Key
+                Save for Squad
               </button>
               {apiKey && (
                 <button
@@ -1334,10 +1488,11 @@ export default function AICoachHub({
                   className="ipac-btn ipac-btn-outline"
                   onClick={() => {
                     setApiKeyInput("");
-                    saveGeminiApiKey("");
+                    saveGeminiApiKey("", currentAthlete);
                     setApiKey("");
                     setTestResult(null);
                     setLastCloudError(null);
+                    setClubAiConfig(loadClubAiConfig());
                     showToast("Cleared API key; operating on offline Highveld engine");
                   }}
                   style={{ fontSize: "0.82rem" }}
@@ -1359,19 +1514,188 @@ export default function AICoachHub({
                   fontSize: "0.8rem",
                 }}
               >
-                <b>{testResult.valid ? "Key Validated: " : "Connection Error: "}</b>
+                <b>{testResult.valid ? "Connection Validated: " : "Connection Error: "}</b>
                 {testResult.message}
               </div>
             )}
 
-            {apiKey ? (
-              <div style={{ marginTop: "6px", fontSize: "0.78rem", color: "#10b981", fontWeight: 600 }}>
-                Active Club Key: {apiKey.slice(0, 6)}...{apiKey.slice(-4)} (Managed by Team IT Asemahle • Shared with all squad athletes)
+            {/* Squad Quota Controls & Share Roster */}
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "10px",
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                <div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700 }}>Per-Profile Daily Share Allocation</div>
+                  <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>
+                    Limits cloud inquiries per athlete per day to ensure fair access and prevent rate limits.
+                  </div>
+                </div>
+                {isAdmin ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <select
+                      className="ipac-input"
+                      style={{ fontSize: "0.8rem", padding: "4px 8px" }}
+                      value={dailyLimitInput}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setDailyLimitInput(val);
+                        const updated = saveClubAiConfig({ defaultDailyLimit: val }, currentAthlete);
+                        setClubAiConfig(updated);
+                        setProfileShare(getProfileAiShare(currentAthlete || null));
+                        setSquadRoster(getSquadAiShareRoster());
+                        showToast(`Daily share set to ${val >= 99999 ? "Unlimited" : val} inquiries per athlete`);
+                      }}
+                    >
+                      <option value={10}>10 inquiries / day</option>
+                      <option value={20}>20 inquiries / day (Recommended)</option>
+                      <option value={30}>30 inquiries / day</option>
+                      <option value={50}>50 inquiries / day</option>
+                      <option value={100}>100 inquiries / day</option>
+                      <option value={999999}>Unlimited</option>
+                    </select>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#38bdf8" }}>
+                    {clubAiConfig.defaultDailyLimit >= 99999 ? "Unlimited" : `${clubAiConfig.defaultDailyLimit} inquiries / day`}
+                  </span>
+                )}
               </div>
-            ) : (
-              <p className="ipac-hint" style={{ fontSize: "0.75rem", margin: "6px 0 0" }}>
-                Team IT Setup: As Team IT Lead, when you save this key once, all squad athletes automatically get Live Cloud AI conversation on this app without needing their own key.
-              </p>
+
+              {/* Squad AI Share Roster Accordion */}
+              <div style={{ marginTop: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
+                  <button
+                    type="button"
+                    className="ipac-btn ipac-btn-quiet"
+                    style={{ fontSize: "0.75rem", padding: "4px 8px", color: "#38bdf8" }}
+                    onClick={() => {
+                      setSquadRoster(getSquadAiShareRoster());
+                      setShowSquadRoster(!showSquadRoster);
+                    }}
+                  >
+                    {showSquadRoster ? "Hide Squad Share Roster" : `View Squad AI Share Roster (${squadRoster.length} Athletes)`}
+                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="ipac-btn ipac-btn-outline"
+                      style={{ fontSize: "0.72rem", padding: "2px 8px" }}
+                      onClick={() => {
+                        resetSquadAiShares();
+                        setProfileShare(getProfileAiShare(currentAthlete || null));
+                        setSquadRoster(getSquadAiShareRoster());
+                        showToast("All squad daily shares reset to fresh allocation!");
+                      }}
+                    >
+                      Reset All Shares Today
+                    </button>
+                  )}
+                </div>
+
+                {showSquadRoster && (
+                  <div style={{ marginTop: "8px", maxHeight: "180px", overflowY: "auto", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "6px" }}>
+                    <table style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ background: "rgba(255, 255, 255, 0.05)", textAlign: "left" }}>
+                          <th style={{ padding: "6px 8px" }}>Bib</th>
+                          <th style={{ padding: "6px 8px" }}>Athlete</th>
+                          <th style={{ padding: "6px 8px" }}>Today's Usage</th>
+                          <th style={{ padding: "6px 8px" }}>Share Status</th>
+                          {isAdmin && <th style={{ padding: "6px 8px", textAlign: "right" }}>Action</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {squadRoster.map((item) => (
+                          <tr key={item.profileId} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                            <td style={{ padding: "6px 8px", fontWeight: 700 }}>{item.bib}</td>
+                            <td style={{ padding: "6px 8px" }}>{item.name}</td>
+                            <td style={{ padding: "6px 8px" }}>
+                              {item.unlimited ? "Unlimited" : `${item.usedToday} / ${item.dailyLimit} used`}
+                            </td>
+                            <td style={{ padding: "6px 8px" }}>
+                              <span
+                                style={{
+                                  fontSize: "0.68rem",
+                                  padding: "1px 6px",
+                                  borderRadius: "8px",
+                                  background: item.unlimited
+                                    ? "rgba(59, 130, 246, 0.15)"
+                                    : item.remaining > 0
+                                    ? "rgba(16, 185, 129, 0.15)"
+                                    : "rgba(239, 68, 68, 0.15)",
+                                  color: item.unlimited ? "#60a5fa" : item.remaining > 0 ? "#10b981" : "#ef4444",
+                                }}
+                              >
+                                {item.unlimited ? "Admin Unlimited" : item.remaining > 0 ? `${item.remaining} left` : "Limit Reached"}
+                              </span>
+                            </td>
+                            {isAdmin && (
+                              <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                                <button
+                                  type="button"
+                                  className="ipac-btn ipac-btn-quiet"
+                                  style={{ fontSize: "0.68rem", padding: "1px 6px" }}
+                                  onClick={() => {
+                                    resetSingleAthleteShare(item.profileId);
+                                    setProfileShare(getProfileAiShare(currentAthlete || null));
+                                    setSquadRoster(getSquadAiShareRoster());
+                                    showToast(`Reset share for ${item.name}`);
+                                  }}
+                                >
+                                  Reset
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Cloud Sync Status */}
+            <div
+              style={{
+                marginTop: "10px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "6px",
+                fontSize: "0.75rem",
+                color: "#94a3b8",
+              }}
+            >
+              <div>
+                {clubAiConfig.updatedBy ? (
+                  <span>Club AI Configured by: <b style={{ color: "#e2e8f0" }}>{clubAiConfig.updatedBy}</b></span>
+                ) : (
+                  <span>Squad AI: Ready to configure</span>
+                )}
+              </div>
+              <button
+                type="button"
+                className="ipac-btn ipac-btn-quiet"
+                style={{ fontSize: "0.72rem", padding: "2px 6px" }}
+                disabled={syncingCloud}
+                onClick={handleSyncToCloud}
+              >
+                {syncingCloud ? "Syncing..." : "Sync to Club Cloud"}
+              </button>
+            </div>
+
+            {syncNotice && (
+              <div style={{ marginTop: "4px", fontSize: "0.72rem", color: "#38bdf8" }}>
+                {syncNotice}
+              </div>
             )}
 
             <div

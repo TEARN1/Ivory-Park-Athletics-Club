@@ -172,7 +172,7 @@ function RunnerHud({
       <div className="ipac-hud-header">
         <span className="ipac-hud-badge">AMOLED RUNNER HUD · ZERO-DATA</span>
         <button type="button" className="ipac-hud-close" onClick={onExit} aria-label="Exit HUD mode">
-          Standard View ✕
+          Standard View (Exit)
         </button>
       </div>
 

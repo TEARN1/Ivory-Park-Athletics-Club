@@ -674,7 +674,7 @@ export default function TeamDispatch({
               style={{ fontSize: "0.85rem", minHeight: "38px" }}
               onClick={onOpenPickupRoute}
             >
-              Plan Shortest Pick-up Route for {needsPickupCount} Athletes ➔
+              Plan Shortest Pick-up Route for {needsPickupCount} Athletes -&gt;
             </button>
           </div>
         )}

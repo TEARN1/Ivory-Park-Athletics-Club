@@ -4,6 +4,14 @@ import { loadClubSchedule, saveClubSchedule, type ClubScheduleDay } from "./sche
 import { standings, fmtTime, fmtPace, type Session } from "./session";
 import { memberResults, personalBests, type Member } from "./club";
 import type { AthleteProfile } from "./auth";
+import {
+  loadClubAiConfig,
+  saveClubAiConfig,
+  getProfileAiShare,
+  consumeProfileAiShare,
+  type ProfileAiShare,
+  type ClubAiConfig,
+} from "./aiQuota";
 
 export type CoachActionType =
   | "set_alarm"
@@ -67,6 +75,7 @@ export interface CoachMessage {
   source?: "cloud" | "local";
   modelUsed?: string;
   cloudError?: string;
+  quotaShare?: ProfileAiShare;
 }
 
 export interface ExecuteCommandResult {
@@ -80,6 +89,10 @@ const STORAGE_KEY_GEMINI_KEY = "ipac_gemini_api_key";
 
 export function loadGeminiApiKey(): string {
   try {
+    const clubConfig = loadClubAiConfig();
+    if (clubConfig.apiKey || clubConfig.apiUrl) {
+      return clubConfig.apiKey || clubConfig.apiUrl || "";
+    }
     if (typeof localStorage === "undefined") return "";
     return localStorage.getItem(STORAGE_KEY_GEMINI_KEY) || "";
   } catch {
@@ -87,14 +100,20 @@ export function loadGeminiApiKey(): string {
   }
 }
 
-export function saveGeminiApiKey(key: string): void {
+export function saveGeminiApiKey(key: string, adminProfile?: AthleteProfile | null): void {
   try {
-    if (typeof localStorage === "undefined") return;
     const clean = key.trim().replace(/^["']|["']$/g, "");
-    if (clean) {
-      localStorage.setItem(STORAGE_KEY_GEMINI_KEY, clean);
+    if (clean.startsWith("http://") || clean.startsWith("https://")) {
+      saveClubAiConfig({ apiUrl: clean, apiKey: "" }, adminProfile);
     } else {
-      localStorage.removeItem(STORAGE_KEY_GEMINI_KEY);
+      saveClubAiConfig({ apiKey: clean }, adminProfile);
+    }
+    if (typeof localStorage !== "undefined") {
+      if (clean) {
+        localStorage.setItem(STORAGE_KEY_GEMINI_KEY, clean);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_GEMINI_KEY);
+      }
     }
   } catch {}
 }
@@ -106,13 +125,48 @@ export interface KeyValidationResult {
 }
 
 /**
- * Validates a Gemini API key against Google AI Studio generateContent endpoint.
+ * Validates a Gemini API key or custom API link.
  * Returns human-readable error if invalid or blocked.
  */
-export async function validateGeminiApiKey(apiKey: string): Promise<KeyValidationResult> {
-  const cleanKey = apiKey.trim().replace(/^["']|["']$/g, "");
-  if (!cleanKey) {
-    return { valid: false, error: "Please enter an API key from Google AI Studio." };
+export async function validateGeminiApiKey(apiKeyOrUrl: string): Promise<KeyValidationResult> {
+  const clean = apiKeyOrUrl.trim().replace(/^["']|["']$/g, "");
+  if (!clean) {
+    return { valid: false, error: "Please enter an API key or API endpoint link." };
+  }
+
+  // If input is a URL (starts with http:// or https://)
+  if (/^https?:\/\//i.test(clean)) {
+    try {
+      const res = await fetch(clean, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: "ping" }],
+            },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        return { valid: true, model: "Custom AI Link / Gateway" };
+      }
+
+      if (res.status === 405) {
+        const getRes = await fetch(clean).catch(() => null);
+        if (getRes && getRes.ok) {
+          return { valid: true, model: "Custom AI Link / Gateway" };
+        }
+      }
+
+      const errJson = await res.json().catch(() => null);
+      const msg = errJson?.error?.message || res.statusText || `HTTP ${res.status}`;
+      return { valid: false, error: `Custom endpoint returned HTTP ${res.status}: ${msg}` };
+    } catch (err: any) {
+      return { valid: false, error: `Failed to connect to API link: ${err?.message || "Network error"}` };
+    }
   }
 
   const modelsToTry = [
@@ -125,7 +179,7 @@ export async function validateGeminiApiKey(apiKey: string): Promise<KeyValidatio
 
   for (const model of modelsToTry) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(clean)}`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1224,20 +1278,69 @@ export async function processCoachQuery(
   const effectiveHistory = getEffectiveHistory(context.history);
   const performanceInsights = analyzeSquadPerformance(effectiveMembers, effectiveHistory);
 
+  const currentAthlete = context.athlete || null;
+  const currentShare = getProfileAiShare(currentAthlete);
+
+  // Check fair-share daily quota. If exhausted for this athlete, cleanly route to Highveld Local Engine
+  if (!currentShare.unlimited && currentShare.remaining <= 0) {
+    const localRes = processLocalCoachQuery(
+      query,
+      context,
+      timeId,
+      timestamp,
+      effectiveMembers,
+      effectiveHistory,
+      performanceInsights
+    );
+
+    const shareNotice = `[Highveld Fair Share Notice] You have completed your daily club cloud AI share of ${currentShare.dailyLimit} inquiries for today. Switched to Highveld Local Engine so other squad members receive their fair share. Your quota resets tomorrow at midnight!\n\n`;
+
+    return {
+      ...localRes,
+      text: shareNotice + localRes.text,
+      source: "local",
+      modelUsed: "Highveld Local Engine (Fair Share Allocated)",
+      quotaShare: currentShare,
+    };
+  }
+
   let cloudErrorNotice: string | undefined = undefined;
 
-  // 1. If Gemini API key is present, attempt live Google AI Studio call with multi-turn history
-  const rawKey = context.apiKey || loadGeminiApiKey();
-  const apiKey = rawKey.trim().replace(/^["']|["']$/g, "");
-  if (apiKey) {
+  // 1. Attempt live Cloud AI call using Club Key or Custom Endpoint Link
+  const clubConfig = loadClubAiConfig();
+  const rawKey = (context.apiKey || clubConfig.apiKey || loadGeminiApiKey()).trim().replace(/^["']|["']$/g, "");
+  const rawUrl = (clubConfig.apiUrl || "").trim();
+  const isCustomLink = rawKey.startsWith("http://") || rawKey.startsWith("https://") || Boolean(rawUrl);
+  const effectiveApiKey = isCustomLink && !rawUrl && (rawKey.startsWith("http://") || rawKey.startsWith("https://")) ? "" : rawKey;
+  const effectiveEndpointUrl = rawUrl || (rawKey.startsWith("http://") || rawKey.startsWith("https://") ? rawKey : "");
+
+  if (effectiveApiKey || effectiveEndpointUrl) {
     try {
-      const activeUserDesc = context.athlete
-        ? `Speaking with: ${context.athlete.name} (Bib ${context.athlete.bib || "-"}, ${context.athlete.ageGroup}, ${context.athlete.section}${context.athlete.titleNote ? ", " + context.athlete.titleNote : ""})`
+      const activeUserDesc = currentAthlete
+        ? `Speaking with: ${currentAthlete.name} (Bib ${currentAthlete.bib || "-"}, ${currentAthlete.ageGroup}, ${currentAthlete.section}${currentAthlete.titleNote ? ", " + currentAthlete.titleNote : ""})`
         : `Speaking with: Coach / Club Administrator`;
+
+      const matchedMember = currentAthlete
+        ? effectiveMembers.find(
+            (m) => m.id === currentAthlete.id || m.bib === currentAthlete.bib || m.name.toLowerCase() === currentAthlete.name.toLowerCase()
+          )
+        : null;
+
+      const profilePersonalStats = matchedMember
+        ? (() => {
+            const pbs = personalBests(memberResults(effectiveHistory, matchedMember.id));
+            const pb5 = pbs.find((p) => p.distanceKm === 5);
+            return `Runner Specific Background:
+- 5km PB: ${pb5 ? fmtTime(pb5.ms) : "Under development"}
+- Target Pace: ${fmtPace(matchedMember.targetPaceSec)}
+- Active Footwear: ${matchedMember.shoes?.map((s) => `${s.model} (${s.km} km)`).join(", ") || "Standard trainers"}`;
+          })()
+        : "";
 
       const systemPrompt = `You are the Head Coach and Founder of Ivory Park Athletics Club (IPAC) in Midrand, South Africa.
 You speak warmly, authentically, and conversationally like a dedicated, wise South African running coach.
 ${activeUserDesc}
+${profilePersonalStats}
 You know our squad deeply (${effectiveMembers.map((m) => m.name).join(", ")}).
 Our squad trains on Highveld roads (1,520m elevation).
 Recent squad results:
@@ -1259,20 +1362,17 @@ Guidelines:
         context.attachedImage
       );
 
-      const modelsToTry = [
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-2.5-flash",
-        "gemini-1.5-pro",
-      ];
-
       let candidateText: string | null = null;
       let usedModel: string = "";
 
-      for (const model of modelsToTry) {
+      // Path A: Custom API Link / Proxy Endpoint
+      if (effectiveEndpointUrl) {
         try {
-          const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-          const res = await fetch(modelUrl, {
+          const targetUrl = effectiveApiKey && !effectiveEndpointUrl.includes("key=")
+            ? effectiveEndpointUrl + (effectiveEndpointUrl.includes("?") ? "&" : "?") + `key=${encodeURIComponent(effectiveApiKey)}`
+            : effectiveEndpointUrl;
+
+          const res = await fetch(targetUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1285,27 +1385,72 @@ Guidelines:
 
           if (res.ok) {
             const data = await res.json();
-            const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            const textResponse =
+              data.candidates?.[0]?.content?.parts?.[0]?.text ||
+              data.text ||
+              data.response ||
+              (typeof data === "string" ? data : "");
             if (textResponse && textResponse.trim()) {
               candidateText = textResponse.trim();
-              usedModel = model;
-              break;
+              usedModel = "Custom AI Gateway";
             }
           } else {
             const errJson = await res.json().catch(() => null);
-            const msg = errJson?.error?.message || `HTTP ${res.status}`;
-            cloudErrorNotice = `${model}: ${msg}`;
-            if (res.status === 400 && msg.toLowerCase().includes("api key not valid")) {
-              break;
-            }
+            cloudErrorNotice = `Custom Link HTTP ${res.status}: ${errJson?.error?.message || res.statusText || "Request failed"}`;
           }
         } catch (fetchErr: any) {
-          cloudErrorNotice = fetchErr?.message || "Network request failed";
+          cloudErrorNotice = `Custom Link Error: ${fetchErr?.message || "Failed to reach endpoint"}`;
+        }
+      }
+
+      // Path B: Standard Google AI Studio Flash Models
+      if (!candidateText && effectiveApiKey) {
+        const modelsToTry = [
+          "gemini-2.0-flash",
+          "gemini-1.5-flash",
+          "gemini-2.5-flash",
+          "gemini-1.5-pro",
+        ];
+
+        for (const model of modelsToTry) {
+          try {
+            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(effectiveApiKey)}`;
+            const res = await fetch(modelUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                systemInstruction: {
+                  parts: [{ text: `${systemPrompt}\n\nSchedule Context: ${JSON.stringify(context.schedule)}` }],
+                },
+                contents: sanitizedContents,
+              }),
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (textResponse && textResponse.trim()) {
+                candidateText = textResponse.trim();
+                usedModel = model;
+                break;
+              }
+            } else {
+              const errJson = await res.json().catch(() => null);
+              const msg = errJson?.error?.message || `HTTP ${res.status}`;
+              cloudErrorNotice = `${model}: ${msg}`;
+              if (res.status === 400 && msg.toLowerCase().includes("api key not valid")) {
+                break;
+              }
+            }
+          } catch (fetchErr: any) {
+            cloudErrorNotice = fetchErr?.message || "Network request failed";
+          }
         }
       }
 
       if (candidateText) {
         const action = parseActionFromText(query, candidateText);
+        const consumed = consumeProfileAiShare(currentAthlete);
         return {
           id: timeId,
           role: "coach",
@@ -1314,6 +1459,7 @@ Guidelines:
           timestamp,
           source: "cloud",
           modelUsed: usedModel,
+          quotaShare: consumed.share,
         };
       }
     } catch (err: any) {
@@ -1337,6 +1483,7 @@ Guidelines:
     source: "local",
     modelUsed: "Highveld Local Engine",
     cloudError: cloudErrorNotice,
+    quotaShare: currentShare,
   };
 }
 
