@@ -3,7 +3,7 @@ import type { Notice } from "../lib/live";
 import type { Prefs } from "../lib/prefs";
 import { saveConfig, type Config } from "../lib/store";
 import { loadSupabaseConfig, saveSupabaseConfig, testSupabaseConnection } from "../lib/supabase";
-import Appearance, { SoundSettings } from "./Appearance";
+import Appearance, { SoundSettings, AICoachSettings } from "./Appearance";
 import ClubAdmin, { type PublishState } from "./ClubAdmin";
 import type { ClubData } from "../lib/club";
 
@@ -23,6 +23,7 @@ export default function Club({ cfg, setCfg, notices, prefs, setPrefs, club, setC
     <>
     <Appearance prefs={prefs} setPrefs={setPrefs} />
     <SoundSettings prefs={prefs} setPrefs={setPrefs} />
+    <AICoachSettings prefs={prefs} setPrefs={setPrefs} />
     <section className="ipac-card">
       <div className="ipac-api-status-banner" style={{
         background: "rgba(57, 211, 83, 0.12)",

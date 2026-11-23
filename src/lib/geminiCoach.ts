@@ -64,6 +64,9 @@ export interface CoachMessage {
   report?: CoachStructuredReport;
   timestamp: string;
   imageUrl?: string;
+  source?: "cloud" | "local";
+  modelUsed?: string;
+  cloudError?: string;
 }
 
 export interface ExecuteCommandResult {
@@ -87,8 +90,206 @@ export function loadGeminiApiKey(): string {
 export function saveGeminiApiKey(key: string): void {
   try {
     if (typeof localStorage === "undefined") return;
-    localStorage.setItem(STORAGE_KEY_GEMINI_KEY, key.trim());
+    const clean = key.trim().replace(/^["']|["']$/g, "");
+    if (clean) {
+      localStorage.setItem(STORAGE_KEY_GEMINI_KEY, clean);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_GEMINI_KEY);
+    }
   } catch {}
+}
+
+export interface KeyValidationResult {
+  valid: boolean;
+  model?: string;
+  error?: string;
+}
+
+/**
+ * Validates a Gemini API key against Google AI Studio generateContent endpoint.
+ * Returns human-readable error if invalid or blocked.
+ */
+export async function validateGeminiApiKey(apiKey: string): Promise<KeyValidationResult> {
+  const cleanKey = apiKey.trim().replace(/^["']|["']$/g, "");
+  if (!cleanKey) {
+    return { valid: false, error: "Please enter an API key from Google AI Studio." };
+  }
+
+  const modelsToTry = [
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-2.5-flash",
+  ];
+
+  let lastError = "Unable to connect to Google Gemini API.";
+
+  for (const model of modelsToTry) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: "ping" }],
+            },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        return { valid: true, model };
+      }
+
+      const errJson = await res.json().catch(() => null);
+      if (errJson?.error?.message) {
+        lastError = `Google Error (${res.status}): ${errJson.error.message}`;
+      } else {
+        lastError = `HTTP ${res.status}: ${res.statusText || "Request rejected"}`;
+      }
+
+      // If invalid API key, stop trying other models
+      if (res.status === 400 && lastError.toLowerCase().includes("api key not valid")) {
+        return { valid: false, error: "API key is not valid. Please verify your key on Google AI Studio." };
+      }
+    } catch (err: any) {
+      lastError = err?.message || "Network error: check internet connection.";
+    }
+  }
+
+  return { valid: false, error: lastError };
+}
+
+export interface GeminiPart {
+  text?: string;
+  inlineData?: {
+    mimeType: string;
+    data: string;
+  };
+}
+
+export interface GeminiContent {
+  role: "user" | "model";
+  parts: GeminiPart[];
+}
+
+/**
+ * Sanitizes multi-turn chat history for Google Gemini API:
+ * 1. Ensures the first turn is ALWAYS role "user" (Gemini returns HTTP 400 if index 0 is model).
+ * 2. Strictly alternates between "user" and "model" roles by merging consecutive turns of the same role.
+ * 3. Ensures the last turn is ALWAYS role "user" containing the user's latest query/attachment.
+ * 4. Extracts base64 inlineData for image attachments safely.
+ */
+export function sanitizeTurnsForGemini(
+  history: CoachMessage[] = [],
+  currentQuery: string,
+  attachedImage?: string | null
+): GeminiContent[] {
+  const rawTurns: GeminiContent[] = [];
+
+  for (const m of history) {
+    if (!m.text && !m.imageUrl) continue;
+    const role: "user" | "model" = m.role === "coach" ? "model" : "user";
+    const parts: GeminiPart[] = [];
+
+    if (m.imageUrl) {
+      const match = m.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        parts.push({
+          inlineData: {
+            mimeType: match[1],
+            data: match[2],
+          },
+        });
+      }
+    }
+
+    if (m.text && m.text.trim()) {
+      parts.push({ text: m.text.trim() });
+    }
+
+    if (parts.length > 0) {
+      rawTurns.push({ role, parts });
+    }
+  }
+
+  // Build the current user turn
+  const currentParts: GeminiPart[] = [];
+  if (attachedImage) {
+    const match = attachedImage.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) {
+      currentParts.push({
+        inlineData: {
+          mimeType: match[1],
+          data: match[2],
+        },
+      });
+    }
+  }
+
+  if (currentQuery && currentQuery.trim()) {
+    currentParts.push({ text: currentQuery.trim() });
+  }
+
+  if (currentParts.length > 0) {
+    rawTurns.push({ role: "user", parts: currentParts });
+  }
+
+  // Rule 1: Drop leading "model" turns so turn 0 is always "user"
+  while (rawTurns.length > 0 && rawTurns[0].role !== "user") {
+    rawTurns.shift();
+  }
+
+  // Fallback if empty
+  if (rawTurns.length === 0) {
+    return [
+      {
+        role: "user",
+        parts: [{ text: currentQuery.trim() || "Sanibonani Coach." }],
+      },
+    ];
+  }
+
+  // Rule 2: Strictly alternate user and model by merging consecutive identical roles
+  const alternated: GeminiContent[] = [];
+  for (const turn of rawTurns) {
+    if (alternated.length === 0) {
+      alternated.push(turn);
+    } else {
+      const last = alternated[alternated.length - 1];
+      if (last.role === turn.role) {
+        last.parts.push(...turn.parts);
+      } else {
+        alternated.push(turn);
+      }
+    }
+  }
+
+  // Rule 3: Ensure final turn is "user"
+  if (alternated[alternated.length - 1].role !== "user") {
+    alternated.push({
+      role: "user",
+      parts: [{ text: currentQuery.trim() || "Please provide coaching guidance." }],
+    });
+  }
+
+  // Rule 4: Keep at most recent 12 turns, ensuring turn 0 remains user
+  let sliced = alternated.slice(-12);
+  while (sliced.length > 0 && sliced[0].role !== "user") {
+    sliced.shift();
+  }
+  if (sliced.length === 0) {
+    sliced = [
+      {
+        role: "user",
+        parts: [{ text: currentQuery.trim() || "Sanibonani Coach." }],
+      },
+    ];
+  }
+
+  return sliced;
 }
 
 /** Default representative athletes of Ivory Park Athletics Club */
@@ -1000,7 +1201,7 @@ ${points}
 
 /**
  * Natural language reasoning engine:
- * Evaluates queries using Gemini 1.5/2.0 API when available,
+ * Evaluates queries using Gemini 2.0/1.5 Flash API when available,
  * or natural conversational on-device pattern intelligence for offline responsiveness.
  */
 export async function processCoachQuery(
@@ -1013,9 +1214,9 @@ export async function processCoachQuery(
     apiKey?: string;
     athlete?: AthleteProfile | null;
     chatHistory?: CoachMessage[];
+    attachedImage?: string | null;
   }
 ): Promise<CoachMessage> {
-  const q = query.trim().toLowerCase();
   const timeId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
   const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -1023,8 +1224,11 @@ export async function processCoachQuery(
   const effectiveHistory = getEffectiveHistory(context.history);
   const performanceInsights = analyzeSquadPerformance(effectiveMembers, effectiveHistory);
 
+  let cloudErrorNotice: string | undefined = undefined;
+
   // 1. If Gemini API key is present, attempt live Google AI Studio call with multi-turn history
-  const apiKey = context.apiKey || loadGeminiApiKey();
+  const rawKey = context.apiKey || loadGeminiApiKey();
+  const apiKey = rawKey.trim().replace(/^["']|["']$/g, "");
   if (apiKey) {
     try {
       const activeUserDesc = context.athlete
@@ -1049,78 +1253,175 @@ Guidelines:
 - When asked about results, finishing times, pace drops, or runner progress, cite the real names, finishing times, paces, and dates accurately.
 - Keep responses concise, authoritative, disciplined, encouraging, with ZERO emojis.`;
 
-      const priorTurns = (context.chatHistory || [])
-        .filter((m) => m.role === "user" || m.role === "coach")
-        .slice(-10)
-        .map((m) => ({
-          role: m.role === "coach" ? "model" : "user",
-          parts: [{ text: m.text }],
-        }));
+      const sanitizedContents = sanitizeTurnsForGemini(
+        context.chatHistory || [],
+        query,
+        context.attachedImage
+      );
 
-      // Ensure proper alternating turns for Gemini API
-      const contents = [
-        ...priorTurns,
-        {
-          role: "user",
-          parts: [{ text: query }],
-        },
+      const modelsToTry = [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-2.5-flash",
+        "gemini-1.5-pro",
       ];
 
-      const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-      let res = await fetch(modelUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: `${systemPrompt}\n\nSchedule Context: ${JSON.stringify(context.schedule)}` }],
-          },
-          contents,
-        }),
-      });
+      let candidateText: string | null = null;
+      let usedModel: string = "";
 
-      if (!res.ok) {
-        // Fallback to gemini-1.5-flash if 2.0 is unavailable for the key
-        res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
+      for (const model of modelsToTry) {
+        try {
+          const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const res = await fetch(modelUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts: [
-                    {
-                      text: `${systemPrompt}\n\nSchedule Context: ${JSON.stringify(context.schedule)}\nUser message: ${query}`,
-                    },
-                  ],
-                },
-              ],
+              systemInstruction: {
+                parts: [{ text: `${systemPrompt}\n\nSchedule Context: ${JSON.stringify(context.schedule)}` }],
+              },
+              contents: sanitizedContents,
             }),
-          }
-        );
-      }
+          });
 
-      if (res.ok) {
-        const data = await res.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-          const action = parseActionFromText(query, textResponse);
-          return {
-            id: timeId,
-            role: "coach",
-            text: textResponse,
-            action,
-            timestamp,
-          };
+          if (res.ok) {
+            const data = await res.json();
+            const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textResponse && textResponse.trim()) {
+              candidateText = textResponse.trim();
+              usedModel = model;
+              break;
+            }
+          } else {
+            const errJson = await res.json().catch(() => null);
+            const msg = errJson?.error?.message || `HTTP ${res.status}`;
+            cloudErrorNotice = `${model}: ${msg}`;
+            if (res.status === 400 && msg.toLowerCase().includes("api key not valid")) {
+              break;
+            }
+          }
+        } catch (fetchErr: any) {
+          cloudErrorNotice = fetchErr?.message || "Network request failed";
         }
       }
-    } catch {
-      // Fall through to offline conversational intelligence
+
+      if (candidateText) {
+        const action = parseActionFromText(query, candidateText);
+        return {
+          id: timeId,
+          role: "coach",
+          text: candidateText,
+          action,
+          timestamp,
+          source: "cloud",
+          modelUsed: usedModel,
+        };
+      }
+    } catch (err: any) {
+      cloudErrorNotice = err?.message || "Cloud request failed";
     }
   }
 
   // 2. High-speed local conversational engine (runs 100% offline with zero latency)
+  const localRes = processLocalCoachQuery(
+    query,
+    context,
+    timeId,
+    timestamp,
+    effectiveMembers,
+    effectiveHistory,
+    performanceInsights
+  );
+
+  return {
+    ...localRes,
+    source: "local",
+    modelUsed: "Highveld Local Engine",
+    cloudError: cloudErrorNotice,
+  };
+}
+
+function processLocalCoachQuery(
+  query: string,
+  context: {
+    members?: Member[];
+    history?: Session[];
+    schedule: ClubScheduleDay[];
+    roleMode: "coach" | "athlete";
+    apiKey?: string;
+    athlete?: AthleteProfile | null;
+    chatHistory?: CoachMessage[];
+  },
+  timeId: string,
+  timestamp: string,
+  effectiveMembers: Member[],
+  effectiveHistory: Session[],
+  performanceInsights: SquadPerformanceInsight
+): CoachMessage {
+  const q = query.trim().toLowerCase();
+
+  // Diagnostics and readiness checks
+  if (
+    q === "test" ||
+    q === "testing" ||
+    q.includes("is this working") ||
+    q.includes("does this work") ||
+    q.includes("are you working") ||
+    q.includes("can you hear me") ||
+    q.includes("are you there")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Yes, loud and clear! The coaching channel is fully active and listening. We are ready to talk running, check past results, review training times, or set up the squad for our next session on Freedom Drive.",
+      timestamp,
+    };
+  }
+
+  if (
+    q === "who are you" ||
+    q.includes("who are you") ||
+    q.includes("what are you") ||
+    q.includes("what is your role")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: "I am the Head Coach and Founder AI for Ivory Park Athletics Club in Midrand. I help you and our squad track training times, manage Highveld routes, analyze pace drops and PBs, triage injuries, and schedule club sessions. I run either connected live to Google Gemini Flash or via our high-speed local Highveld intelligence engine.",
+      timestamp,
+    };
+  }
+
+  if (
+    q === "help" ||
+    q.includes("what can you do") ||
+    q.includes("what can i ask") ||
+    q.includes("features") ||
+    q.includes("list commands")
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: "Here is what I can do for you and the squad:\n- Analyze recent finishing times, pace drops, and runner PBs.\n- Set morning wake-up alarms for squad sessions at 05:00.\n- Generate 15km perimeter routes with elevation profiles and GPX downloads.\n- Run cadence metronome (180 SPM) and shoe tread wear scans.\n- Predict Soweto and Comrades marathon times from your 5km PB.\n- Triage injuries like shin splints and calculate Highveld heat pace adjustments.\n- Form 4x400m senior relay squads and reserve transport seats for away races.\nYou can also chat freely with me about any training, recovery, or running question!",
+      timestamp,
+    };
+  }
+
+  if (
+    q.includes("not working") ||
+    q.includes("broken") ||
+    q.includes("fix yourself") ||
+    q.includes("doesnt work") ||
+    q.includes("doesn't work") ||
+    q.includes("seem to work") ||
+    (q.includes("not") && q.includes("work"))
+  ) {
+    return {
+      id: timeId,
+      role: "coach",
+      text: "I am right here and ready to coach! If you are using Google Cloud AI, make sure your Gemini API key is saved and verified in the API Key drawer above. If you are offline or have no key, I operate seamlessly using the built-in local Highveld coaching engine.",
+      timestamp,
+    };
+  }
 
   // 0. Personal Athlete Profile Queries (Private Athlete Mode)
   if (

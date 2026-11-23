@@ -1,5 +1,11 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { executeCoachAction, processCoachQuery } from "./geminiCoach";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  executeCoachAction,
+  processCoachQuery,
+  sanitizeTurnsForGemini,
+  validateGeminiApiKey,
+  type CoachMessage,
+} from "./geminiCoach";
 import { loadCoachAlarm } from "./alarms";
 import { loadClubSchedule } from "./schedule";
 import type { Member } from "./club";
@@ -423,6 +429,183 @@ describe("geminiCoach engine", () => {
         },
       });
       expect(res.text).toContain("Sanibonani Asemahle! Good to have our Team IT Lead on the line.");
+    });
+  });
+
+  describe("sanitizeTurnsForGemini (multi-turn alternation & formatting)", () => {
+    it("drops leading model welcome greeting so turn 0 is always user", () => {
+      const history: CoachMessage[] = [
+        {
+          id: "1",
+          role: "coach",
+          text: "Sanibonani! Welcome to Ivory Park AC.",
+          timestamp: "08:00",
+        },
+      ];
+      const contents = sanitizeTurnsForGemini(history, "Who is the fastest runner?");
+      expect(contents.length).toBe(1);
+      expect(contents[0].role).toBe("user");
+      expect(contents[0].parts[0].text).toBe("Who is the fastest runner?");
+    });
+
+    it("strictly alternates turns by merging consecutive identical roles", () => {
+      const history: CoachMessage[] = [
+        { id: "1", role: "coach", text: "Welcome", timestamp: "08:00" },
+        { id: "2", role: "user", text: "First question", timestamp: "08:01" },
+        { id: "3", role: "user", text: "Second question follow up", timestamp: "08:02" },
+        { id: "4", role: "coach", text: "Coach answer 1", timestamp: "08:03" },
+        { id: "5", role: "coach", text: "Coach answer 2 additional note", timestamp: "08:04" },
+      ];
+      const contents = sanitizeTurnsForGemini(history, "Latest query");
+      // Turn 0 must be user (merged question 1 & 2)
+      expect(contents[0].role).toBe("user");
+      expect(contents[0].parts.length).toBe(2);
+      // Turn 1 must be model (merged coach answer 1 & 2)
+      expect(contents[1].role).toBe("model");
+      expect(contents[1].parts.length).toBe(2);
+      // Turn 2 must be user (latest query)
+      expect(contents[2].role).toBe("user");
+      expect(contents[2].parts[0].text).toBe("Latest query");
+    });
+
+    it("parses image attachments as inlineData", () => {
+      const dataUri = "data:image/jpeg;base64,TU0AKgAAAAgA";
+      const contents = sanitizeTurnsForGemini([], "Inspect my shoe", dataUri);
+      expect(contents.length).toBe(1);
+      expect(contents[0].role).toBe("user");
+      expect(contents[0].parts[0].inlineData).toEqual({
+        mimeType: "image/jpeg",
+        data: "TU0AKgAAAAgA",
+      });
+      expect(contents[0].parts[1].text).toBe("Inspect my shoe");
+    });
+  });
+
+  describe("validateGeminiApiKey", () => {
+    it("returns invalid for blank or empty key", async () => {
+      const res = await validateGeminiApiKey("");
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain("Please enter an API key");
+    });
+
+    it("returns valid when Gemini endpoint responds 200 OK", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "pong" }] } }],
+        }),
+      } as any);
+
+      try {
+        const res = await validateGeminiApiKey("AIzaSyFakeKeyValid1234567890123456789");
+        expect(res.valid).toBe(true);
+        expect(res.model).toBe("gemini-2.0-flash");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it("returns friendly error when Google returns API key not valid", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: {
+            code: 400,
+            message: "API key not valid. Please pass a valid API key.",
+            status: "INVALID_ARGUMENT",
+          },
+        }),
+      } as any);
+
+      try {
+        const res = await validateGeminiApiKey("AIzaSyInvalidKey123");
+        expect(res.valid).toBe(false);
+        expect(res.error).toContain("API key is not valid");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
+
+  describe("conversational readiness and diagnostics", () => {
+    it("responds to 'test' or 'is this working' with confirmation", async () => {
+      const res = await processCoachQuery("Is this working?", {
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Yes, loud and clear!");
+      expect(res.source).toBe("local");
+    });
+
+    it("responds to 'who are you' with identity and role", async () => {
+      const res = await processCoachQuery("Who are you?", {
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Head Coach and Founder AI for Ivory Park Athletics Club");
+    });
+
+    it("responds to 'help' or 'what can you do' with squad capabilities", async () => {
+      const res = await processCoachQuery("What can you do?", {
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("Here is what I can do for you and the squad:");
+    });
+
+    it("responds to 'why are you not working' with helpful diagnostic guidance", async () => {
+      const res = await processCoachQuery("The AI does not seem to be working", {
+        schedule: loadClubSchedule(),
+        roleMode: "coach",
+      });
+      expect(res.text).toContain("I am right here and ready to coach!");
+    });
+  });
+
+  describe("live cloud vs local fallback execution", () => {
+    it("marks response as source: cloud when Gemini API call succeeds", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "Hello runner, your Highveld training looks strong today." }] } }],
+        }),
+      } as any);
+
+      try {
+        const res = await processCoachQuery("How is my pacing today?", {
+          apiKey: "AIzaSyTest123",
+          schedule: loadClubSchedule(),
+          roleMode: "athlete",
+        });
+        expect(res.source).toBe("cloud");
+        expect(res.modelUsed).toBe("gemini-2.0-flash");
+        expect(res.text).toBe("Hello runner, your Highveld training looks strong today.");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it("gracefully falls back to local engine with cloudError note when fetch fails", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network connection lost"));
+
+      try {
+        const res = await processCoachQuery("Who is Siyavuya Thomas?", {
+          apiKey: "AIzaSyTest123",
+          schedule: loadClubSchedule(),
+          roleMode: "coach",
+        });
+        expect(res.source).toBe("local");
+        expect(res.modelUsed).toBe("Highveld Local Engine");
+        expect(res.cloudError).toBe("Network connection lost");
+        expect(res.text).toContain("Siyavuya Thomas is The Original Coach and Founder");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
     });
   });
 });

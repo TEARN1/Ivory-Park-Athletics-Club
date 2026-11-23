@@ -12,8 +12,13 @@ describe("prefs", () => {
   });
   it("repairs damaged saved prefs", () => {
     expect(cleanPrefs({ mode: "neon" as any, palette: "x" as any, distances: [-1] })).toEqual(defaultPrefs());
-    expect(cleanPrefs({ mode: "dark", palette: "pitch", distances: [3, 4] })).toEqual({ mode: "dark", palette: "pitch", distances: [3, 4], sound: defaultSound(), headerSize: "compact" });
+    expect(cleanPrefs({ mode: "dark", palette: "pitch", distances: [3, 4] })).toEqual({ mode: "dark", palette: "pitch", distances: [3, 4], sound: defaultSound(), headerSize: "compact", enableAICoach: true });
     expect(cleanPrefs({ sound: { timeCallMin: 7, voice: "yes" } as any }).sound).toEqual(defaultSound());
+  });
+  it("preserves enableAICoach preference when toggled off or on", () => {
+    expect(cleanPrefs({ enableAICoach: false }).enableAICoach).toBe(false);
+    expect(cleanPrefs({ enableAICoach: true }).enableAICoach).toBe(true);
+    expect(cleanPrefs({}).enableAICoach).toBe(true);
   });
   it("applies mode and palette to the page", () => {
     const attrs = new Map<string, string>(); const el = { setAttribute: (k: string, v: string) => attrs.set(k, v), removeAttribute: (k: string) => attrs.delete(k), getAttribute: (k: string) => attrs.get(k) ?? null, hasAttribute: (k: string) => attrs.has(k) } as unknown as HTMLElement;

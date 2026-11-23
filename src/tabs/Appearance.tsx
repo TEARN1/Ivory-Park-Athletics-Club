@@ -71,3 +71,55 @@ export function SoundSettings({ prefs, setPrefs }: { prefs: Prefs; setPrefs: (p:
     </section>
   );
 }
+
+/** AI Head Coach & Intelligence Assistant settings */
+export function AICoachSettings({ prefs, setPrefs }: { prefs: Prefs; setPrefs: (p: Prefs) => void }) {
+  const enabled = prefs.enableAICoach !== false;
+  return (
+    <section className="ipac-card" style={{ marginTop: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>AI Coach &amp; Assistant</h2>
+        <span
+          className="ipac-badge"
+          style={{
+            background: enabled ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
+            color: enabled ? "#10b981" : "#ef4444",
+            fontSize: "0.75rem",
+            padding: "2px 8px",
+          }}
+        >
+          {enabled ? "Enabled" : "Disabled"}
+        </span>
+      </div>
+      <p className="ipac-hint" style={{ margin: "6px 0 12px" }}>
+        Conversational coaching, live voice dialogue, pace-drop analysis, and route generator powered by Gemini Flash and Highveld offline intelligence.
+      </p>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+        {enabled ? (
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-danger"
+            style={{ fontSize: "0.82rem" }}
+            onClick={() => setPrefs({ ...prefs, enableAICoach: false })}
+          >
+            Remove AI Coach from App
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="ipac-btn ipac-btn-primary"
+            style={{ fontSize: "0.82rem" }}
+            onClick={() => setPrefs({ ...prefs, enableAICoach: true })}
+          >
+            Re-Enable AI Coach
+          </button>
+        )}
+      </div>
+      {!enabled && (
+        <p className="ipac-hint" style={{ marginTop: "8px", color: "#94a3b8" }}>
+          AI Coach buttons and speed-dial shortcuts are hidden from your dashboard. Click Re-Enable anytime to restore them.
+        </p>
+      )}
+    </section>
+  );
+}

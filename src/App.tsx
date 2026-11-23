@@ -369,17 +369,19 @@ export default function App() {
         <img className="ipac-logo" src={logo} alt="Ivory Park Athletics Club logo" />
         <div className="ipac-title"><h1>Ivory Park Athletics Club</h1><p>{s.date} · {s.distanceKm} km</p></div>
         <div className="ipac-head-actions">
-          <button
-            type="button"
-            className="ipac-themebtn ipac-coach-head-btn"
-            style={{ fontWeight: 800, fontSize: "0.76rem", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.45)", borderRadius: "8px", padding: "0 8px" }}
-            aria-label="Open Head Coach and Founder"
-            title="Head Coach & Founder AI Hub"
-            onClick={() => setShowAICoach(true)}
-          >
-            <span className="ipac-coach-head-full">AI Coach</span>
-            <span className="ipac-coach-head-short">AI</span>
-          </button>
+          {prefs.enableAICoach !== false && (
+            <button
+              type="button"
+              className="ipac-themebtn ipac-coach-head-btn"
+              style={{ fontWeight: 800, fontSize: "0.76rem", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.45)", borderRadius: "8px", padding: "0 8px" }}
+              aria-label="Open Head Coach and Founder"
+              title="Head Coach & Founder AI Hub"
+              onClick={() => setShowAICoach(true)}
+            >
+              <span className="ipac-coach-head-full">AI Coach</span>
+              <span className="ipac-coach-head-short">AI</span>
+            </button>
+          )}
           <button
             type="button"
             className="ipac-themebtn ipac-profile-head-btn"
@@ -411,6 +413,7 @@ export default function App() {
             currentAthlete={currentAthlete}
             onOpenProfile={() => setShowAthleteProfileModal(true)}
             onOpenAICoach={() => setShowAICoach(true)}
+            enableAICoach={prefs.enableAICoach !== false}
             onOpenTour={() => setShowTour(true)}
             onOpenInstall={() => setShowInstall(true)}
             isNight={isNight}
@@ -628,18 +631,20 @@ export default function App() {
               <span className="ipac-sd-icon">SOS</span>
               <span className="ipac-sd-label">Emergency SOS</span>
             </button>
-            <button
-              type="button"
-              className="ipac-speed-dial-item"
-              role="menuitem"
-              onClick={() => {
-                setSpeedDialOpen(false);
-                setShowAICoach(true);
-              }}
-            >
-              <span className="ipac-sd-icon" style={{ color: "#38bdf8", fontWeight: 900 }}>COACH</span>
-              <span className="ipac-sd-label">Head Coach</span>
-            </button>
+            {prefs.enableAICoach !== false && (
+              <button
+                type="button"
+                className="ipac-speed-dial-item"
+                role="menuitem"
+                onClick={() => {
+                  setSpeedDialOpen(false);
+                  setShowAICoach(true);
+                }}
+              >
+                <span className="ipac-sd-icon" style={{ color: "#38bdf8", fontWeight: 900 }}>COACH</span>
+                <span className="ipac-sd-label">Head Coach</span>
+              </button>
+            )}
             <button
               type="button"
               className="ipac-speed-dial-item"
@@ -705,7 +710,7 @@ export default function App() {
             setSpeedDialOpen((v) => !v);
           }}
         >
-          {speedDialOpen ? "✕" : "+"}
+          {speedDialOpen ? "x" : "+"}
         </button>
       </div>
 
@@ -793,9 +798,14 @@ export default function App() {
         />
       )}
 
-      {showAICoach && (
+      {showAICoach && prefs.enableAICoach !== false && (
         <AICoachHub
           onClose={() => setShowAICoach(false)}
+          onRemoveAICoach={() => {
+            setPrefs({ ...prefs, enableAICoach: false });
+            setShowAICoach(false);
+            showToast("AI Coach removed from app interface. Re-enable anytime in Club Settings.");
+          }}
           members={club.members}
           schedule={loadClubSchedule()}
           history={history}

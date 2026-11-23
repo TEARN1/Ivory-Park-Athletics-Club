@@ -29,7 +29,7 @@ export interface SoundPrefs {
 }
 export const COUNTDOWNS = [0, 3, 5, 10], TIME_CALLS = [0, 1, 2, 5, 10], QUIET_AFTER = [0, 10, 20, 30, 60], SAFETY_PACES = [600, 720, 900, 1200];
 export const defaultSound = (): SoundPrefs => ({ countdownSec: 5, beeps: true, voice: true, finishes: true, laps: true, timeCallMin: 5, quietAfterMin: 0, safetyPaceSec: 720 });
-export interface Prefs { mode: Mode; palette: Palette; distances: number[]; sound: SoundPrefs; headerSize?: HeaderSize }
+export interface Prefs { mode: Mode; palette: Palette; distances: number[]; sound: SoundPrefs; headerSize?: HeaderSize; enableAICoach?: boolean }
 
 export const PALETTES: { id: Palette; name: string; a: string; b: string }[] = [
   { id: "club", name: "Club (Royal Navy & Scarlet)", a: "#2a3090", b: "#e81820" },
@@ -44,7 +44,7 @@ export const PALETTES: { id: Palette; name: string; a: string; b: string }[] = [
   { id: "sunlight", name: "Sunlight High-Contrast", a: "#000000", b: "#f59e0b" },
 ];
 export const DEFAULT_DISTANCES = [1, 2, 5, 10, 15, 20, 21.1];
-export const defaultPrefs = (): Prefs => ({ mode: "auto", palette: "club", distances: DEFAULT_DISTANCES, sound: defaultSound(), headerSize: "compact" });
+export const defaultPrefs = (): Prefs => ({ mode: "auto", palette: "club", distances: DEFAULT_DISTANCES, sound: defaultSound(), headerSize: "compact", enableAICoach: true });
 
 /** "2.4, 5, 8" -> [2.4, 5, 8]. Throws a message the coach can act on. */
 export function parseDistances(text: string): number[] {
@@ -65,6 +65,7 @@ export const cleanPrefs = (raw: Partial<Prefs> | undefined): Prefs => {
     sound: cleanSound(raw?.sound),
     distances: Array.isArray(raw?.distances) && raw!.distances.length && raw!.distances.every((n) => typeof n === "number" && n >= 0.1 && n <= 100) ? raw!.distances.slice(0, 8) : d.distances,
     headerSize: (["compact", "standard", "large"] as const).includes(raw?.headerSize as any) ? raw!.headerSize : "compact",
+    enableAICoach: typeof raw?.enableAICoach === "boolean" ? raw.enableAICoach : true,
   };
 };
 export function applyPrefs(p: Prefs, root: HTMLElement = document.documentElement) {

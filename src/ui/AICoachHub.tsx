@@ -3,9 +3,11 @@ import {
   loadGeminiApiKey,
   processCoachQuery,
   saveGeminiApiKey,
+  validateGeminiApiKey,
   type CoachAction,
   type CoachMessage,
   type CoachStructuredReport,
+  type KeyValidationResult,
 } from "../lib/geminiCoach";
 import { startAlarmLoop, say, stopSpeaking, beep, vibrate } from "../lib/sound";
 import type { Member } from "../lib/club";
@@ -20,6 +22,7 @@ import {
 
 interface AICoachHubProps {
   onClose: () => void;
+  onRemoveAICoach?: () => void;
   members: Member[];
   schedule: ClubScheduleDay[];
   history: Session[];
@@ -573,7 +576,15 @@ function ActionCard({
           <div className="ipac-trophy-grid">
             {action.payload.trophies?.map((t: any, idx: number) => (
               <div key={idx} className="ipac-trophy-badge">
-                <div className="ipac-trophy-icon">🏆</div>
+                <div className="ipac-trophy-icon" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                    <path d="M4 22h16" />
+                    <path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34" />
+                    <path d="M6 4h12v5a6 6 0 0 1-12 0V4z" />
+                  </svg>
+                </div>
                 <div style={{ fontWeight: 800, fontSize: "0.82rem" }}>{t.title}</div>
                 <div style={{ fontSize: "0.74rem", color: "#0284c7" }}>{t.recipient}</div>
                 <div style={{ fontSize: "0.7rem", color: "#64748b" }}>{t.achievement}</div>
@@ -749,6 +760,7 @@ function StructuredReportView({ report }: { report: CoachStructuredReport }) {
 
 export default function AICoachHub({
   onClose,
+  onRemoveAICoach,
   members,
   schedule,
   history,
@@ -761,6 +773,9 @@ export default function AICoachHub({
 }: AICoachHubProps) {
   const [apiKey, setApiKey] = useState(() => loadGeminiApiKey());
   const [apiKeyInput, setApiKeyInput] = useState(() => loadGeminiApiKey());
+  const [keyTesting, setKeyTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ valid: boolean; message: string } | null>(null);
+  const [lastCloudError, setLastCloudError] = useState<string | null>(null);
   const [showKeyDrawer, setShowKeyDrawer] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [loading, setLoading] = useState(false);
@@ -783,6 +798,41 @@ export default function AICoachHub({
   const [messages, setMessages] = useState<CoachMessage[]>(() =>
     loadAthleteChatHistory(currentAthlete || null)
   );
+
+  const handleTestKey = async () => {
+    let clean = apiKeyInput.trim().replace(/^["']|["']$/g, "");
+    if (!clean) {
+      setTestResult({ valid: false, message: "Please enter an API key to test." });
+      return;
+    }
+    setKeyTesting(true);
+    setTestResult(null);
+    try {
+      const res = await validateGeminiApiKey(clean);
+      if (res.valid) {
+        setTestResult({
+          valid: true,
+          message: `Connected successfully to Google AI Studio (${res.model || "Gemini Flash"})!`,
+        });
+        saveGeminiApiKey(clean);
+        setApiKey(clean);
+        setLastCloudError(null);
+        showToast("Gemini API key validated! Live Cloud AI active.");
+      } else {
+        setTestResult({
+          valid: false,
+          message: res.error || "Failed to validate key with Google Gemini API.",
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        valid: false,
+        message: err?.message || "Network error when reaching Google AI Studio.",
+      });
+    } finally {
+      setKeyTesting(false);
+    }
+  };
 
   // Clean up voice call if component unmounts
   useEffect(() => {
@@ -989,7 +1039,14 @@ export default function AICoachHub({
         apiKey,
         athlete: currentAthlete || null,
         chatHistory: messages,
+        attachedImage: imgToSend,
       });
+
+      if (response.cloudError) {
+        setLastCloudError(response.cloudError);
+      } else if (response.source === "cloud") {
+        setLastCloudError(null);
+      }
 
       setMessages((prev) => [...prev, response]);
       beep(880, 70);
@@ -1041,8 +1098,19 @@ export default function AICoachHub({
         <div className="ipac-coach-header">
           <div className="ipac-coach-title-wrap">
             <div className="ipac-coach-badge">
-              <span className="ipac-coach-status-dot" style={{ background: apiKey ? "#10b981" : "#38bdf8" }} />
-              <span>{apiKey ? "Live Cloud AI (Gemini Flash Active)" : "Local Coach Engine"}</span>
+              <span
+                className="ipac-coach-status-dot"
+                style={{
+                  background: apiKey && !lastCloudError ? "#10b981" : apiKey && lastCloudError ? "#f59e0b" : "#38bdf8",
+                }}
+              />
+              <span>
+                {apiKey && !lastCloudError
+                  ? "Live Cloud AI (Gemini Flash Active)"
+                  : apiKey && lastCloudError
+                  ? "Cloud API Notice (Local Fallback Active)"
+                  : "Local Coach Engine"}
+              </span>
             </div>
             <h2>Head Coach &amp; Founder</h2>
             <p className="ipac-hint" style={{ margin: 0 }}>
@@ -1211,11 +1279,11 @@ export default function AICoachHub({
           <div className="ipac-coach-key-drawer">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
               <label htmlFor="coach-key-input" style={{ fontSize: "0.85rem", fontWeight: 700 }}>
-                Cloud AI Engine Key (Free Tier)
+                Cloud AI Engine Key (Google AI Studio Free Tier)
               </label>
               <small style={{ color: "#94a3b8" }}>Free Cloud Intelligence</small>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <input
                 id="coach-key-input"
                 type="password"
@@ -1225,10 +1293,12 @@ export default function AICoachHub({
                 onChange={(e) => {
                   const val = e.target.value;
                   setApiKeyInput(val);
+                  setTestResult(null);
                   const clean = val.trim().replace(/^["']|["']$/g, "");
                   if (clean.startsWith("AIza") && clean.length >= 35) {
                     saveGeminiApiKey(clean);
                     setApiKey(clean);
+                    setLastCloudError(null);
                     showToast("Gemini API Key detected & saved! Live Cloud AI active.");
                   }
                 }}
@@ -1244,9 +1314,18 @@ export default function AICoachHub({
                     handleSaveKey();
                   }
                 }}
-                style={{ flex: 1, fontFamily: "monospace", fontSize: "0.85rem" }}
+                style={{ flex: 1, minWidth: "160px", fontFamily: "monospace", fontSize: "0.85rem" }}
               />
-              <button type="button" className="ipac-btn ipac-btn-primary" onClick={handleSaveKey}>
+              <button
+                type="button"
+                className="ipac-btn ipac-btn-outline"
+                disabled={keyTesting || !apiKeyInput.trim()}
+                onClick={handleTestKey}
+                style={{ fontSize: "0.82rem" }}
+              >
+                {keyTesting ? "Testing..." : "Test Key"}
+              </button>
+              <button type="button" className="ipac-btn ipac-btn-primary" onClick={handleSaveKey} style={{ fontSize: "0.82rem" }}>
                 Save Key
               </button>
               {apiKey && (
@@ -1257,13 +1336,34 @@ export default function AICoachHub({
                     setApiKeyInput("");
                     saveGeminiApiKey("");
                     setApiKey("");
-                    showToast("Cleared API key");
+                    setTestResult(null);
+                    setLastCloudError(null);
+                    showToast("Cleared API key; operating on offline Highveld engine");
                   }}
+                  style={{ fontSize: "0.82rem" }}
                 >
                   Clear
                 </button>
               )}
             </div>
+
+            {testResult && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  padding: "6px 10px",
+                  borderRadius: "8px",
+                  background: testResult.valid ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                  border: `1px solid ${testResult.valid ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)"}`,
+                  color: testResult.valid ? "#10b981" : "#ef4444",
+                  fontSize: "0.8rem",
+                }}
+              >
+                <b>{testResult.valid ? "Key Validated: " : "Connection Error: "}</b>
+                {testResult.message}
+              </div>
+            )}
+
             {apiKey ? (
               <div style={{ marginTop: "6px", fontSize: "0.78rem", color: "#10b981", fontWeight: 600 }}>
                 Active Club Key: {apiKey.slice(0, 6)}...{apiKey.slice(-4)} (Managed by Team IT Asemahle • Shared with all squad athletes)
@@ -1273,6 +1373,73 @@ export default function AICoachHub({
                 Team IT Setup: As Team IT Lead, when you save this key once, all squad athletes automatically get Live Cloud AI conversation on this app without needing their own key.
               </p>
             )}
+
+            <div
+              style={{
+                marginTop: "12px",
+                paddingTop: "10px",
+                borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "8px",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#cbd5e1" }}>Don't want AI in the app?</div>
+                <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>
+                  Remove AI Coach buttons, speed dial, and voice assistant completely.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="ipac-btn ipac-btn-danger"
+                style={{ fontSize: "0.75rem", padding: "4px 10px" }}
+                onClick={() => {
+                  if (onRemoveAICoach) {
+                    onRemoveAICoach();
+                  } else {
+                    onClose();
+                  }
+                }}
+              >
+                Remove AI Coach from App
+              </button>
+            </div>
+          </div>
+        )}
+
+        {lastCloudError && (
+          <div
+            style={{
+              background: "rgba(245, 158, 11, 0.12)",
+              border: "1px solid rgba(245, 158, 11, 0.3)",
+              borderRadius: "8px",
+              padding: "6px 10px",
+              margin: "0 16px 8px",
+              fontSize: "0.78rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <div>
+              <span style={{ fontWeight: 700, color: "#f59e0b" }}>Cloud API Notice:</span>{" "}
+              <span style={{ color: "#cbd5e1" }}>{lastCloudError}</span>
+              <span style={{ color: "#94a3b8", display: "block", fontSize: "0.72rem" }}>
+                Operating on Highveld Local Engine. Check or re-test key in API Key settings if needed.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="ipac-btn ipac-btn-quiet"
+              style={{ fontSize: "0.7rem", padding: "2px 6px" }}
+              onClick={() => setLastCloudError(null)}
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
@@ -1299,9 +1466,41 @@ export default function AICoachHub({
               className={`ipac-coach-msg ${m.role === "coach" ? "ipac-coach-msg-coach" : "ipac-coach-msg-user"}`}
             >
               <div className="ipac-coach-msg-header">
-                <b>{m.role === "coach" ? "Head Coach & Founder" : "You"}</b>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <b>{m.role === "coach" ? "Head Coach & Founder" : "You"}</b>
+                  {m.role === "coach" && (
+                    <span
+                      style={{
+                        fontSize: "0.68rem",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "10px",
+                        background: m.source === "cloud" ? "rgba(16, 185, 129, 0.15)" : "rgba(56, 189, 248, 0.15)",
+                        color: m.source === "cloud" ? "#10b981" : "#38bdf8",
+                        border: `1px solid ${m.source === "cloud" ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.3)"}`,
+                      }}
+                    >
+                      {m.source === "cloud" ? (m.modelUsed || "Gemini Flash") : "Highveld Local Engine"}
+                    </span>
+                  )}
+                </div>
                 <span className="ipac-coach-msg-time">{m.timestamp}</span>
               </div>
+              {m.cloudError && (
+                <div
+                  style={{
+                    fontSize: "0.72rem",
+                    color: "#f59e0b",
+                    background: "rgba(245, 158, 11, 0.1)",
+                    border: "1px solid rgba(245, 158, 11, 0.25)",
+                    borderRadius: "6px",
+                    padding: "3px 8px",
+                    margin: "4px 0",
+                  }}
+                >
+                  Cloud Notice: {m.cloudError} (Handled via Highveld Engine)
+                </div>
+              )}
               <div className="ipac-coach-msg-body">{m.text}</div>
 
               {m.imageUrl && (
